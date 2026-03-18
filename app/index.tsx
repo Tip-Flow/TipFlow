@@ -21,7 +21,10 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>Sign in as Manager</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.button, styles.buttonOutline]} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonOutline]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(staff)/mytips')}>
             <Text style={[styles.buttonText, styles.buttonTextOutline]}>Sign in as Staff</Text>
           </TouchableOpacity>
         </View>
