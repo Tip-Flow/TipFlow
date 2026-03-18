@@ -1,6 +1,9 @@
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
+  const router = useRouter();
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
@@ -11,7 +14,10 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.button}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(manager)/home')}>
             <Text style={styles.buttonText}>Sign in as Manager</Text>
           </TouchableOpacity>
 
