@@ -1,10 +1,13 @@
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
   View,
   SafeAreaView,
 } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -13,20 +16,94 @@ const TEAL_DIM = 'rgba(0,229,160,0.15)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 
+const FALLBACK_STATS = {
+  locationName: 'Your Restaurant',
+  tipsThisWeek: '$8,120',
+  staffActive: '8',
+  bankNotLinked: '2',
+};
+
 const leaderboard = [
   { rank: 1, name: 'Priya S.', tips: '$1,840', medal: '🥇' },
   { rank: 2, name: 'Marcus T.', tips: '$1,610', medal: '🥈' },
   { rank: 3, name: 'Lena K.', tips: '$1,290', medal: '🥉' },
 ];
 
-const stats = [
-  { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: TEAL },
-  { label: 'Tips This Week', value: '$8,120', icon: '📈', accent: TEAL },
-  { label: 'Staff Active', value: '8', icon: '👥', accent: TEAL },
-  { label: 'Bank Not Linked', value: '2', icon: '🏦', accent: '#ff6b6b' },
-];
-
 export default function ManagerHome() {
+  const [locationName, setLocationName] = useState(FALLBACK_STATS.locationName);
+  const [tipsThisWeek, setTipsThisWeek] = useState(FALLBACK_STATS.tipsThisWeek);
+  const [staffActive, setStaffActive] = useState(FALLBACK_STATS.staffActive);
+  const [bankNotLinked, setBankNotLinked] = useState(FALLBACK_STATS.bankNotLinked);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const [locationRes, staffRes, shiftsRes, bankRes] = await Promise.all([
+          supabase.from('locations').select('name').limit(1),
+          supabase.from('staff_members').select('id'),
+          supabase.from('shifts').select('total_tips'),
+          supabase.from('staff_members').select('id').eq('bank_linked', false),
+        ]);
+
+        console.log('[fetchDashboardData] locationRes:', {
+          data: locationRes.data,
+          count: locationRes.count,
+          error: locationRes.error,
+        });
+        console.log('[fetchDashboardData] staffRes:', {
+          data: staffRes.data,
+          count: staffRes.count,
+          error: staffRes.error,
+        });
+        console.log('[fetchDashboardData] shiftsRes:', {
+          data: shiftsRes.data,
+          count: shiftsRes.count,
+          error: shiftsRes.error,
+        });
+        console.log('[fetchDashboardData] bankRes:', {
+          data: bankRes.data,
+          count: bankRes.count,
+          error: bankRes.error,
+        });
+
+        if (locationRes.data && locationRes.data[0]) {
+          setLocationName(locationRes.data[0].name);
+        }
+
+        if (staffRes.data) {
+          setStaffActive(String(staffRes.data.length));
+        }
+
+        if (shiftsRes.data) {
+          const totalCents = shiftsRes.data.reduce(
+            (sum, shift) => sum + (shift.total_tips ?? 0),
+            0
+          );
+          const dollars = Math.round(totalCents / 100);
+          setTipsThisWeek('$' + dollars.toLocaleString('en-CA'));
+        }
+
+        if (bankRes.data) {
+          setBankNotLinked(String(bankRes.data.length));
+        }
+      } catch {
+        // Keep fallback values already set in state
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
+
+  const stats = [
+    { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: TEAL },
+    { label: 'Tips This Week', value: tipsThisWeek, icon: '📈', accent: TEAL },
+    { label: 'Staff Active', value: staffActive, icon: '👥', accent: TEAL },
+    { label: 'Bank Not Linked', value: bankNotLinked, icon: '🏦', accent: '#ff6b6b' },
+  ];
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -36,9 +113,16 @@ export default function ManagerHome() {
 
         {/* Greeting */}
         <Text style={styles.greeting}>Good evening, Jamie 👋</Text>
-        <Text style={styles.subGreeting}>Here's your team overview</Text>
+        <Text style={styles.subGreeting}>
+          {loading ? 'Loading...' : locationName}
+        </Text>
 
         {/* Stat Cards 2x2 Grid */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={TEAL} />
+          </View>
+        ) : (
         <View style={styles.grid}>
           {stats.map((stat) => (
             <View key={stat.label} style={styles.card}>
@@ -48,6 +132,7 @@ export default function ManagerHome() {
             </View>
           ))}
         </View>
+        )}
 
         {/* Team Goal Progress */}
         <View style={styles.section}>
@@ -117,6 +202,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: MUTED,
     marginTop: 2,
+  },
+
+  // Loading
+  loadingContainer: {
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Grid
