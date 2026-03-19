@@ -34,7 +34,7 @@ export default function ProfileScreen() {
               <Text style={styles.role}>Server · Ossington, Toronto</Text>
               <View style={styles.badgeRow}>
                 <View style={styles.goldBadge}>
-                  <Text style={styles.goldBadgeText}>🏆 Rank #1</Text>
+                  <Text style={styles.goldBadgeText}>⭐ Gold Server</Text>
                 </View>
                 <View style={styles.amberBadge}>
                   <Text style={styles.amberBadgeText}>🔥 5 Streak</Text>

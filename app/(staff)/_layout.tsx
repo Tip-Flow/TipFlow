@@ -32,10 +32,10 @@ export default function StaffLayout() {
         }}
       />
       <Tabs.Screen
-        name="ranking"
+        name="progress"
         options={{
-          title: 'Ranking',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
+          title: 'Progress',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.line.uptrend.xyaxis" color={color} />,
         }}
       />
       <Tabs.Screen

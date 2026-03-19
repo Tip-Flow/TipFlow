@@ -28,10 +28,13 @@ export default function MyTipsScreen() {
 
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>Rank #1 this week 🥇</Text>
+              <Text style={styles.badgeText}>Gold Server ⭐</Text>
             </View>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>🔥×5 streak</Text>
+              <Text style={styles.badgeText}>Personal Best: 26.1% 🏅</Text>
+            </View>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>🔥 3 shift streak</Text>
             </View>
           </View>
 
@@ -52,44 +55,44 @@ export default function MyTipsScreen() {
           </Text>
         </View>
 
-        {/* Challenges Preview */}
+        {/* Milestones Preview */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Active Challenges</Text>
+            <Text style={styles.cardTitle}>Active Milestones</Text>
             <Text style={styles.cardLink}>See all</Text>
           </View>
 
-          {/* Challenge 1 */}
+          {/* Milestone 1 */}
           <View style={styles.challenge}>
             <View style={styles.challengeTop}>
-              <Text style={styles.challengeName}>⚡ Weekend Warrior</Text>
-              <Text style={styles.challengeReward}>+$50</Text>
+              <Text style={styles.challengeName}>💪 5 Shift Streak</Text>
+              <Text style={styles.challengeIncentive}>Incentive</Text>
             </View>
-            <Text style={styles.challengeDesc}>Earn $500 across Fri–Sun shifts</Text>
+            <Text style={styles.challengeDesc}>5 shifts in a row above your personal average</Text>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: '74%' }]} />
+              <View style={[styles.progressFill, { width: '60%' }]} />
             </View>
             <View style={styles.progressLabels}>
-              <Text style={styles.progressMuted}>$370 / $500</Text>
-              <Text style={styles.progressMuted}>74%</Text>
+              <Text style={styles.progressMuted}>3 / 5 shifts</Text>
+              <Text style={styles.progressMuted}>60%</Text>
             </View>
           </View>
 
           <View style={styles.challengeSep} />
 
-          {/* Challenge 2 */}
+          {/* Milestone 2 */}
           <View style={styles.challenge}>
             <View style={styles.challengeTop}>
-              <Text style={styles.challengeName}>🌟 Top Tipper Magnet</Text>
-              <Text style={styles.challengeReward}>+$25</Text>
+              <Text style={styles.challengeName}>🎯 Hit Weekly Goal</Text>
+              <Text style={styles.challengeIncentive}>Incentive</Text>
             </View>
-            <Text style={styles.challengeDesc}>Receive 20 tips in a single week</Text>
+            <Text style={styles.challengeDesc}>Reach your personal weekly tip % target</Text>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: '60%' }]} />
+              <View style={[styles.progressFill, { width: '100%' }]} />
             </View>
             <View style={styles.progressLabels}>
-              <Text style={styles.progressMuted}>12 / 20 tips</Text>
-              <Text style={styles.progressMuted}>60%</Text>
+              <Text style={styles.progressMuted}>Goal hit this week!</Text>
+              <Text style={styles.progressMuted}>100%</Text>
             </View>
           </View>
         </View>
@@ -275,10 +278,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#e8f5ef',
   },
-  challengeReward: {
-    fontSize: 15,
+  challengeIncentive: {
+    fontSize: 12,
     fontWeight: '700',
     color: TEAL,
+    backgroundColor: '#0d2a1e',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#1a5c3a',
+    overflow: 'hidden',
   },
   challengeDesc: {
     fontSize: 13,
