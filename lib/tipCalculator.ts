@@ -45,13 +45,31 @@ export function calculateTips(
   if (totalTips < 0) throw new Error('totalTips must be non-negative');
   if (staffList.length === 0) throw new Error('staffList must not be empty');
 
+  // Debug: log inputs
+  console.log('[calculateTips] staffList:', JSON.stringify(staffList.map((s) => ({
+    id: s.id,
+    name: s.name,
+    role: s.role,
+    hoursWorked: s.hoursWorked,
+  })), null, 2));
+  console.log('[calculateTips] roleWeights:', JSON.stringify(roleWeights, null, 2));
+
   // 1. Compute individual weights
-  const weighted = staffList.map((s) => ({
-    ...s,
-    weight: (roleWeights[s.role] ?? 0) * s.hoursWorked,
-  }));
+  //    Normalize role to lowercase to guard against Supabase returning mixed-case values
+  //    e.g. "Server" instead of "server" — a mismatch silently produces weight 0
+  const weighted = staffList.map((s) => {
+    const normalizedRole = s.role?.toLowerCase() as Role;
+    const roleWeight = roleWeights[normalizedRole] ?? 0;
+    const weight = roleWeight * s.hoursWorked;
+    console.log(
+      `[calculateTips] ${s.name} | role: "${s.role}" → normalized: "${normalizedRole}" | roleWeight: ${roleWeight} | hours: ${s.hoursWorked} | weight: ${weight}`,
+    );
+    return { ...s, role: normalizedRole, weight };
+  });
 
   const totalWeight = weighted.reduce((sum, s) => sum + s.weight, 0);
+  console.log('[calculateTips] totalWeight:', totalWeight);
+
   if (totalWeight === 0) {
     throw new Error(
       'Total weight is zero — verify role weights and hours worked are greater than 0',
