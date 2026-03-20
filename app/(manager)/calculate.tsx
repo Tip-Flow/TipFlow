@@ -13,9 +13,10 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { calculateTips, Role, TipAllocationResult } from '@/lib/tipCalculator';
+import { CSVParseResult } from '@/lib/csvParser';
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 const BG = '#09100e';
@@ -23,6 +24,7 @@ const CARD = '#162019';
 const TEAL = '#00e5a0';
 const TEAL_DIM = 'rgba(0,229,160,0.15)';
 const AMBER = '#f59e0b';
+const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
@@ -84,6 +86,7 @@ function dollarsToCents(dollars: string): number {
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
   const router = useRouter();
+  const { csvData } = useLocalSearchParams<{ csvData?: string }>();
 
   // Shift details
   const [shiftName, setShiftName] = useState('');
@@ -95,6 +98,7 @@ export default function CalculateScreen() {
   const [staff, setStaff] = useState<StaffEntry[]>([]);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [loadingStaff, setLoadingStaff] = useState(true);
+  const [csvImported, setCsvImported] = useState(false);
 
   // Results
   const [results, setResults] = useState<TipAllocationResult[] | null>(null);
@@ -123,7 +127,7 @@ export default function CalculateScreen() {
 
         if (error) throw error;
 
-        const entries: StaffEntry[] = (staffData ?? []).map((s) => ({
+        let entries: StaffEntry[] = (staffData ?? []).map((s) => ({
           id: s.id,
           name: s.name,
           role: (s.role as Role) ?? 'server',
@@ -131,6 +135,39 @@ export default function CalculateScreen() {
           hoursWorked: '',
           included: true,
         }));
+
+        // ── Apply CSV pre-fill if navigated from CSV import ────────────────
+        if (csvData) {
+          try {
+            const parsed: CSVParseResult = JSON.parse(csvData);
+
+            // Pre-fill totalTips / totalSales
+            if (parsed.totalTips !== null && parsed.totalTips > 0) {
+              setTotalTipsDollars(centsToDisplay(parsed.totalTips));
+            }
+            if (parsed.totalSales !== null && parsed.totalSales > 0) {
+              setTotalSalesDollars(centsToDisplay(parsed.totalSales));
+            }
+
+            // Match CSV rows to Supabase staff by name (case-insensitive)
+            // and pre-fill hours. Unmatched CSV rows are ignored (manager
+            // can still add hours manually for any staff not in the CSV).
+            entries = entries.map((entry) => {
+              const match = parsed.rows.find(
+                (row) => row.name.toLowerCase() === entry.name.toLowerCase(),
+              );
+              if (match && match.hoursWorked > 0) {
+                return { ...entry, hoursWorked: String(match.hoursWorked) };
+              }
+              return entry;
+            });
+
+            setCsvImported(true);
+          } catch {
+            // Malformed param — ignore silently, fall through to manual entry
+          }
+        }
+
         setStaff(entries);
       } catch (err) {
         console.error('Failed to load staff:', err);
@@ -276,6 +313,15 @@ export default function CalculateScreen() {
             <Text style={styles.title}>Calculate Tips</Text>
             <Text style={styles.subtitle}>Enter shift details and staff hours</Text>
           </View>
+
+          {/* CSV import banner */}
+          {csvImported && (
+            <View style={styles.csvBanner}>
+              <Text style={styles.csvBannerText}>
+                CSV imported — hours and totals pre-filled. Adjust anything before calculating.
+              </Text>
+            </View>
+          )}
 
           {/* Shift Details Card */}
           <View style={styles.card}>
@@ -490,6 +536,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: MUTED,
+  },
+
+  // CSV banner
+  csvBanner: {
+    backgroundColor: AMBER_DIM,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.3)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  csvBannerText: {
+    fontSize: 13,
+    color: AMBER,
+    lineHeight: 18,
+    fontWeight: '500',
   },
 
   // Card
