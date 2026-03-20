@@ -229,6 +229,1034 @@
 
     .centered { text-align: center; }
 
+    /* ── INTERACTIVE DEMO ── */
+    .demo-section {
+      background: var(--bg-dark);
+      text-align: center;
+      padding: 100px 5%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .demo-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 500px;
+      background: radial-gradient(ellipse at center, rgba(0, 200, 160, 0.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .demo-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      margin: 0 auto 2rem;
+      max-width: 900px;
+    }
+
+    /* Phone frame */
+    .phone-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .phone-frame {
+      width: 280px;
+      height: 560px;
+      background: linear-gradient(145deg, #1a2420, #0f1a16);
+      border-radius: 44px;
+      border: 2px solid rgba(0, 200, 160, 0.25);
+      box-shadow:
+        0 0 0 1px rgba(0, 200, 160, 0.08),
+        0 0 60px rgba(0, 200, 160, 0.12),
+        0 30px 80px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .phone-notch {
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 100px; height: 28px;
+      background: #0f1a16;
+      border-radius: 0 0 20px 20px;
+      z-index: 10;
+      border-bottom: 1px solid rgba(0,200,160,0.1);
+    }
+
+    .phone-screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 43px;
+      overflow: hidden;
+      background: #09100e;
+    }
+
+    /* Shared screen styles */
+    .ds {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      font-size: 11px;
+      background: #09100e;
+      overflow: hidden;
+    }
+    .ds.active { display: flex; }
+
+    .ds-status-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 20px 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .ds-header-bar {
+      padding: 32px 16px 10px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .ds-app-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--teal);
+      letter-spacing: -0.3px;
+    }
+
+    .ds-btn-teal {
+      width: 100%;
+      background: var(--teal);
+      color: #09100e;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 11px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      margin-top: 10px;
+    }
+
+    .ds-btn-teal:hover {
+      background: var(--teal-dark);
+      transform: scale(1.02);
+    }
+
+    .ds-btn-outline {
+      width: 100%;
+      background: transparent;
+      color: var(--teal);
+      font-weight: 700;
+      font-size: 11px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--teal);
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+
+    .ds-btn-outline:hover { background: var(--teal-glow); }
+
+    .ds-tab-bar {
+      display: flex;
+      border-top: 1px solid var(--border);
+      background: #0d1512;
+      flex-shrink: 0;
+      margin-top: auto;
+    }
+
+    .ds-tab {
+      flex: 1;
+      padding: 5px 1px 4px;
+      text-align: center;
+      font-size: 6.5px;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1.4;
+      transition: color 0.15s;
+    }
+
+    .ds-tab .ds-tab-icon {
+      font-size: 11px;
+      display: block;
+      line-height: 1.3;
+    }
+
+    .ds-tab.active-tab { color: var(--teal); }
+
+    .ds-tab:hover { color: var(--text); }
+
+    .ds-back {
+      background: none;
+      border: none;
+      color: var(--teal);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    /* SCREEN 1 */
+
+    .ds1-bg {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 22px 20px;
+      background: radial-gradient(ellipse at 50% 30%, rgba(0,200,160,0.14) 0%, transparent 65%), #090e0c;
+      cursor: pointer;
+      gap: 0;
+    }
+
+    .ds1-logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--teal);
+      margin-bottom: 32px;
+      letter-spacing: -0.5px;
+    }
+
+    .ds1-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 12px;
+    }
+
+    .ds1-quote-wrap {
+      background: rgba(0,200,160,0.06);
+      border: 1px solid rgba(0,200,160,0.2);
+      border-radius: 14px;
+      padding: 16px 14px;
+      margin-bottom: 28px;
+    }
+
+    .ds1-quote {
+      font-size: 12px;
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.55;
+      margin-bottom: 8px;
+    }
+
+    .ds1-author {
+      font-size: 10px;
+      color: var(--teal);
+      font-weight: 600;
+    }
+
+    .ds1-hint {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      cursor: pointer;
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .ds1-hint:hover { color: var(--teal); border-color: var(--teal); }
+
+    /* SCREEN 2 */
+    .ds2-body {
+      flex: 1;
+      padding: 10px 20px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ds2-welcome {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 20px;
+      letter-spacing: -0.3px;
+    }
+
+    .ds2-field-wrap {
+      margin-bottom: 12px;
+    }
+
+    .ds2-label {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .ds2-field {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .ds2-faceid {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+      color: var(--text-muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    /* SCREEN 3 */
+    .ds3-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 14px 10px;
+      flex-shrink: 0;
+    }
+
+    .ds3-greeting {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .ds3-sub {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .ds3-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #09100e;
+      font-weight: 800;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ds3-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 6px;
+      padding: 0 10px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .ds3-stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 4px;
+      text-align: center;
+    }
+
+    .ds3-stat-val {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .ds3-stat-val.teal { color: var(--teal); }
+    .ds3-stat-val.warn { color: #ff9a3c; }
+
+    .ds3-stat-lbl {
+      font-size: 7.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .ds3-goal-card {
+      margin: 0 10px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      flex-shrink: 0;
+    }
+
+    .ds3-goal-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 7px;
+    }
+
+    .ds3-goal-pct { color: var(--teal); }
+
+    .ds3-progress-track {
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 5px;
+    }
+
+    .ds3-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal), #00e5b8);
+      border-radius: 4px;
+    }
+
+    .ds3-goal-sub {
+      font-size: 8.5px;
+      color: var(--text-muted);
+    }
+
+    .ds3-quick-row {
+      display: flex;
+      gap: 6px;
+      padding: 0 10px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .ds3-quick-btn {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 4px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 8.5px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .ds3-quick-btn:hover { border-color: var(--teal); color: var(--text); }
+
+    /* SCREEN 4 */
+    .ds4-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 14px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .ds4-body {
+      flex: 1;
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ds4-location-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .ds4-loc-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ds4-loc-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .ds4-loc-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .ds4-loc-type {
+      font-size: 9px;
+      color: var(--teal);
+      margin-top: 2px;
+    }
+
+    .ds4-connected-dot {
+      width: 8px; height: 8px;
+      background: var(--teal);
+      border-radius: 50%;
+      margin-left: auto;
+      box-shadow: 0 0 6px var(--teal);
+    }
+
+    .ds4-info {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+    }
+
+    .ds4-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      padding: 4px 0;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .ds4-info-row:last-child { border-bottom: none; }
+    .ds4-info-row span:last-child { color: var(--text); font-weight: 600; }
+
+    .ds4-pull-btn { margin-top: auto; }
+
+    .ds4-progress-wrap {
+      margin-top: 10px;
+    }
+
+    .ds4-prog-label {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .ds4-prog-track {
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .ds4-prog-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal), #00e5b8);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* SCREEN 5 */
+    .ds5-body {
+      flex: 1;
+      padding: 4px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ds5-shift-card {
+      background: rgba(0,200,160,0.07);
+      border: 1px solid rgba(0,200,160,0.2);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .ds5-shift-name { font-size: 12px; font-weight: 700; color: var(--text); }
+    .ds5-shift-meta { font-size: 9.5px; color: var(--text-muted); margin-top: 3px; }
+
+    .ds5-staff-list {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 6px;
+    }
+
+    .ds5-staff-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 7px 10px;
+    }
+
+    .ds5-staff-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ds5-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(0,200,160,0.2);
+      color: var(--teal);
+      font-weight: 700;
+      font-size: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ds5-avatar.mc { background: rgba(120,80,200,0.2); color: #a070e0; }
+    .ds5-avatar.jl { background: rgba(200,160,0,0.2); color: #d4a800; }
+    .ds5-avatar.tn { background: rgba(200,80,80,0.2); color: #e06060; }
+
+    .ds5-name { font-size: 10px; font-weight: 600; color: var(--text); }
+    .ds5-role { font-size: 8px; color: var(--text-muted); }
+    .ds5-amount { font-size: 12px; font-weight: 700; }
+
+    .ds5-total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      border-top: 1px solid var(--border);
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+
+    /* SCREEN 6 */
+    .ds6-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 14px 16px;
+      overflow: hidden;
+    }
+
+    .ds6-success-icon { font-size: 36px; margin-bottom: 8px; }
+
+    .ds6-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+      letter-spacing: -0.4px;
+    }
+
+    .ds6-amount {
+      font-size: 12px;
+      color: var(--teal);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .ds6-method {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .ds6-staff-list {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .ds6-staff-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+    }
+
+    .ds6-staff-row:last-child { border-bottom: none; }
+    .ds6-staff-row span:nth-child(2) { flex: 1; color: var(--text); }
+
+    .ds6-chk {
+      color: #00c8a0;
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    /* SCREEN 7 */
+    .ds7-top {
+      padding: 6px 14px 8px;
+      flex-shrink: 0;
+    }
+
+    .ds7-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ds7-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #09100e;
+      font-weight: 800;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ds7-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .ds7-loc { font-size: 9px; color: var(--text-muted); }
+
+    .ds7-earnings-card {
+      margin: 0 12px 10px;
+      background: linear-gradient(135deg, rgba(0,200,160,0.12), rgba(0,200,160,0.04));
+      border: 1px solid rgba(0,200,160,0.25);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .ds7-earnings-label { font-size: 9px; color: var(--text-muted); margin-bottom: 4px; }
+    .ds7-earnings-val { font-size: 28px; font-weight: 900; color: var(--teal); letter-spacing: -1px; }
+
+    .ds7-badges-row {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ds7-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 100px;
+    }
+
+    .ds7-badge.gold { background: rgba(212,168,0,0.15); color: #d4a800; border: 1px solid rgba(212,168,0,0.3); }
+    .ds7-badge.streak { background: rgba(255,100,0,0.12); color: #ff7040; border: 1px solid rgba(255,100,0,0.25); }
+
+    .ds7-payouts-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 14px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+
+    .ds7-payouts-list {
+      flex: 1;
+      overflow: hidden;
+      padding: 0 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .ds7-payout-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 7px 10px;
+    }
+
+    .ds7-pay-name { font-size: 10px; font-weight: 600; color: var(--text); }
+    .ds7-pay-date { font-size: 8.5px; color: var(--text-muted); margin-top: 1px; }
+
+    .ds7-intention-card {
+      margin: 8px 12px 10px;
+      background: rgba(0,200,160,0.06);
+      border: 1px solid rgba(0,200,160,0.15);
+      border-radius: 10px;
+      padding: 9px 12px;
+      flex-shrink: 0;
+    }
+
+    .ds7-int-label {
+      font-size: 7.5px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .ds7-int-quote {
+      font-size: 9.5px;
+      font-style: italic;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* SCREEN 7 — Payout History */
+    .ds7h-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 14px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .ds7h-body {
+      flex: 1;
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ds7h-section-label {
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+      flex-shrink: 0;
+    }
+
+    .ds7h-row {
+      background: #162019;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 11px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+
+    .ds7h-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+
+    .ds7h-name { font-size: 10px; font-weight: 700; color: var(--text); }
+    .ds7h-amount { font-size: 12px; font-weight: 800; color: var(--teal); }
+
+    .ds7h-row-mid {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ds7h-meta { font-size: 8.5px; color: var(--text-muted); }
+
+    .ds7h-badge-sent {
+      font-size: 7.5px;
+      font-weight: 700;
+      background: rgba(0,200,160,0.12);
+      color: var(--teal);
+      border: 1px solid rgba(0,200,160,0.25);
+      border-radius: 100px;
+      padding: 2px 7px;
+    }
+
+    .ds7h-ref {
+      font-size: 7px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      font-family: monospace;
+    }
+
+    /* SCREEN 8 — Rewards & Incentives */
+    .ds8-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 14px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .ds8-body {
+      flex: 1;
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      gap: 8px;
+    }
+
+    .ds8-section-label {
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .ds8-incentives-card {
+      background: rgba(212,168,0,0.06);
+      border: 1px solid rgba(212,168,0,0.22);
+      border-radius: 10px;
+      padding: 10px 11px;
+      flex-shrink: 0;
+    }
+
+    .ds8-incentive-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .ds8-incentive-row:last-child { border-bottom: none; }
+
+    .ds8-inc-left { flex: 1; }
+    .ds8-inc-name { font-size: 9.5px; font-weight: 700; color: var(--text); }
+    .ds8-inc-badge { font-size: 8.5px; color: #d4a800; margin-top: 1px; }
+    .ds8-inc-date { font-size: 7.5px; color: var(--text-muted); }
+
+    .ds8-deliver-btn {
+      background: var(--teal);
+      color: #09100e;
+      font-size: 7.5px;
+      font-weight: 700;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-left: 6px;
+    }
+
+    .ds8-levels-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 11px;
+      flex-shrink: 0;
+    }
+
+    .ds8-level-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .ds8-level-row:last-child { border-bottom: none; }
+
+    .ds8-level-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .ds8-level-name { font-size: 9.5px; font-weight: 600; color: var(--text); flex: 1; }
+    .ds8-level-desc { font-size: 8px; color: var(--text-muted); }
+
+    .ds8-level-active .ds8-level-name { color: var(--teal); }
+    .ds8-level-dot.bronze { background: #cd7f32; }
+    .ds8-level-dot.silver { background: #a0a0a0; }
+    .ds8-level-dot.gold { background: #d4a800; }
+    .ds8-level-dot.diamond { background: #7ec8e3; }
+    .ds8-level-dot.legend { background: var(--teal); box-shadow: 0 0 5px var(--teal); }
+
+    /* Demo nav buttons */
+    .demo-nav-btn {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-card);
+      color: var(--teal);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    }
+
+    .demo-nav-btn:hover {
+      background: var(--teal-glow);
+      border-color: var(--teal);
+      transform: scale(1.08);
+    }
+
+    /* Dots */
+    .demo-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .demo-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border-strong);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .demo-dot.active {
+      background: var(--teal);
+      transform: scale(1.25);
+    }
+
+    .demo-caption-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .demo-caption {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .teal { color: var(--teal); }
+
+    @media (max-width: 600px) {
+      .demo-nav-btn { width: 36px; height: 36px; }
+      .demo-stage { gap: 1rem; }
+      .phone-frame { width: 240px; height: 480px; }
+    }
+
     /* ── PROBLEM ── */
     .problem { background: var(--bg-card2); }
 
@@ -1103,6 +2131,7 @@
 <nav>
   <div class="nav-logo">TipFlow 💸</div>
   <ul class="nav-links">
+    <li><a href="#demo">Demo</a></li>
     <li><a href="#features">Features</a></li>
     <li><a href="#pricing">Pricing</a></li>
     <li><a href="#about">About</a></li>
@@ -1118,7 +2147,7 @@
   <div class="hero-ctas">
     <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Start Free Trial</a>
     <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Book a Free Demo</a>
-    <a href="#features" class="btn-outline" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">▶ Watch Demo</a>
+    <a href="#demo" class="btn-outline" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">See TipFlow →</a>
   </div>
   <p style="margin-top:1.1rem; font-size:0.82rem; color:#4d9e8a; text-align:center;">No commitment. 30-minute call. We'll show you exactly how TipFlow works for your restaurant.</p>
   <div class="trust-badges">
@@ -1126,6 +2155,448 @@
     <span>🔒 RPAA Registered</span>
     <span>⚡ AptPay Powered</span>
     <span>🏦 Interac e-Transfer</span>
+  </div>
+</section>
+
+<!-- ── INTERACTIVE DEMO ── -->
+<section class="demo-section" id="demo">
+  <div class="centered fade-up">
+    <h2 class="section-title">See TipFlow in action</h2>
+    <p class="section-sub">Tap through the app yourself. No signup required.</p>
+  </div>
+
+  <div class="demo-stage">
+    <!-- Prev button -->
+    <button class="demo-nav-btn demo-prev" onclick="demoNav(-1)" aria-label="Previous screen">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 15L7 10L12 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <!-- Phone frame -->
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen" id="demoScreen">
+
+          <!-- SCREEN 1: Daily Inspiration -->
+          <div class="ds ds-1 active" onclick="demoNav(1)" style="cursor:pointer;background:#09100e;">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;background:#09100e;">
+              <div style="font-size:18px;margin-bottom:16px;">💸</div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#00e5a0;text-transform:uppercase;margin-bottom:20px;">FOR LEADERS</div>
+              <div style="font-size:13px;color:#e8f0eb;line-height:1.7;font-style:italic;margin-bottom:16px;">"A leader's job is not to do the work for others — it's to help others figure out how to do it themselves."</div>
+              <div style="font-size:11px;color:#00e5a0;margin-bottom:20px;">— Simon Sinek</div>
+              <div style="font-size:10px;color:#567065;margin-bottom:28px;">TipFlow is built for leaders who care about their team.</div>
+              <div style="font-size:10px;color:#9ab5a4;">Tap to begin →</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 2: Manager Login -->
+          <div class="ds ds-2">
+            <div class="ds-header-bar">
+              <span class="ds-app-title">💸 TipFlow</span>
+            </div>
+            <div class="ds2-body">
+              <p class="ds2-welcome">Manager Sign In</p>
+              <div class="ds2-field-wrap">
+                <label class="ds2-label">Email</label>
+                <div class="ds2-field">jamie@canteen.ca</div>
+              </div>
+              <div class="ds2-field-wrap">
+                <label class="ds2-label">Password</label>
+                <div class="ds2-field ds2-pwd">••••••••</div>
+              </div>
+              <button class="ds-btn-teal" onclick="demoNav(1)">Sign In</button>
+              <div class="ds2-faceid">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><rect x="19" y="1" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><rect x="1" y="19" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><rect x="19" y="19" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><circle cx="10" cy="14" r="1.5" fill="#00c8a0"/><circle cx="18" cy="14" r="1.5" fill="#00c8a0"/><path d="M10 19 Q14 22 18 19" stroke="#00c8a0" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+                <span>Use Face ID</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SCREEN 3: Manager Dashboard -->
+          <div class="ds ds-3">
+            <div class="ds-status-bar">
+              <span>9:41</span><span>●●●●</span>
+            </div>
+            <div class="ds3-topbar">
+              <div>
+                <p class="ds3-greeting">Good evening, Jamie 👋</p>
+                <p class="ds3-sub">Ossington · Friday</p>
+              </div>
+              <div class="ds3-avatar">JM</div>
+            </div>
+            <div class="ds3-stats">
+              <div class="ds3-stat">
+                <div class="ds3-stat-val">$5,820</div>
+                <div class="ds3-stat-lbl">Wallet</div>
+              </div>
+              <div class="ds3-stat">
+                <div class="ds3-stat-val teal">$8,120</div>
+                <div class="ds3-stat-lbl">Tips This Wk</div>
+              </div>
+              <div class="ds3-stat">
+                <div class="ds3-stat-val">8</div>
+                <div class="ds3-stat-lbl">Staff Active</div>
+              </div>
+              <div class="ds3-stat">
+                <div class="ds3-stat-val warn">2</div>
+                <div class="ds3-stat-lbl">Bank N/L</div>
+              </div>
+            </div>
+            <div class="ds3-goal-card">
+              <div class="ds3-goal-top">
+                <span>🎯 Weekly Team Goal</span>
+                <span class="ds3-goal-pct">79%</span>
+              </div>
+              <div class="ds3-progress-track">
+                <div class="ds3-progress-bar" style="width:79%"></div>
+              </div>
+              <div class="ds3-goal-sub">$7,900 of $10,000 · 2 days left</div>
+            </div>
+            <div class="ds3-quick-row">
+              <div class="ds3-quick-btn" onclick="demoGoTo(3)">
+                <span>📊</span><span>POS Import</span>
+              </div>
+              <div class="ds3-quick-btn">
+                <span>👥</span><span>Staff</span>
+              </div>
+              <div class="ds3-quick-btn">
+                <span>📋</span><span>Shifts</span>
+              </div>
+            </div>
+            <div class="ds-tab-bar">
+              <div class="ds-tab active-tab"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(6)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(7)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
+              <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 4: POS Import -->
+          <div class="ds ds-4">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds4-header">
+              <button class="ds-back" onclick="demoNav(-1)">‹</button>
+              <span>POS Import</span>
+              <span></span>
+            </div>
+            <div class="ds4-body">
+              <div class="ds4-location-card">
+                <div class="ds4-loc-row">
+                  <div class="ds4-loc-icon">🍽️</div>
+                  <div>
+                    <div class="ds4-loc-name">Ossington</div>
+                    <div class="ds4-loc-type">Square API · Connected</div>
+                  </div>
+                  <div class="ds4-connected-dot"></div>
+                </div>
+              </div>
+              <div class="ds4-info">
+                <div class="ds4-info-row"><span>Shift</span><span>Saturday Dinner</span></div>
+                <div class="ds4-info-row"><span>Total Tips</span><span>$1,200</span></div>
+                <div class="ds4-info-row"><span>Total Sales</span><span>$6,000</span></div>
+              </div>
+              <button class="ds-btn-teal ds4-pull-btn" id="posPullBtn" onclick="triggerPOSPull()">Pull Tonight's Report</button>
+              <div class="ds4-progress-wrap" id="posProgress" style="display:none">
+                <div class="ds4-prog-label" id="posProgLabel">Connecting to Square…</div>
+                <div class="ds4-prog-track"><div class="ds4-prog-fill" id="progFill"></div></div>
+              </div>
+            </div>
+            <div class="ds-tab-bar">
+              <div class="ds-tab" onclick="demoGoTo(2)"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab active-tab"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(6)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(7)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
+              <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 5: Calculate Tips -->
+          <div class="ds ds-5">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds4-header">
+              <button class="ds-back" onclick="demoNav(-1)">‹</button>
+              <span>Calculate Tips</span>
+              <span></span>
+            </div>
+            <div class="ds5-body">
+              <div class="ds5-shift-card">
+                <div class="ds5-shift-name">🌙 Saturday Dinner</div>
+                <div class="ds5-shift-meta">Total pool: <span class="teal">$1,200</span></div>
+              </div>
+              <div class="ds5-staff-list">
+                <div class="ds5-staff-row">
+                  <div class="ds5-staff-info">
+                    <div class="ds5-avatar">AD</div>
+                    <div>
+                      <div class="ds5-name">Alex Dubois</div>
+                      <div class="ds5-role">Server · 8h</div>
+                    </div>
+                  </div>
+                  <div class="ds5-amount teal">$420</div>
+                </div>
+                <div class="ds5-staff-row">
+                  <div class="ds5-staff-info">
+                    <div class="ds5-avatar mc">MC</div>
+                    <div>
+                      <div class="ds5-name">Maria Costa</div>
+                      <div class="ds5-role">Bartender · 8h</div>
+                    </div>
+                  </div>
+                  <div class="ds5-amount teal">$420</div>
+                </div>
+                <div class="ds5-staff-row">
+                  <div class="ds5-staff-info">
+                    <div class="ds5-avatar jl">JL</div>
+                    <div>
+                      <div class="ds5-name">Jordan Lavoie</div>
+                      <div class="ds5-role">Runner · 6h</div>
+                    </div>
+                  </div>
+                  <div class="ds5-amount teal">$270</div>
+                </div>
+                <div class="ds5-staff-row">
+                  <div class="ds5-staff-info">
+                    <div class="ds5-avatar tn">TN</div>
+                    <div>
+                      <div class="ds5-name">Taylor Nkosi</div>
+                      <div class="ds5-role">Host · 4h</div>
+                    </div>
+                  </div>
+                  <div class="ds5-amount teal">$90</div>
+                </div>
+              </div>
+              <div class="ds5-total-row">
+                <span>Total</span><span class="teal">$1,200</span>
+              </div>
+              <button class="ds-btn-teal" onclick="demoNav(1)">Pay via AptPay ⚡</button>
+            </div>
+          </div>
+
+          <!-- SCREEN 6: Payout Success -->
+          <div class="ds ds-6">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds6-body">
+              <div class="ds6-success-icon">✅</div>
+              <h3 class="ds6-title">Payouts sent!</h3>
+              <p class="ds6-amount">$1,200 distributed via AptPay</p>
+              <p class="ds6-method">Delivered via Interac e-Transfer®</p>
+              <div class="ds6-staff-list">
+                <div class="ds6-staff-row"><span class="ds6-chk">✓</span><span>Alex Dubois</span><span class="teal">$420</span></div>
+                <div class="ds6-staff-row"><span class="ds6-chk">✓</span><span>Maria Costa</span><span class="teal">$420</span></div>
+                <div class="ds6-staff-row"><span class="ds6-chk">✓</span><span>Jordan Lavoie</span><span class="teal">$270</span></div>
+                <div class="ds6-staff-row"><span class="ds6-chk">✓</span><span>Taylor Nkosi</span><span class="teal">$90</span></div>
+              </div>
+              <button class="ds-btn-outline" onclick="demoNav(1)">View Staff Portal →</button>
+            </div>
+          </div>
+
+          <!-- SCREEN 7: Payout History -->
+          <div class="ds ds-7">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds7h-header">
+              <button class="ds-back" onclick="demoNav(-1)">‹</button>
+              <span>Payouts</span>
+              <span></span>
+            </div>
+            <div class="ds7h-body">
+              <div class="ds7h-section-label">Payout History</div>
+
+              <div class="ds7h-row">
+                <div class="ds7h-row-top">
+                  <span class="ds7h-name">Alex Dubois</span>
+                  <span class="ds7h-amount">$369.40</span>
+                </div>
+                <div class="ds7h-row-mid">
+                  <span class="ds7h-meta">Friday Dinner · 📱 e-Transfer</span>
+                  <span class="ds7h-badge-sent">✓ Sent</span>
+                </div>
+                <div class="ds7h-ref">APT-2024-38471</div>
+              </div>
+
+              <div class="ds7h-row">
+                <div class="ds7h-row-top">
+                  <span class="ds7h-name">Maria Costa</span>
+                  <span class="ds7h-amount">$369.40</span>
+                </div>
+                <div class="ds7h-row-mid">
+                  <span class="ds7h-meta">Friday Dinner · 📱 e-Transfer</span>
+                  <span class="ds7h-badge-sent">✓ Sent</span>
+                </div>
+                <div class="ds7h-ref">APT-2024-38472</div>
+              </div>
+
+              <div class="ds7h-row">
+                <div class="ds7h-row-top">
+                  <span class="ds7h-name">Jordan Lavoie</span>
+                  <span class="ds7h-amount">$307.83</span>
+                </div>
+                <div class="ds7h-row-mid">
+                  <span class="ds7h-meta">Friday Dinner · 💵 Cash</span>
+                  <span class="ds7h-badge-sent">✓ Confirmed</span>
+                </div>
+                <div class="ds7h-ref">APT-2024-38473</div>
+              </div>
+            </div>
+            <div class="ds-tab-bar">
+              <div class="ds-tab" onclick="demoGoTo(2)"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab active-tab"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(7)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
+              <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 8: Rewards & Incentives -->
+          <div class="ds ds-8">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds8-header">
+              <button class="ds-back" onclick="demoNav(-1)">‹</button>
+              <span>Rewards & Incentives</span>
+              <span></span>
+            </div>
+            <div class="ds8-body">
+              <div>
+                <div class="ds8-section-label">Incentives Earned</div>
+                <div class="ds8-incentives-card">
+                  <div class="ds8-incentive-row">
+                    <div class="ds8-inc-left">
+                      <div class="ds8-inc-name">Alex Dubois</div>
+                      <div class="ds8-inc-badge">5 Shift Streak 🔥</div>
+                      <div class="ds8-inc-date">Today</div>
+                    </div>
+                    <button class="ds8-deliver-btn">Mark as Delivered</button>
+                  </div>
+                  <div class="ds8-incentive-row">
+                    <div class="ds8-inc-left">
+                      <div class="ds8-inc-name">Maria Costa</div>
+                      <div class="ds8-inc-badge">New Personal Best ⭐</div>
+                      <div class="ds8-inc-date">Yesterday</div>
+                    </div>
+                    <button class="ds8-deliver-btn">Mark as Delivered</button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="ds8-section-label">Team Levels</div>
+                <div class="ds8-levels-card">
+                  <div class="ds8-level-row">
+                    <div class="ds8-level-dot bronze"></div>
+                    <span class="ds8-level-name">Bronze</span>
+                    <span class="ds8-level-desc">0–10 shifts</span>
+                  </div>
+                  <div class="ds8-level-row">
+                    <div class="ds8-level-dot silver"></div>
+                    <span class="ds8-level-name">Silver</span>
+                    <span class="ds8-level-desc">11–25 shifts</span>
+                  </div>
+                  <div class="ds8-level-row ds8-level-active">
+                    <div class="ds8-level-dot gold"></div>
+                    <span class="ds8-level-name">Gold ← You</span>
+                    <span class="ds8-level-desc">26–50 shifts</span>
+                  </div>
+                  <div class="ds8-level-row">
+                    <div class="ds8-level-dot diamond"></div>
+                    <span class="ds8-level-name">Diamond</span>
+                    <span class="ds8-level-desc">51–100 shifts</span>
+                  </div>
+                  <div class="ds8-level-row">
+                    <div class="ds8-level-dot legend"></div>
+                    <span class="ds8-level-name">Legend</span>
+                    <span class="ds8-level-desc">100+ shifts</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ds-tab-bar">
+              <div class="ds-tab" onclick="demoGoTo(2)"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(6)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab active-tab"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
+              <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 9: Staff Portal -->
+          <div class="ds ds-9">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds7-top">
+              <div class="ds7-profile">
+                <div class="ds7-avatar">AD</div>
+                <div>
+                  <div class="ds7-name">Alex Dubois</div>
+                  <div class="ds7-loc">Ossington</div>
+                </div>
+              </div>
+            </div>
+            <div class="ds7-earnings-card">
+              <div class="ds7-earnings-label">Total Earned This Month</div>
+              <div class="ds7-earnings-val">$4,820</div>
+              <div class="ds7-badges-row">
+                <span class="ds7-badge gold">Gold Server ⭐</span>
+                <span class="ds7-badge streak">🔥 3 shift streak</span>
+              </div>
+            </div>
+            <div class="ds7-payouts-label">Recent Payouts</div>
+            <div class="ds7-payouts-list">
+              <div class="ds7-payout-row">
+                <div>
+                  <div class="ds7-pay-name">Saturday Dinner</div>
+                  <div class="ds7-pay-date">Today · via Interac</div>
+                </div>
+                <span class="teal">+$420</span>
+              </div>
+              <div class="ds7-payout-row">
+                <div>
+                  <div class="ds7-pay-name">Friday Dinner</div>
+                  <div class="ds7-pay-date">Yesterday · via Interac</div>
+                </div>
+                <span class="teal">+$385</span>
+              </div>
+              <div class="ds7-payout-row">
+                <div>
+                  <div class="ds7-pay-name">Thursday Lunch</div>
+                  <div class="ds7-pay-date">Mar 19 · via Interac</div>
+                </div>
+                <span class="teal">+$210</span>
+              </div>
+            </div>
+            <div class="ds7-intention-card">
+              <div class="ds7-int-label">TODAY'S INTENTION</div>
+              <p class="ds7-int-quote">"The energy you bring to the table is as important as the food on it."</p>
+            </div>
+          </div>
+
+        </div><!-- /phone-screen -->
+      </div><!-- /phone-frame -->
+    </div><!-- /phone-wrap -->
+
+    <!-- Next button -->
+    <button class="demo-nav-btn demo-next" onclick="demoNav(1)" aria-label="Next screen">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M8 5L13 10L8 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <!-- Dots -->
+  <div class="demo-dots" id="demoDots">
+    <span class="demo-dot active" onclick="demoGoTo(0)"></span>
+    <span class="demo-dot" onclick="demoGoTo(1)"></span>
+    <span class="demo-dot" onclick="demoGoTo(2)"></span>
+    <span class="demo-dot" onclick="demoGoTo(3)"></span>
+    <span class="demo-dot" onclick="demoGoTo(4)"></span>
+    <span class="demo-dot" onclick="demoGoTo(5)"></span>
+    <span class="demo-dot" onclick="demoGoTo(6)"></span>
+    <span class="demo-dot" onclick="demoGoTo(7)"></span>
+    <span class="demo-dot" onclick="demoGoTo(8)"></span>
+  </div>
+
+  <!-- Screen label -->
+  <div class="demo-caption-wrap">
+    <p class="demo-caption" id="demoCaption">Every login starts with intention — a daily quote to set the tone for the shift</p>
   </div>
 </section>
 
@@ -1559,6 +3030,107 @@
 </footer>
 
 <script>
+  // ── INTERACTIVE DEMO ──
+  const DEMO_CAPTIONS = [
+    "Every login starts with intention — a daily quote to set the tone for the shift",
+    "Secure login for managers and staff — Face ID available",
+    "Real-time dashboard — live data from your restaurant",
+    "Connect your POS — Square API, Lightspeed, or upload any CSV",
+    "Automatic tip calculation — fair splits based on role and hours worked",
+    "Instant payouts — Interac e-Transfer to every staff member's bank account",
+    "Complete payout history — every transaction recorded with AptPay reference numbers for CRA audit trail.",
+    "Rewards & Incentives — streaks, personal bests, and team levels keep staff motivated shift after shift.",
+    "Staff portal — personal progress, milestones and earnings. No competition."
+  ];
+
+  let demoIndex = 0;
+  const totalScreens = 9;
+
+  function demoGoTo(idx) {
+    if (idx < 0) idx = totalScreens - 1;
+    if (idx >= totalScreens) idx = 0;
+
+    const screens = document.querySelectorAll('.ds');
+    console.log('[TipFlow Demo] screen count:', screens.length, '→ navigating to index', idx);
+    screens.forEach((s, i) => {
+      const isActive = i === idx;
+      s.classList.toggle('active', isActive);
+      s.style.setProperty('display', isActive ? 'flex' : 'none', 'important');
+      s.style.setProperty('background', '#09100e', 'important');
+    });
+
+    const dots = document.querySelectorAll('.demo-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+
+    document.getElementById('demoCaption').textContent = DEMO_CAPTIONS[idx];
+
+    // Reset POS pull button when leaving screen 4
+    if (demoIndex === 3 && idx !== 3) resetPOSPull();
+
+    demoIndex = idx;
+  }
+
+  function demoNav(dir) {
+    demoGoTo(demoIndex + dir);
+  }
+
+  // POS pull animation
+  let posTimer = null;
+
+  function triggerPOSPull() {
+    const btn = document.getElementById('posPullBtn');
+    const progressWrap = document.getElementById('posProgress');
+    const fill = document.getElementById('progFill');
+    const label = document.getElementById('posProgLabel');
+
+    btn.disabled = true;
+    btn.textContent = 'Pulling data…';
+    progressWrap.style.display = 'block';
+
+    const steps = [
+      { pct: 33, msg: 'Connecting to Square…' },
+      { pct: 66, msg: 'Fetching shift data…' },
+      { pct: 88, msg: 'Calculating tip pool…' },
+      { pct: 100, msg: 'Ready!' },
+    ];
+
+    let step = 0;
+    function runStep() {
+      if (step >= steps.length) {
+        setTimeout(() => demoGoTo(4), 600);
+        return;
+      }
+      fill.style.width = steps[step].pct + '%';
+      label.textContent = steps[step].msg;
+      step++;
+      posTimer = setTimeout(runStep, step === steps.length ? 800 : 520);
+    }
+    runStep();
+  }
+
+  function resetPOSPull() {
+    if (posTimer) clearTimeout(posTimer);
+    const btn = document.getElementById('posPullBtn');
+    const progressWrap = document.getElementById('posProgress');
+    const fill = document.getElementById('progFill');
+    const label = document.getElementById('posProgLabel');
+    if (btn) { btn.disabled = false; btn.textContent = 'Pull Tonight\'s Report'; }
+    if (progressWrap) progressWrap.style.display = 'none';
+    if (fill) fill.style.width = '0%';
+    if (label) label.textContent = 'Connecting to Square…';
+  }
+
+  // Keyboard navigation for demo
+  document.addEventListener('keydown', (e) => {
+    const demoEl = document.getElementById('demo');
+    if (!demoEl) return;
+    const rect = demoEl.getBoundingClientRect();
+    const inView = rect.top < window.innerHeight && rect.bottom > 0;
+    if (!inView) return;
+    if (e.key === 'ArrowRight') demoNav(1);
+    if (e.key === 'ArrowLeft') demoNav(-1);
+  });
+
   // Scroll fade-in
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -1569,6 +3141,20 @@
   }, { threshold: 0.12 });
 
   document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+  // Initialize demo screens — enforce display state on load
+  const allScreens = document.querySelectorAll('.ds');
+  console.log('[TipFlow Demo] total screens found on init:', allScreens.length);
+  allScreens.forEach((s, i) => {
+    s.style.setProperty('display', i === 0 ? 'flex' : 'none', 'important');
+    s.style.setProperty('background', '#09100e', 'important');
+    s.style.setProperty('position', 'absolute', 'important');
+    s.style.setProperty('top', '0', 'important');
+    s.style.setProperty('left', '0', 'important');
+    s.style.setProperty('width', '100%', 'important');
+    s.style.setProperty('height', '100%', 'important');
+    s.style.setProperty('overflow', 'hidden', 'important');
+  });
 </script>
 
 </body>
