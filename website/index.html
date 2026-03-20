@@ -625,6 +625,115 @@
       font-weight: 600;
     }
 
+    /* ── CRA COMPLIANCE ── */
+    .cra { background: #09100e; }
+
+    .cra-tip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.8rem;
+      max-width: 1100px;
+      margin: 0 auto 2.5rem;
+    }
+
+    @media (max-width: 680px) {
+      .cra-tip-grid { grid-template-columns: 1fr; }
+    }
+
+    .cra-tip-card {
+      background: #111a17;
+      border-radius: var(--radius);
+      padding: 2.2rem 2rem;
+    }
+
+    .cra-tip-card.direct { border: 1px solid rgba(0, 200, 130, 0.45); }
+    .cra-tip-card.controlled { border: 1px solid var(--border-strong); }
+
+    .cra-tip-card h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+
+    .cra-tip-card .cra-subtitle {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-style: italic;
+    }
+
+    .cra-tip-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 1.3rem;
+    }
+
+    .cra-tag {
+      display: inline-block;
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .cra-tip-card.direct .cra-tag {
+      background: rgba(0, 200, 130, 0.12);
+      color: #00c882;
+      border: 1px solid rgba(0, 200, 130, 0.3);
+    }
+
+    .cra-tip-card.controlled .cra-tag {
+      background: var(--teal-glow);
+      color: var(--teal);
+      border: 1px solid var(--border-strong);
+    }
+
+    .cra-audit-card {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #162019;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 2.4rem 2.2rem;
+    }
+
+    .cra-audit-card h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1.6rem;
+    }
+
+    .cra-audit-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 2rem;
+    }
+
+    @media (max-width: 600px) {
+      .cra-audit-grid { grid-template-columns: 1fr; }
+    }
+
+    .cra-audit-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .cra-check {
+      color: var(--teal);
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 0.05rem;
+    }
+
     /* ── PRICING ── */
     .pricing { background: var(--bg-dark); }
 
@@ -1272,6 +1381,58 @@
     <span class="hp-quote-marks">"</span>
     <p class="hp-founder-quote">We designed TipFlow's motivation system based on the neuroscience of human performance. When people feel psychologically safe, recognised for their personal growth and aligned with a sense of purpose — their nervous system is regulated, their presence is elevated, and their service becomes extraordinary. This isn't just good for staff. It's good for business.</p>
     <p class="hp-founder-attr">— Dr. Sukhi Muker, Co-founder · Nervous System Specialist</p>
+  </div>
+
+</section>
+
+<!-- ── CRA COMPLIANCE ── -->
+<section class="cra section-pad" id="cra">
+  <div class="centered fade-up" style="max-width:700px;margin:0 auto 3rem;">
+    <div class="section-label">CRA COMPLIANCE</div>
+    <h2 class="section-title">Stop worrying about tip taxation. TipFlow has it covered.</h2>
+    <p class="section-sub">Most Canadian restaurants are getting tip classification wrong. TipFlow makes sure you're not one of them.</p>
+  </div>
+
+  <!-- Two tip type cards -->
+  <div class="cra-tip-grid fade-up">
+
+    <div class="cra-tip-card direct">
+      <h3>Direct Tips 💵</h3>
+      <p class="cra-subtitle">Customer tips go straight to staff</p>
+      <p>No CPP or EI deductions required. Staff self-report on their T1 personal tax return. TipFlow automatically notifies staff of their CRA obligation at every payout.</p>
+      <span class="cra-tag">Most common in Canadian restaurants</span>
+    </div>
+
+    <div class="cra-tip-card controlled">
+      <h3>Controlled Tips 🏦</h3>
+      <p class="cra-subtitle">Tips pooled and distributed by management</p>
+      <p>Treated as employment income. CPP and EI deductions apply. TipFlow flags every controlled tip payout so your payroll provider knows exactly what to process.</p>
+      <span class="cra-tag">Common in large restaurant groups</span>
+    </div>
+
+  </div>
+
+  <!-- Audit trail card -->
+  <div class="cra-audit-card fade-up">
+    <h3>Your complete CRA audit trail — automatically</h3>
+    <div class="cra-audit-grid">
+      <div class="cra-audit-item">
+        <span class="cra-check">✓</span>
+        <span>Classifies every payout as Direct or Controlled</span>
+      </div>
+      <div class="cra-audit-item">
+        <span class="cra-check">✓</span>
+        <span>Notifies staff of their exact CRA obligation at every payout</span>
+      </div>
+      <div class="cra-audit-item">
+        <span class="cra-check">✓</span>
+        <span>Creates a complete tamper-proof record of every tip distributed</span>
+      </div>
+      <div class="cra-audit-item">
+        <span class="cra-check">✓</span>
+        <span>Stores all data in Canada (ca-central-1) for CRA inspection readiness</span>
+      </div>
+    </div>
   </div>
 
 </section>
