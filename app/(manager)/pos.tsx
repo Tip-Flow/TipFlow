@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { useRouter } from 'expo-router';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -36,6 +37,8 @@ const posSystems = [
 ];
 
 export default function POSScreen() {
+  const router = useRouter();
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -45,8 +48,18 @@ export default function POSScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>POS Import</Text>
-          <Text style={styles.subtitle}>Pull tonight's tip data</Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.title}>POS Import</Text>
+              <Text style={styles.subtitle}>Pull tonight's tip data</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.newCalcBtn}
+              onPress={() => router.push('/(manager)/calculate')}
+              activeOpacity={0.8}>
+              <Text style={styles.newCalcBtnText}>+ New Calculation</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Location Cards */}
@@ -161,6 +174,25 @@ const styles = StyleSheet.create({
   // Header
   header: {
     gap: 4,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  newCalcBtn: {
+    backgroundColor: TEAL,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    alignSelf: 'flex-start',
+  },
+  newCalcBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#09100e',
+    letterSpacing: 0.1,
   },
   title: {
     fontSize: 26,
