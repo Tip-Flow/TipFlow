@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -6,7 +6,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { getDailyQuote } from '../../lib/quotes';
+import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const TEAL = '#00e5a0';
@@ -19,11 +19,15 @@ type Props = {
 };
 
 export default function DailyQuote({ role, onDismiss }: Props) {
-  const quote = getDailyQuote(role);
+  const [quote, setQuote] = useState<Quote | null>(null);
   const label = role === 'staff' ? "TODAY'S INTENTION" : 'LEAD WITH THIS TODAY';
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const lineAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    getDailyQuote(role).then(setQuote);
+  }, [role]);
 
   useEffect(() => {
     Animated.sequence([
@@ -53,7 +57,7 @@ export default function DailyQuote({ role, onDismiss }: Props) {
         <View style={styles.quoteBlock}>
           <Text style={styles.categoryLabel}>{label}</Text>
 
-          <Text style={styles.quoteText}>{quote.text}</Text>
+          <Text style={styles.quoteText}>{quote?.text ?? ''}</Text>
 
           {/* Animated teal underline */}
           <Animated.View
@@ -68,7 +72,7 @@ export default function DailyQuote({ role, onDismiss }: Props) {
             ]}
           />
 
-          {quote.author ? (
+          {quote?.author ? (
             <Text style={styles.author}>— {quote.author}</Text>
           ) : null}
         </View>

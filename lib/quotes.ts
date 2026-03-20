@@ -221,19 +221,20 @@ const SUKHI: Quote[] = [
   { text: "The greatest gift you can give your guests tonight is a regulated, present, joyful you.", category: "SUKHI" },
 ];
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const STAFF_POOL: Quote[] = [...SERVICE, ...GRATITUDE, ...SUKHI];
 const MANAGER_POOL: Quote[] = [...LEADERSHIP, ...EXCELLENCE];
 
-function getDayOfYear(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const oneDay = 1000 * 60 * 60 * 24;
-  return Math.floor(diff / oneDay);
-}
+const QUOTE_COUNTER_KEY = 'tipflow_quote_counter';
 
-export function getDailyQuote(role: 'manager' | 'staff'): Quote {
+export async function getDailyQuote(role: 'manager' | 'staff'): Promise<Quote> {
   const pool = role === 'manager' ? MANAGER_POOL : STAFF_POOL;
-  const index = getDayOfYear() % pool.length;
-  return pool[index];
+
+  const stored = await AsyncStorage.getItem(QUOTE_COUNTER_KEY);
+  const counter = stored !== null ? parseInt(stored, 10) : 0;
+
+  await AsyncStorage.setItem(QUOTE_COUNTER_KEY, String(counter + 1));
+
+  return pool[counter % pool.length];
 }

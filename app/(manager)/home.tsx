@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { getDailyQuote } from '../../lib/quotes';
+import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -18,8 +18,6 @@ const TEAL = '#00e5a0';
 const TEAL_DIM = 'rgba(0,229,160,0.15)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
-
-const managerQuote = getDailyQuote('manager');
 
 const FALLBACK_STATS = {
   locationName: 'Your Restaurant',
@@ -41,6 +39,11 @@ export default function ManagerHome() {
   const [staffActive, setStaffActive] = useState(FALLBACK_STATS.staffActive);
   const [bankNotLinked, setBankNotLinked] = useState(FALLBACK_STATS.bankNotLinked);
   const [loading, setLoading] = useState(true);
+  const [managerQuote, setManagerQuote] = useState<Quote | null>(null);
+
+  useEffect(() => {
+    getDailyQuote('manager').then(setManagerQuote);
+  }, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -133,8 +136,8 @@ export default function ManagerHome() {
         {/* Lead Card */}
         <View style={styles.leadCard}>
           <Text style={styles.leadLabel}>LEAD WITH THIS TODAY</Text>
-          <Text style={styles.leadText}>{managerQuote.text}</Text>
-          {managerQuote.author ? (
+          <Text style={styles.leadText}>{managerQuote?.text ?? ''}</Text>
+          {managerQuote?.author ? (
             <Text style={styles.leadAuthor}>— {managerQuote.author}</Text>
           ) : null}
         </View>

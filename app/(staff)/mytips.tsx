@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getDailyQuote } from '../../lib/quotes';
+import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -10,9 +11,13 @@ const MUTED = '#6b7a74';
 const LABEL = '#9db8ad';
 const BORDER = '#1e3028';
 
-const staffQuote = getDailyQuote('staff');
-
 export default function MyTipsScreen() {
+  const [staffQuote, setStaffQuote] = useState<Quote | null>(null);
+
+  useEffect(() => {
+    getDailyQuote('staff').then(setStaffQuote);
+  }, []);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
@@ -26,8 +31,8 @@ export default function MyTipsScreen() {
         {/* Daily Intention Card */}
         <View style={styles.intentionCard}>
           <Text style={styles.intentionLabel}>TODAY'S INTENTION</Text>
-          <Text style={styles.intentionText}>{staffQuote.text}</Text>
-          {staffQuote.author ? (
+          <Text style={styles.intentionText}>{staffQuote?.text ?? ''}</Text>
+          {staffQuote?.author ? (
             <Text style={styles.intentionAuthor}>— {staffQuote.author}</Text>
           ) : null}
         </View>
