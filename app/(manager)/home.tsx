@@ -4,9 +4,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   SafeAreaView,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getDailyQuote } from '../../lib/quotes';
 
@@ -33,11 +35,17 @@ const leaderboard = [
 ];
 
 export default function ManagerHome() {
+  const router = useRouter();
   const [locationName, setLocationName] = useState(FALLBACK_STATS.locationName);
   const [tipsThisWeek, setTipsThisWeek] = useState(FALLBACK_STATS.tipsThisWeek);
   const [staffActive, setStaffActive] = useState(FALLBACK_STATS.staffActive);
   const [bankNotLinked, setBankNotLinked] = useState(FALLBACK_STATS.bankNotLinked);
   const [loading, setLoading] = useState(true);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.replace('/');
+  }
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -109,6 +117,14 @@ export default function ManagerHome() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Header row with sign out */}
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Dashboard</Text>
+        <TouchableOpacity onPress={handleSignOut} style={styles.signOutBtn} activeOpacity={0.7}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -192,6 +208,32 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: BG,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  signOutBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#1f0a0a',
+    borderWidth: 1,
+    borderColor: '#3d1515',
+  },
+  signOutText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#f87171',
   },
   scroll: {
     flex: 1,

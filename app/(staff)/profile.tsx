@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -101,7 +102,10 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.signOutBtn}
           activeOpacity={0.8}
-          onPress={() => router.replace('/')}>
+          onPress={async () => {
+            await supabase.auth.signOut();
+            router.replace('/');
+          }}>
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
