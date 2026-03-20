@@ -36,12 +36,6 @@
     "plugins": [
       "expo-router",
       [
-        "expo-camera",
-        {
-          "cameraPermission": "TipFlow needs camera access to photograph your POS reports."
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "TipFlow needs access to your photos to import POS report screenshots.",

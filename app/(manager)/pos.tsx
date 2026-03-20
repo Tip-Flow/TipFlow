@@ -18,7 +18,6 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import { useCameraPermissions } from 'expo-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { parseCSV, CSVParseResult, CSVStaffRow } from '@/lib/csvParser';
 import { parseOCRText, OCRParseResult } from '@/lib/ocrParser';
@@ -68,8 +67,6 @@ function centsToDisplay(cents: number): string {
 
 export default function POSScreen() {
   const router = useRouter();
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-
   // CSV flow
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<CSVParseResult | null>(null);
@@ -140,25 +137,22 @@ export default function POSScreen() {
   // ── OCR scan ──────────────────────────────────────────────────────────────
 
   async function handleScanReport() {
-    if (!cameraPermission?.granted) {
-      const result = await requestCameraPermission();
-      if (!result.granted) {
-        Alert.alert(
-          'Camera Access Required',
-          'TipFlow needs camera access to photograph your POS reports. Please enable it in Settings.',
-          [
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                // Linking to settings is handled by the OS when user taps
-                Alert.alert('Go to Settings', 'Settings → TipFlow → Camera → Allow');
-              },
+    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+    if (!granted) {
+      Alert.alert(
+        'Camera Access Required',
+        'TipFlow needs camera access to photograph your POS reports. Please enable it in Settings.',
+        [
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              Alert.alert('Go to Settings', 'Settings → TipFlow → Camera → Allow');
             },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-        return;
-      }
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
     }
     setScanSheetVisible(true);
   }
