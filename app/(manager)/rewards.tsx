@@ -1,30 +1,44 @@
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
 
 const BG = '#09100e';
 const CARD = '#162019';
 const TEAL = '#00e5a0';
 const TEAL_DIM = 'rgba(0,229,160,0.15)';
 const TEAL_BORDER = 'rgba(0,229,160,0.4)';
-const GOLD = '#f59e0b';
-const GOLD_DIM = 'rgba(245,158,11,0.15)';
-const GOLD_BORDER = 'rgba(245,158,11,0.4)';
+const AMBER = '#f59e0b';
+const AMBER_DIM = 'rgba(245,158,11,0.15)';
+const AMBER_BORDER = 'rgba(245,158,11,0.4)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
+const ORANGE = '#fb923c';
+const ORANGE_DIM = 'rgba(249,115,22,0.15)';
 
-const leaderboard = [
-  { rank: 1, medal: '🥇', name: 'Alex Dubois',   pct: '22.4%', streak: 5 },
-  { rank: 2, medal: '🥈', name: 'Maria Costa',   pct: '21.1%', streak: 3 },
-  { rank: 3, medal: '🥉', name: 'Jordan Lavoie', pct: '19.8%', streak: 0 },
-  { rank: 4, medal: null, name: 'Taylor Nkosi',  pct: '17.2%', streak: 2 },
-  { rank: 5, medal: null, name: 'Sam Tremblay',  pct: '15.8%', streak: 0 },
+const incentivesEarned = [
+  { name: 'Alex Dubois',  milestone: '5 Shift Streak 🔥', date: 'Today' },
+  { name: 'Maria Costa',  milestone: 'New Personal Best ⭐', date: 'Yesterday' },
 ];
 
-const bonusRules = [
-  { label: 'Top tip % each week earns $10',       enabled: true  },
-  { label: 'Streak of 3+ shifts earns $5 bonus',  enabled: true  },
-  { label: 'Perfect attendance adds $15 bonus',   enabled: false },
-  { label: 'New hire first shift bonus $10',       enabled: true  },
+const teamLevels = [
+  { name: 'Alex Dubois',   level: 'Gold Server ⭐',   pct: 75, next: 'Platinum' },
+  { name: 'Maria Costa',   level: 'Silver Server',    pct: 60, next: 'Gold' },
+  { name: 'Jordan Lavoie', level: 'Gold Server ⭐',   pct: 40, next: 'Platinum' },
+  { name: 'Taylor Nkosi',  level: 'Bronze Server',    pct: 80, next: 'Silver' },
+  { name: 'Sam Tremblay',  level: 'Bronze Server',    pct: 30, next: 'Silver' },
+];
+
+const activeStreaks = [
+  { name: 'Alex Dubois',   shifts: 5 },
+  { name: 'Jordan Lavoie', shifts: 3 },
+];
+
+const recentMilestones = [
+  '🔥 Alex Dubois hit a 5-shift streak',
+  '⭐ Maria Costa set a new personal best',
+  '🏅 Taylor Nkosi completed 10 shifts',
+  '📈 Jordan Lavoie above average 3 shifts in a row',
+  '🎯 Sam Tremblay hit Silver tier progress',
+  '⭐ Alex Dubois - Diamond Earner badge unlocked',
 ];
 
 export default function RewardsScreen() {
@@ -36,110 +50,111 @@ export default function RewardsScreen() {
         showsVerticalScrollIndicator={false}>
 
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Rewards</Text>
-          <TouchableOpacity style={styles.bonusBtn} activeOpacity={0.8}>
-            <Text style={styles.bonusBtnText}>+ Bonus</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.title}>Rewards & Incentives</Text>
 
-        {/* Team Goal Card */}
-        <View style={styles.goalCard}>
-          <View style={styles.goalHeader}>
-            <View style={styles.goalTitleGroup}>
-              <Text style={styles.goalTitle}>Weekly Team Goal</Text>
-              <Text style={styles.goalSubtitle}>2 days left</Text>
-            </View>
-            <View style={styles.goalBadge}>
-              <Text style={styles.goalBadgeText}>79%</Text>
+        {/* Incentives Earned — amber border, most important */}
+        <View style={styles.amberCard}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Incentives Earned</Text>
+            <View style={styles.amberBadge}>
+              <Text style={styles.amberBadgeText}>{incentivesEarned.length} pending</Text>
             </View>
           </View>
+          <Text style={styles.cardSubtitle}>
+            These staff members have earned an incentive — you decide the reward
+          </Text>
 
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '79%' }]} />
-          </View>
+          <View style={styles.divider} />
 
-          <Text style={styles.goalAmount}>$11,840 of $15,000</Text>
-
-          <View style={styles.goalNote}>
-            <Text style={styles.goalNoteText}>🎯 Everyone earns $20 CAD bonus on completion</Text>
-          </View>
-        </View>
-
-        {/* Weekly Bonus Pool */}
-        <View style={styles.poolCard}>
-          <Text style={styles.cardTitle}>Weekly Bonus Pool</Text>
-          <View style={styles.poolStats}>
-            <View style={styles.poolStat}>
-              <Text style={styles.poolStatValue}>$200</Text>
-              <Text style={styles.poolStatLabel}>Total</Text>
-            </View>
-            <View style={styles.poolDivider} />
-            <View style={styles.poolStat}>
-              <Text style={[styles.poolStatValue, { color: GOLD }]}>$75</Text>
-              <Text style={styles.poolStatLabel}>Sent</Text>
-            </View>
-            <View style={styles.poolDivider} />
-            <View style={styles.poolStat}>
-              <Text style={[styles.poolStatValue, { color: TEAL }]}>$125</Text>
-              <Text style={styles.poolStatLabel}>Left</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Leaderboard */}
-        <View style={styles.leaderCard}>
-          <View style={styles.leaderHeader}>
-            <Text style={styles.cardTitle}>This Week's Top Staff</Text>
-            <Text style={styles.leaderSubtitle}>by tip %</Text>
-          </View>
-          {leaderboard.map((item, index) => (
+          {incentivesEarned.map((item, index) => (
             <View
               key={item.name}
               style={[
-                styles.leaderRow,
-                index < leaderboard.length - 1 && styles.leaderRowBorder,
+                styles.incentiveRow,
+                index < incentivesEarned.length - 1 && styles.rowBorder,
               ]}>
-              <View style={styles.leaderLeft}>
-                {item.medal ? (
-                  <Text style={styles.medal}>{item.medal}</Text>
-                ) : (
-                  <Text style={styles.rankNum}>{item.rank}</Text>
-                )}
-                <Text style={styles.leaderName}>{item.name}</Text>
+              <View style={styles.incentiveLeft}>
+                <Text style={styles.incentiveName}>{item.name}</Text>
+                <Text style={styles.incentiveMilestone}>{item.milestone}</Text>
+                <Text style={styles.incentiveDate}>{item.date}</Text>
               </View>
-              <View style={styles.leaderRight}>
-                {item.streak > 0 && (
-                  <View style={styles.streakBadge}>
-                    <Text style={styles.streakText}>🔥×{item.streak}</Text>
+              <TouchableOpacity style={styles.deliverBtn} activeOpacity={0.8}>
+                <Text style={styles.deliverBtnText}>Mark as Delivered</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        {/* Team Levels */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Team Levels</Text>
+          <View style={styles.divider} />
+
+          {teamLevels.map((item, index) => (
+            <View
+              key={item.name}
+              style={[
+                styles.levelRow,
+                index < teamLevels.length - 1 && styles.rowBorder,
+              ]}>
+              <View style={styles.levelInfo}>
+                <View style={styles.levelNameRow}>
+                  <Text style={styles.levelName}>{item.name}</Text>
+                  <Text style={styles.levelLabel}>{item.level}</Text>
+                </View>
+                <View style={styles.levelProgressRow}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${item.pct}%` as any }]} />
                   </View>
-                )}
-                <Text style={[styles.leaderPct, item.rank === 1 && { color: GOLD }]}>
-                  {item.pct}
-                </Text>
+                  <Text style={styles.levelNextLabel}>{item.pct}% to {item.next}</Text>
+                </View>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Auto Bonus Rules */}
-        <View style={styles.rulesCard}>
-          <Text style={[styles.cardTitle, styles.rulesPadding]}>Auto Bonus Rules</Text>
-          <View style={styles.rulesDivider} />
-          {bonusRules.map((rule, index) => (
+        {/* Active Streaks */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Active Streaks</Text>
+          <View style={styles.divider} />
+
+          {activeStreaks.map((item, index) => (
             <View
-              key={rule.label}
+              key={item.name}
               style={[
-                styles.ruleRow,
-                index < bonusRules.length - 1 && styles.ruleRowBorder,
+                styles.streakRow,
+                index < activeStreaks.length - 1 && styles.rowBorder,
               ]}>
-              <Text style={styles.ruleLabel}>{rule.label}</Text>
-              <Switch
-                value={rule.enabled}
-                trackColor={{ false: BORDER, true: TEAL_BORDER }}
-                thumbColor={rule.enabled ? TEAL : MUTED}
-                ios_backgroundColor={BORDER}
-              />
+              <View style={styles.streakIcon}>
+                <Text style={styles.streakEmoji}>🔥</Text>
+              </View>
+              <View style={styles.streakInfo}>
+                <Text style={styles.streakName}>{item.name}</Text>
+                <Text style={styles.streakDesc}>{item.shifts} shifts above personal average</Text>
+              </View>
+              <View style={styles.streakBadge}>
+                <Text style={styles.streakBadgeText}>×{item.shifts}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Team Milestones This Week */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Team Milestones This Week</Text>
+          <View style={styles.milestoneSummary}>
+            <Text style={styles.milestoneCount}>6 milestones achieved this week 🎉</Text>
+          </View>
+          <View style={styles.divider} />
+
+          {recentMilestones.map((item, index) => (
+            <View
+              key={index}
+              style={[
+                styles.milestoneRow,
+                index < recentMilestones.length - 1 && styles.rowBorder,
+              ]}>
+              <Text style={styles.milestoneText}>{item}</Text>
             </View>
           ))}
         </View>
@@ -164,258 +179,221 @@ const styles = StyleSheet.create({
     gap: 20,
   },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   title: {
     fontSize: 26,
     fontWeight: '800',
     color: WHITE,
     letterSpacing: -0.5,
   },
-  bonusBtn: {
-    backgroundColor: GOLD_DIM,
-    borderWidth: 1,
-    borderColor: GOLD_BORDER,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  bonusBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: GOLD,
-  },
 
-  // Team Goal Card
-  goalCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: TEAL_BORDER,
-    padding: 18,
-    gap: 14,
-  },
-  goalHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  goalTitleGroup: {
-    gap: 3,
-  },
-  goalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: WHITE,
-    letterSpacing: -0.3,
-  },
-  goalSubtitle: {
-    fontSize: 13,
-    color: MUTED,
-  },
-  goalBadge: {
-    backgroundColor: TEAL_DIM,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  goalBadgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: TEAL,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: 'rgba(0,229,160,0.12)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: TEAL,
-    borderRadius: 4,
-  },
-  goalAmount: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: WHITE,
-    letterSpacing: -0.5,
-  },
-  goalNote: {
-    backgroundColor: TEAL_DIM,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  goalNoteText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: TEAL,
-    lineHeight: 18,
-  },
-
-  // Pool Card
-  poolCard: {
+  // Cards
+  card: {
     backgroundColor: CARD,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 18,
-    gap: 16,
+    overflow: 'hidden',
   },
-  poolStats: {
+  amberCard: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: AMBER_BORDER,
+    overflow: 'hidden',
+    padding: 18,
+    gap: 12,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  poolStat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  poolStatValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: WHITE,
-    letterSpacing: -0.5,
-  },
-  poolStatLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: MUTED,
-  },
-  poolDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: BORDER,
-  },
-
-  // Shared
   cardTitle: {
     fontSize: 17,
     fontWeight: '800',
     color: WHITE,
     letterSpacing: -0.3,
-  },
-
-  // Leaderboard
-  leaderCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: BORDER,
-    overflow: 'hidden',
-  },
-  leaderHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
     paddingHorizontal: 18,
     paddingTop: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+    paddingBottom: 0,
   },
-  leaderSubtitle: {
+  cardSubtitle: {
     fontSize: 13,
     color: MUTED,
+    lineHeight: 18,
   },
-  leaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-  },
-  leaderRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  leaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  medal: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
-  },
-  rankNum: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: MUTED,
-    width: 28,
-    textAlign: 'center',
-  },
-  leaderName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: WHITE,
-  },
-  leaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  streakBadge: {
-    backgroundColor: 'rgba(249,115,22,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  amberBadge: {
+    backgroundColor: AMBER_DIM,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
   },
-  streakText: {
+  amberBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fb923c',
+    color: AMBER,
   },
-  leaderPct: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: TEAL,
-    letterSpacing: -0.3,
-    minWidth: 50,
-    textAlign: 'right',
-  },
-
-  // Rules Card
-  rulesCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: BORDER,
-    overflow: 'hidden',
-  },
-  rulesPadding: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-  },
-  rulesDivider: {
+  divider: {
     height: 1,
     backgroundColor: BORDER,
     marginTop: 14,
     marginHorizontal: 18,
+    marginBottom: 0,
   },
-  ruleRow: {
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+
+  // Incentives Earned
+  incentiveRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  incentiveLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  incentiveName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  incentiveMilestone: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: AMBER,
+  },
+  incentiveDate: {
+    fontSize: 12,
+    color: MUTED,
+  },
+  deliverBtn: {
+    backgroundColor: TEAL_DIM,
+    borderWidth: 1,
+    borderColor: TEAL_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  deliverBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: TEAL,
+  },
+
+  // Team Levels
+  levelRow: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  levelInfo: {
+    gap: 8,
+  },
+  levelNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  levelName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  levelLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: AMBER,
+  },
+  levelProgressRow: {
+    gap: 6,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: 'rgba(0,229,160,0.12)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: TEAL,
+    borderRadius: 3,
+  },
+  levelNextLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: MUTED,
+  },
+
+  // Active Streaks
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 18,
     paddingVertical: 14,
     gap: 12,
   },
-  ruleRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+  streakIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: ORANGE_DIM,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  ruleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: WHITE,
+  streakEmoji: {
+    fontSize: 18,
+  },
+  streakInfo: {
     flex: 1,
+    gap: 2,
+  },
+  streakName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  streakDesc: {
+    fontSize: 13,
+    color: MUTED,
+  },
+  streakBadge: {
+    backgroundColor: ORANGE_DIM,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  streakBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: ORANGE,
+  },
+
+  // Team Milestones
+  milestoneSummary: {
+    backgroundColor: TEAL_DIM,
+    marginHorizontal: 18,
+    marginTop: 12,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  milestoneCount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TEAL,
+  },
+  milestoneRow: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  milestoneText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: WHITE,
     lineHeight: 20,
   },
 });

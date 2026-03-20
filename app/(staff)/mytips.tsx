@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getDailyQuote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -8,6 +9,8 @@ const TEAL_DIM = '#00b880';
 const MUTED = '#6b7a74';
 const LABEL = '#9db8ad';
 const BORDER = '#1e3028';
+
+const staffQuote = getDailyQuote('staff');
 
 export default function MyTipsScreen() {
   return (
@@ -19,6 +22,15 @@ export default function MyTipsScreen() {
 
         {/* Header */}
         <Text style={styles.screenTitle}>My Tips</Text>
+
+        {/* Daily Intention Card */}
+        <View style={styles.intentionCard}>
+          <Text style={styles.intentionLabel}>TODAY'S INTENTION</Text>
+          <Text style={styles.intentionText}>{staffQuote.text}</Text>
+          {staffQuote.author ? (
+            <Text style={styles.intentionAuthor}>— {staffQuote.author}</Text>
+          ) : null}
+        </View>
 
         {/* Hero Card */}
         <View style={styles.heroCard}>
@@ -221,6 +233,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: TEAL,
     fontWeight: '700',
+  },
+
+  // Intention card
+  intentionCard: {
+    backgroundColor: '#162019',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: TEAL,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  intentionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  intentionText: {
+    fontSize: 14,
+    color: '#e8f5ef',
+    lineHeight: 21,
+    fontWeight: '400',
+  },
+  intentionAuthor: {
+    fontSize: 12,
+    color: TEAL,
+    fontWeight: '500',
+    marginTop: 6,
   },
 
   // Info bar

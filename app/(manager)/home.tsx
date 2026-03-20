@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { getDailyQuote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -15,6 +16,8 @@ const TEAL = '#00e5a0';
 const TEAL_DIM = 'rgba(0,229,160,0.15)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
+
+const managerQuote = getDailyQuote('manager');
 
 const FALLBACK_STATS = {
   locationName: 'Your Restaurant',
@@ -111,6 +114,15 @@ export default function ManagerHome() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
 
+        {/* Lead Card */}
+        <View style={styles.leadCard}>
+          <Text style={styles.leadLabel}>LEAD WITH THIS TODAY</Text>
+          <Text style={styles.leadText}>{managerQuote.text}</Text>
+          {managerQuote.author ? (
+            <Text style={styles.leadAuthor}>— {managerQuote.author}</Text>
+          ) : null}
+        </View>
+
         {/* Greeting */}
         <Text style={styles.greeting}>Good evening, Jamie 👋</Text>
         <Text style={styles.subGreeting}>
@@ -189,6 +201,37 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 32,
     gap: 24,
+  },
+
+  // Lead card
+  leadCard: {
+    backgroundColor: '#162019',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: TEAL,
+    borderWidth: 1,
+    borderColor: '#1f3028',
+  },
+  leadLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  leadText: {
+    fontSize: 14,
+    color: '#e8f0ec',
+    lineHeight: 21,
+    fontWeight: '400',
+  },
+  leadAuthor: {
+    fontSize: 12,
+    color: TEAL,
+    fontWeight: '500',
+    marginTop: 6,
   },
 
   // Greeting

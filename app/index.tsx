@@ -1,8 +1,30 @@
+import { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
+import DailyQuote from './components/DailyQuote';
+
+type PendingRole = 'manager' | 'staff' | null;
 
 export default function LoginScreen() {
   const router = useRouter();
+  const [pendingRole, setPendingRole] = useState<PendingRole>(null);
+
+  function handleDismiss() {
+    if (pendingRole === 'manager') {
+      router.push('/(manager)/home');
+    } else if (pendingRole === 'staff') {
+      router.push('/(staff)/mytips');
+    }
+    setPendingRole(null);
+  }
+
+  if (pendingRole !== null) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <DailyQuote role={pendingRole} onDismiss={handleDismiss} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -17,14 +39,14 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.button}
             activeOpacity={0.8}
-            onPress={() => router.push('/(manager)/home')}>
+            onPress={() => setPendingRole('manager')}>
             <Text style={styles.buttonText}>Sign in as Manager</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, styles.buttonOutline]}
             activeOpacity={0.8}
-            onPress={() => router.push('/(staff)/mytips')}>
+            onPress={() => setPendingRole('staff')}>
             <Text style={[styles.buttonText, styles.buttonTextOutline]}>Sign in as Staff</Text>
           </TouchableOpacity>
         </View>
