@@ -13,12 +13,18 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { calculateTips, Role, TipAllocationResult } from '@/lib/tipCalculator';
-import { CSVParseResult } from '@/lib/csvParser';
+import {
+  calculateShiftSummary,
+  calculateHousePool,
+  TipOutRule,
+  HousePoolStaff,
+  ShiftSummaryResult,
+  HousePoolAllocation,
+} from '@/lib/tipCalculator';
 
-// ─── Palette ────────────────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 const BG = '#09100e';
 const CARD = '#162019';
 const TEAL = '#00e5a0';
@@ -29,47 +35,53 @@ const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
 const RED = '#ef4444';
-const RED_DIM = 'rgba(239,68,68,0.12)';
 
-// ─── Defaults (mirrors CLAUDE.md role weight table) ─────────────────────────
-const DEFAULT_ROLE_WEIGHTS: Record<Role, number> = {
-  server: 0.70,
-  bartender: 0.60,
-  runner: 0.30,
-  host: 0.20,
-  kitchen: 0.06,
-};
+// ─── Default tip-out rules ────────────────────────────────────────────────────
+const DEFAULT_TIP_OUT_RULES: TipOutRule[] = [
+  { role: 'bartender', percentage: 1.5, distribution: 'direct' },
+  { role: 'runner',    percentage: 1.0, distribution: 'house_pool' },
+  { role: 'host',      percentage: 0.5, distribution: 'house_pool' },
+];
 
-const ROLE_LABELS: Record<Role, string> = {
-  server: 'Server',
+const ROLE_LABELS: Record<string, string> = {
+  server:    'Server',
   bartender: 'Bartender',
-  runner: 'Runner',
-  host: 'Host',
-  kitchen: 'Kitchen',
+  runner:    'Runner',
+  host:      'Host',
+  kitchen:   'Kitchen',
 };
 
-const ROLE_EMOJIS: Record<Role, string> = {
-  server: '🍽️',
+const ROLE_EMOJIS: Record<string, string> = {
+  server:    '🍽️',
   bartender: '🍸',
-  runner: '🏃',
-  host: '🚪',
-  kitchen: '👨‍🍳',
+  runner:    '🏃',
+  host:      '🚪',
+  kitchen:   '👨‍🍳',
 };
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-interface StaffRow {
+const SERVER_ROLES = new Set(['server']);
+const SUPPORT_ROLES = new Set(['bartender', 'runner', 'host', 'kitchen']);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface ServerEntry {
   id: string;
   name: string;
-  role: Role;
-  location_id: string;
-}
-
-interface StaffEntry extends StaffRow {
-  hoursWorked: string; // string for input state
+  role: string;
+  sales: string;
+  tipsEarned: string;
+  hoursWorked: string;
   included: boolean;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface SupportEntry {
+  id: string;
+  name: string;
+  role: string;
+  hoursWorked: string;
+  included: boolean;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function today(): string {
   return new Date().toISOString().split('T')[0];
 }
@@ -83,39 +95,32 @@ function dollarsToCents(dollars: string): number {
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
   const router = useRouter();
-  const { csvData } = useLocalSearchParams<{ csvData?: string }>();
 
-  // Shift details
   const [shiftName, setShiftName] = useState('');
   const [shiftDate, setShiftDate] = useState(today());
-  const [totalTipsDollars, setTotalTipsDollars] = useState('');
-  const [totalSalesDollars, setTotalSalesDollars] = useState('');
 
-  // Staff
-  const [staff, setStaff] = useState<StaffEntry[]>([]);
+  const [servers, setServers] = useState<ServerEntry[]>([]);
+  const [supportStaff, setSupportStaff] = useState<SupportEntry[]>([]);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [loadingStaff, setLoadingStaff] = useState(true);
-  const [csvImported, setCsvImported] = useState(false);
 
-  // Results
-  const [results, setResults] = useState<TipAllocationResult[] | null>(null);
+  const [summary, setSummary] = useState<ShiftSummaryResult | null>(null);
+  const [housePoolAllocations, setHousePoolAllocations] = useState<HousePoolAllocation[] | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // ── Fetch staff on mount ───────────────────────────────────────────────────
+  // ── Fetch staff on mount ──────────────────────────────────────────────────
   useEffect(() => {
     async function fetchStaff() {
       setLoadingStaff(true);
       try {
-        // Use first available location (same pattern as home.tsx)
         const { data: locData } = await supabase
           .from('locations')
           .select('id')
           .limit(1)
           .single();
-
         if (!locData) return;
         setLocationId(locData.id);
 
@@ -124,51 +129,34 @@ export default function CalculateScreen() {
           .select('id, name, role, location_id')
           .eq('location_id', locData.id)
           .order('name');
-
         if (error) throw error;
 
-        let entries: StaffEntry[] = (staffData ?? []).map((s) => ({
-          id: s.id,
-          name: s.name,
-          role: (s.role as Role) ?? 'server',
-          location_id: s.location_id,
-          hoursWorked: '',
-          included: true,
-        }));
+        const all = staffData ?? [];
 
-        // ── Apply CSV pre-fill if navigated from CSV import ────────────────
-        if (csvData) {
-          try {
-            const parsed: CSVParseResult = JSON.parse(csvData);
-
-            // Pre-fill totalTips / totalSales
-            if (parsed.totalTips !== null && parsed.totalTips > 0) {
-              setTotalTipsDollars(centsToDisplay(parsed.totalTips));
-            }
-            if (parsed.totalSales !== null && parsed.totalSales > 0) {
-              setTotalSalesDollars(centsToDisplay(parsed.totalSales));
-            }
-
-            // Match CSV rows to Supabase staff by name (case-insensitive)
-            // and pre-fill hours. Unmatched CSV rows are ignored (manager
-            // can still add hours manually for any staff not in the CSV).
-            entries = entries.map((entry) => {
-              const match = parsed.rows.find(
-                (row) => row.name.toLowerCase() === entry.name.toLowerCase(),
-              );
-              if (match && match.hoursWorked > 0) {
-                return { ...entry, hoursWorked: String(match.hoursWorked) };
-              }
-              return entry;
-            });
-
-            setCsvImported(true);
-          } catch {
-            // Malformed param — ignore silently, fall through to manual entry
-          }
-        }
-
-        setStaff(entries);
+        setServers(
+          all
+            .filter((s) => SERVER_ROLES.has(s.role?.toLowerCase()))
+            .map((s) => ({
+              id: s.id,
+              name: s.name,
+              role: s.role?.toLowerCase() ?? 'server',
+              sales: '',
+              tipsEarned: '',
+              hoursWorked: '',
+              included: true,
+            })),
+        );
+        setSupportStaff(
+          all
+            .filter((s) => SUPPORT_ROLES.has(s.role?.toLowerCase()))
+            .map((s) => ({
+              id: s.id,
+              name: s.name,
+              role: s.role?.toLowerCase() ?? 'runner',
+              hoursWorked: '',
+              included: true,
+            })),
+        );
       } catch (err) {
         console.error('Failed to load staff:', err);
       } finally {
@@ -178,77 +166,117 @@ export default function CalculateScreen() {
     fetchStaff();
   }, []);
 
-  // ── Staff update helpers ───────────────────────────────────────────────────
-  function updateHours(id: string, value: string) {
-    if (/^\d{0,2}(\.\d{0,2})?$/.test(value)) {
-      setStaff((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, hoursWorked: value } : s)),
-      );
+  // ── Update helpers ────────────────────────────────────────────────────────
+  function updateServer(
+    id: string,
+    field: keyof Pick<ServerEntry, 'sales' | 'tipsEarned' | 'hoursWorked'>,
+    value: string,
+  ) {
+    if (/^\d*(\.\d{0,2})?$/.test(value)) {
+      setServers((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+      setSummary(null);
     }
   }
 
-  function toggleIncluded(id: string) {
-    setStaff((prev) =>
+  function toggleServer(id: string) {
+    setServers((prev) => prev.map((s) => (s.id === id ? { ...s, included: !s.included } : s)));
+    setSummary(null);
+  }
+
+  function updateSupportHours(id: string, value: string) {
+    if (/^\d{0,2}(\.\d{0,2})?$/.test(value)) {
+      setSupportStaff((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, hoursWorked: value } : s)),
+      );
+      setSummary(null);
+    }
+  }
+
+  function toggleSupport(id: string) {
+    setSupportStaff((prev) =>
       prev.map((s) => (s.id === id ? { ...s, included: !s.included } : s)),
     );
-    setResults(null);
+    setSummary(null);
   }
 
   // ── Calculate ─────────────────────────────────────────────────────────────
   function handleCalculate() {
-    const totalTipsCents = dollarsToCents(totalTipsDollars);
-
     if (!shiftName.trim()) {
       Alert.alert('Missing info', 'Please enter a shift name.');
       return;
     }
-    if (totalTipsCents <= 0) {
-      Alert.alert('Missing info', 'Please enter total tips greater than $0.');
+
+    const activeServers = servers.filter((s) => s.included);
+    if (activeServers.length === 0) {
+      Alert.alert('No servers', 'Include at least one server.');
       return;
     }
 
-    const activeStaff = staff.filter((s) => s.included);
-    if (activeStaff.length === 0) {
-      Alert.alert('No staff', 'Include at least one staff member.');
-      return;
-    }
-
-    const missingHours = activeStaff.filter(
-      (s) => !s.hoursWorked || parseFloat(s.hoursWorked) <= 0,
+    const missingData = activeServers.filter(
+      (s) =>
+        dollarsToCents(s.sales) <= 0 ||
+        dollarsToCents(s.tipsEarned) <= 0 ||
+        parseFloat(s.hoursWorked) <= 0,
     );
-    if (missingHours.length > 0) {
+    if (missingData.length > 0) {
       Alert.alert(
-        'Missing hours',
-        `Enter hours worked for: ${missingHours.map((s) => s.name).join(', ')}`,
+        'Missing data',
+        `Enter sales, tips earned, and hours for: ${missingData.map((s) => s.name).join(', ')}`,
       );
       return;
     }
 
     try {
-      const staffInput = activeStaff.map((s) => ({
+      const serverInputs = activeServers.map((s) => ({
         id: s.id,
         name: s.name,
-        role: s.role,
+        sales: dollarsToCents(s.sales),
+        tipsEarned: dollarsToCents(s.tipsEarned),
         hoursWorked: parseFloat(s.hoursWorked),
       }));
 
-      const result = calculateTips(totalTipsCents, staffInput, DEFAULT_ROLE_WEIGHTS);
-      setResults(result.allocations);
+      const newSummary = calculateShiftSummary(serverInputs, DEFAULT_TIP_OUT_RULES);
+      setSummary(newSummary);
+
+      // Distribute house pool among active support staff by hours (points)
+      const activeSupport = supportStaff.filter(
+        (s) => s.included && parseFloat(s.hoursWorked) > 0,
+      );
+      const poolRoles: HousePoolStaff[] = activeSupport.map((s) => ({
+        staffId: s.id,
+        name: s.name,
+        distribution_type: 'points',
+        points_per_hour: 1,
+        hours_worked: parseFloat(s.hoursWorked),
+      }));
+
+      setHousePoolAllocations(calculateHousePool(newSummary.totalHousePool, poolRoles));
     } catch (err: unknown) {
       Alert.alert('Calculation error', err instanceof Error ? err.message : String(err));
     }
   }
 
-  // ── Save & pay out ────────────────────────────────────────────────────────
-  async function handleSaveAndPayout() {
-    if (!results || !locationId) return;
+  // ── Direct tip-out totals per role ────────────────────────────────────────
+  function getDirectTipOutTotals(): Record<string, number> {
+    if (!summary) return {};
+    const totals: Record<string, number> = {};
+    for (const server of summary.perServerBreakdown) {
+      for (const tipOut of server.directTipOuts) {
+        totals[tipOut.role] = (totals[tipOut.role] ?? 0) + tipOut.amount;
+      }
+    }
+    return totals;
+  }
 
-    const totalTipsCents = dollarsToCents(totalTipsDollars);
-    const totalSalesCents = dollarsToCents(totalSalesDollars);
+  // ── Save ──────────────────────────────────────────────────────────────────
+  async function handleSaveAndPayout() {
+    if (!summary || !housePoolAllocations || !locationId) return;
+
+    const totalTipsCents = summary.perServerBreakdown.reduce((sum, s) => sum + s.tipsEarned, 0);
+    const totalSalesCents = summary.perServerBreakdown.reduce((sum, s) => sum + s.sales, 0);
 
     setSaving(true);
     try {
-      // Insert shift
       const { data: shiftData, error: shiftError } = await supabase
         .from('shifts')
         .insert({
@@ -262,26 +290,81 @@ export default function CalculateScreen() {
         })
         .select('id')
         .single();
-
       if (shiftError) throw shiftError;
 
-      // Insert tip allocations
-      const allocations = results.map((r) => {
-        const staffEntry = staff.find((s) => s.id === r.staffId);
-        return {
+      const allocations: object[] = [];
+
+      // Server allocations — what each server keeps after tip-outs
+      for (const s of summary.perServerBreakdown) {
+        const directTipOutsTotal = s.directTipOuts.reduce((sum, t) => sum + t.amount, 0);
+        const row = {
           shift_id: shiftData.id,
-          staff_id: r.staffId,
-          hours_worked: r.hoursWorked,
-          role_weight: DEFAULT_ROLE_WEIGHTS[r.role] ?? 0,
-          calculated_amount: r.calculatedAmount,
+          staff_id: s.id,
+          hours_worked: s.hoursWorked,
+          role_weight: 1.0,
+          server_sales: s.sales,
+          total_tip_out: s.totalTipOut,
+          direct_tip_outs: directTipOutsTotal,
+          house_pool_contribution: s.housePoolContribution,
+          tips_kept: s.tipsKept,
+          calculated_amount: s.tipsKept,
         };
-      });
+        console.log('[TipFlow] Server allocation:', row);
+        allocations.push(row);
+      }
 
-      const { error: allocError } = await supabase
-        .from('tip_allocations')
-        .insert(allocations);
+      // House pool allocations
+      for (const a of housePoolAllocations) {
+        allocations.push({
+          shift_id: shiftData.id,
+          staff_id: a.staffId,
+          hours_worked: a.hoursWorked,
+          role_weight: 0,
+          calculated_amount: a.calculatedAmount,
+        });
+      }
 
+      // Direct tip-out allocations — split equally among active staff of each role
+      const directTotals = getDirectTipOutTotals();
+      for (const [role, totalAmount] of Object.entries(directTotals)) {
+        const recipients = supportStaff.filter(
+          (s) => s.included && s.role === role && parseFloat(s.hoursWorked) > 0,
+        );
+        if (recipients.length === 0) continue;
+        const perPerson = Math.floor(totalAmount / recipients.length);
+        let leftover = totalAmount - perPerson * recipients.length;
+        for (const r of recipients) {
+          const amount = leftover > 0 ? perPerson + 1 : perPerson;
+          if (leftover > 0) leftover--;
+          allocations.push({
+            shift_id: shiftData.id,
+            staff_id: r.id,
+            hours_worked: parseFloat(r.hoursWorked) || 0,
+            role_weight: 0,
+            calculated_amount: amount,
+          });
+        }
+      }
+
+      console.log('[TipFlow] All allocations to insert:', JSON.stringify(allocations, null, 2));
+      console.log('[TipFlow] Total house pool to add to location balance:', summary.totalHousePool);
+
+      const { error: allocError } = await supabase.from('tip_allocations').insert(allocations);
       if (allocError) throw allocError;
+
+      // Update location's house_pool_balance
+      const { data: locBalance } = await supabase
+        .from('locations')
+        .select('house_pool_balance')
+        .eq('id', locationId)
+        .single();
+      const currentBalance = locBalance?.house_pool_balance ?? 0;
+      const { error: balanceError } = await supabase
+        .from('locations')
+        .update({ house_pool_balance: currentBalance + summary.totalHousePool })
+        .eq('id', locationId);
+      if (balanceError) throw balanceError;
+      console.log('[TipFlow] house_pool_balance updated:', currentBalance, '+', summary.totalHousePool, '=', currentBalance + summary.totalHousePool);
 
       Alert.alert('Saved!', 'Shift and tip allocations have been saved.', [
         { text: 'OK', onPress: () => router.back() },
@@ -292,6 +375,8 @@ export default function CalculateScreen() {
       setSaving(false);
     }
   }
+
+  const directTipOutTotals = getDirectTipOutTotals();
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -311,22 +396,39 @@ export default function CalculateScreen() {
               <Text style={styles.backText}>← Back</Text>
             </TouchableOpacity>
             <Text style={styles.title}>Calculate Tips</Text>
-            <Text style={styles.subtitle}>Enter shift details and staff hours</Text>
+            <Text style={styles.subtitle}>Enter each server's sales and tips earned</Text>
           </View>
 
-          {/* CSV import banner */}
-          {csvImported && (
-            <View style={styles.csvBanner}>
-              <Text style={styles.csvBannerText}>
-                CSV imported — hours and totals pre-filled. Adjust anything before calculating.
-              </Text>
-            </View>
-          )}
+          {/* Tip-out rules */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Tip-Out Rules</Text>
+            {DEFAULT_TIP_OUT_RULES.map((rule, i) => (
+              <View key={rule.role}>
+                {i > 0 && <View style={styles.divider} />}
+                <View style={styles.ruleRow}>
+                  <Text style={styles.ruleRole}>
+                    {ROLE_EMOJIS[rule.role] ?? ''} {ROLE_LABELS[rule.role] ?? rule.role}
+                  </Text>
+                  <Text style={styles.rulePct}>{rule.percentage}% of sales</Text>
+                  <View style={[
+                    styles.ruleBadge,
+                    rule.distribution === 'direct' ? styles.badgeTeal : styles.badgeAmber,
+                  ]}>
+                    <Text style={[
+                      styles.ruleBadgeText,
+                      rule.distribution === 'direct' ? styles.badgeTealText : styles.badgeAmberText,
+                    ]}>
+                      {rule.distribution === 'direct' ? 'direct' : 'pool'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
 
-          {/* Shift Details Card */}
+          {/* Shift Details */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Shift Details</Text>
-
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Shift Name</Text>
               <TextInput
@@ -334,149 +436,238 @@ export default function CalculateScreen() {
                 placeholder="e.g. Friday Dinner"
                 placeholderTextColor={MUTED}
                 value={shiftName}
-                onChangeText={(t) => { setShiftName(t); setResults(null); }}
+                onChangeText={(t) => { setShiftName(t); setSummary(null); }}
               />
             </View>
-
             <View style={styles.divider} />
-
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Date</Text>
               <TextInput
                 style={styles.textInput}
                 value={shiftDate}
-                onChangeText={(t) => { setShiftDate(t); setResults(null); }}
+                onChangeText={(t) => { setShiftDate(t); setSummary(null); }}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor={MUTED}
               />
             </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Total Tips ($)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="0.00"
-                placeholderTextColor={MUTED}
-                value={totalTipsDollars}
-                onChangeText={(t) => { setTotalTipsDollars(t); setResults(null); }}
-                keyboardType="decimal-pad"
-              />
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Total Sales ($)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="0.00"
-                placeholderTextColor={MUTED}
-                value={totalSalesDollars}
-                onChangeText={(t) => { setTotalSalesDollars(t); setResults(null); }}
-                keyboardType="decimal-pad"
-              />
-            </View>
           </View>
 
-          {/* Staff Section */}
+          {/* Servers */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Staff on Shift</Text>
-
+            <Text style={styles.cardTitle}>Servers</Text>
             {loadingStaff ? (
               <ActivityIndicator color={TEAL} style={{ marginVertical: 20 }} />
-            ) : staff.length === 0 ? (
+            ) : servers.length === 0 ? (
               <Text style={styles.emptyText}>
-                No staff found. Add staff members in the Staff tab.
+                No servers found. Add server staff in the Staff tab.
               </Text>
             ) : (
-              staff.map((s, index) => (
+              servers.map((s, index) => (
                 <View key={s.id}>
                   {index > 0 && <View style={styles.divider} />}
-                  <View style={[styles.staffRow, !s.included && styles.staffRowMuted]}>
-                    {/* Name + role */}
-                    <View style={styles.staffInfo}>
+                  <View style={[styles.serverBlock, !s.included && styles.mutedBlock]}>
+                    <View style={styles.serverHeader}>
                       <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
-                        {ROLE_EMOJIS[s.role]} {s.name}
+                        {ROLE_EMOJIS.server} {s.name}
                       </Text>
-                      <Text style={styles.staffRole}>{ROLE_LABELS[s.role]}</Text>
+                      <Switch
+                        value={s.included}
+                        onValueChange={() => toggleServer(s.id)}
+                        trackColor={{ false: BORDER, true: TEAL_DIM }}
+                        thumbColor={s.included ? TEAL : MUTED}
+                      />
                     </View>
-
-                    {/* Hours input */}
-                    <TextInput
-                      style={[
-                        styles.hoursInput,
-                        !s.included && styles.hoursInputDisabled,
-                      ]}
-                      placeholder="hrs"
-                      placeholderTextColor={MUTED}
-                      value={s.hoursWorked}
-                      onChangeText={(t) => { updateHours(s.id, t); setResults(null); }}
-                      keyboardType="decimal-pad"
-                      editable={s.included}
-                    />
-
-                    {/* Include toggle */}
-                    <Switch
-                      value={s.included}
-                      onValueChange={() => toggleIncluded(s.id)}
-                      trackColor={{ false: BORDER, true: TEAL_DIM }}
-                      thumbColor={s.included ? TEAL : MUTED}
-                    />
+                    {s.included && (
+                      <View style={styles.serverInputs}>
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputLabel}>Sales ($)</Text>
+                          <TextInput
+                            style={styles.smallInput}
+                            placeholder="0.00"
+                            placeholderTextColor={MUTED}
+                            value={s.sales}
+                            onChangeText={(t) => updateServer(s.id, 'sales', t)}
+                            keyboardType="decimal-pad"
+                          />
+                        </View>
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputLabel}>Tips ($)</Text>
+                          <TextInput
+                            style={styles.smallInput}
+                            placeholder="0.00"
+                            placeholderTextColor={MUTED}
+                            value={s.tipsEarned}
+                            onChangeText={(t) => updateServer(s.id, 'tipsEarned', t)}
+                            keyboardType="decimal-pad"
+                          />
+                        </View>
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputLabel}>Hours</Text>
+                          <TextInput
+                            style={styles.smallInput}
+                            placeholder="0"
+                            placeholderTextColor={MUTED}
+                            value={s.hoursWorked}
+                            onChangeText={(t) => updateServer(s.id, 'hoursWorked', t)}
+                            keyboardType="decimal-pad"
+                          />
+                        </View>
+                      </View>
+                    )}
                   </View>
                 </View>
               ))
             )}
           </View>
 
+          {/* Support Staff */}
+          {!loadingStaff && supportStaff.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Support Staff</Text>
+              <Text style={styles.cardSubtitle}>Hours worked determines house pool share</Text>
+              {supportStaff.map((s, index) => (
+                <View key={s.id}>
+                  {index > 0 && <View style={styles.divider} />}
+                  <View style={[styles.staffRow, !s.included && styles.mutedBlock]}>
+                    <View style={styles.staffInfo}>
+                      <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
+                        {ROLE_EMOJIS[s.role] ?? ''} {s.name}
+                      </Text>
+                      <Text style={styles.staffRole}>{ROLE_LABELS[s.role] ?? s.role}</Text>
+                    </View>
+                    <TextInput
+                      style={[styles.hoursInput, !s.included && styles.hoursInputDisabled]}
+                      placeholder="hrs"
+                      placeholderTextColor={MUTED}
+                      value={s.hoursWorked}
+                      onChangeText={(t) => updateSupportHours(s.id, t)}
+                      keyboardType="decimal-pad"
+                      editable={s.included}
+                    />
+                    <Switch
+                      value={s.included}
+                      onValueChange={() => toggleSupport(s.id)}
+                      trackColor={{ false: BORDER, true: TEAL_DIM }}
+                      thumbColor={s.included ? TEAL : MUTED}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Calculate Button */}
-          <TouchableOpacity
-            style={styles.calcBtn}
-            onPress={handleCalculate}
-            activeOpacity={0.8}>
+          <TouchableOpacity style={styles.calcBtn} onPress={handleCalculate} activeOpacity={0.8}>
             <Text style={styles.calcBtnText}>Calculate</Text>
           </TouchableOpacity>
 
           {/* Results */}
-          {results && results.length > 0 && (
+          {summary && housePoolAllocations && (
             <View style={styles.resultsSection}>
               <Text style={styles.resultsTitle}>Results</Text>
 
-              {results.map((r, index) => {
-                const totalSalesCents = dollarsToCents(totalSalesDollars);
-                const tipPctOfSales =
-                  totalSalesCents > 0
-                    ? ((r.calculatedAmount / totalSalesCents) * 100).toFixed(1)
-                    : '—';
-
-                return (
-                  <View
-                    key={r.staffId}
-                    style={[
-                      styles.resultCard,
-                      index < results.length - 1 && styles.resultCardBorder,
+              {/* Per-server breakdown */}
+              {summary.perServerBreakdown.map((s, index) => (
+                <View
+                  key={s.id}
+                  style={[
+                    styles.resultCard,
+                    index < summary.perServerBreakdown.length - 1 && styles.resultCardBorder,
+                  ]}>
+                  <View style={styles.resultHeaderRow}>
+                    <Text style={styles.resultName}>{s.name}</Text>
+                    <Text style={[
+                      styles.resultAmount,
+                      s.tipsKept < 0 && { color: RED },
                     ]}>
-                    <View style={styles.resultInfo}>
-                      <Text style={styles.resultName}>{r.name}</Text>
-                      <Text style={styles.resultMeta}>
-                        {r.hoursWorked}h · {ROLE_LABELS[r.role]} · {tipPctOfSales}% of sales
-                      </Text>
-                    </View>
-                    <Text style={styles.resultAmount}>
-                      ${centsToDisplay(r.calculatedAmount)}
+                      ${centsToDisplay(s.tipsKept)}
                     </Text>
                   </View>
-                );
-              })}
+                  <Text style={styles.resultMeta}>
+                    ${centsToDisplay(s.sales)} sales · ${centsToDisplay(s.tipsEarned)} earned
+                  </Text>
+                  {s.directTipOuts.map((t) => (
+                    <View key={t.role} style={styles.tipOutRow}>
+                      <Text style={styles.tipOutLabel}>
+                        → {ROLE_LABELS[t.role] ?? t.role} tip-out ({t.percentage}%)
+                      </Text>
+                      <Text style={styles.tipOutAmount}>−${centsToDisplay(t.amount)}</Text>
+                    </View>
+                  ))}
+                  {s.housePoolContribution > 0 && (
+                    <View style={styles.tipOutRow}>
+                      <Text style={styles.tipOutLabel}>→ Pool contribution</Text>
+                      <Text style={styles.tipOutAmount}>
+                        −${centsToDisplay(s.housePoolContribution)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
 
-              {/* Totals row */}
+              {/* Servers total */}
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total distributed</Text>
-                <Text style={styles.totalAmount}>
-                  ${centsToDisplay(dollarsToCents(totalTipsDollars))}
-                </Text>
+                <View>
+                  <Text style={styles.totalLabel}>Servers keep</Text>
+                  <Text style={styles.totalSub}>After all tip-outs</Text>
+                </View>
+                <Text style={styles.totalAmount}>${centsToDisplay(summary.totalTipsKept)}</Text>
               </View>
+
+              {/* Direct tip-out totals */}
+              {Object.keys(directTipOutTotals).length > 0 && (
+                <View style={styles.poolCard}>
+                  <Text style={styles.poolCardTitle}>Direct Tip-Outs</Text>
+                  {Object.entries(directTipOutTotals).map(([role, amount], i) => (
+                    <View key={role}>
+                      {i > 0 && <View style={styles.divider} />}
+                      <View style={styles.poolRow}>
+                        <Text style={styles.poolName}>
+                          {ROLE_EMOJIS[role] ?? ''} {ROLE_LABELS[role] ?? role}s (split equally)
+                        </Text>
+                        <Text style={styles.poolAmount}>${centsToDisplay(amount)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* House pool distribution */}
+              {summary.totalHousePool > 0 && (
+                <View style={styles.poolCard}>
+                  <View style={styles.poolCardHeader}>
+                    <Text style={styles.poolCardTitle}>House Pool</Text>
+                    <Text style={styles.poolCardTotal}>
+                      ${centsToDisplay(summary.totalHousePool)}
+                    </Text>
+                  </View>
+                  {housePoolAllocations.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      No support staff on shift — pool unallocated.
+                    </Text>
+                  ) : (
+                    housePoolAllocations.map((a, i) => (
+                      <View key={a.staffId}>
+                        {i > 0 && <View style={styles.divider} />}
+                        <View style={styles.poolRow}>
+                          <View>
+                            <Text style={styles.poolName}>{a.name}</Text>
+                            <Text style={styles.poolMeta}>
+                              {a.hoursWorked}h
+                              {a.distributionType === 'points'
+                                ? ` · ${a.points.toFixed(1)} pts`
+                                : ' · fixed'}
+                            </Text>
+                          </View>
+                          <Text style={styles.poolAmount}>
+                            ${centsToDisplay(a.calculatedAmount)}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
 
               {/* Save & Pay Out */}
               <TouchableOpacity
@@ -499,60 +690,18 @@ export default function CalculateScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 48,
-    gap: 20,
-  },
+  safe: { flex: 1, backgroundColor: BG },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48, gap: 20 },
 
   // Header
-  header: {
-    gap: 4,
-  },
-  backBtn: {
-    marginBottom: 8,
-  },
-  backText: {
-    fontSize: 15,
-    color: TEAL,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: WHITE,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: MUTED,
-  },
-
-  // CSV banner
-  csvBanner: {
-    backgroundColor: AMBER_DIM,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.3)',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  csvBannerText: {
-    fontSize: 13,
-    color: AMBER,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
+  header: { gap: 4 },
+  backBtn: { marginBottom: 8 },
+  backText: { fontSize: 15, color: TEAL, fontWeight: '600' },
+  title: { fontSize: 26, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, color: MUTED },
 
   // Card
   card: {
@@ -573,13 +722,33 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 10,
   },
-  divider: {
-    height: 1,
-    backgroundColor: BORDER,
-    marginHorizontal: 16,
+  cardSubtitle: {
+    fontSize: 12,
+    color: MUTED,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginTop: -8,
   },
+  divider: { height: 1, backgroundColor: BORDER, marginHorizontal: 16 },
 
-  // Field row
+  // Tip-out rule row
+  ruleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    gap: 8,
+  },
+  ruleRole: { fontSize: 14, fontWeight: '600', color: WHITE, flex: 1 },
+  rulePct: { fontSize: 13, color: MUTED },
+  ruleBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeTeal: { backgroundColor: 'rgba(0,229,160,0.12)' },
+  badgeAmber: { backgroundColor: 'rgba(245,158,11,0.12)' },
+  ruleBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  badgeTealText: { color: TEAL },
+  badgeAmberText: { color: AMBER },
+
+  // Field row (shift details)
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -587,12 +756,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: WHITE,
-    flex: 1,
-  },
+  fieldLabel: { fontSize: 15, fontWeight: '600', color: WHITE, flex: 1 },
   textInput: {
     fontSize: 15,
     fontWeight: '600',
@@ -602,7 +766,32 @@ const styles = StyleSheet.create({
     padding: 0,
   },
 
-  // Staff rows
+  // Server block
+  serverBlock: { paddingHorizontal: 16, paddingVertical: 12 },
+  mutedBlock: { opacity: 0.45 },
+  serverHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  serverInputs: { flexDirection: 'row', gap: 10 },
+  inputGroup: { flex: 1, gap: 5 },
+  inputLabel: { fontSize: 11, fontWeight: '600', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.4 },
+  smallInput: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TEAL,
+    backgroundColor: '#0e1a14',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    textAlign: 'center',
+  },
+
+  // Support staff row
   staffRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -610,23 +799,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
   },
-  staffRowMuted: {
-    opacity: 0.45,
-  },
-  staffInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  staffName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: WHITE,
-  },
-  staffRole: {
-    fontSize: 12,
-    color: MUTED,
-    fontWeight: '500',
-  },
+  staffInfo: { flex: 1, gap: 2 },
+  staffName: { fontSize: 15, fontWeight: '700', color: WHITE },
+  staffRole: { fontSize: 12, color: MUTED, fontWeight: '500' },
   hoursInput: {
     fontSize: 15,
     fontWeight: '700',
@@ -640,36 +815,15 @@ const styles = StyleSheet.create({
     width: 56,
     textAlign: 'center',
   },
-  hoursInputDisabled: {
-    color: MUTED,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: MUTED,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  hoursInputDisabled: { color: MUTED },
+  emptyText: { fontSize: 14, color: MUTED, paddingHorizontal: 16, paddingVertical: 20, textAlign: 'center', lineHeight: 20 },
 
   // Calculate button
-  calcBtn: {
-    backgroundColor: TEAL,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  calcBtnText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#09100e',
-    letterSpacing: 0.2,
-  },
+  calcBtn: { backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  calcBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
 
-  // Results section
-  resultsSection: {
-    gap: 2,
-  },
+  // Results
+  resultsSection: { gap: 2 },
   resultsTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -685,33 +839,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  resultCardBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
+  resultHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
   },
-  resultCardBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+  resultName: { fontSize: 16, fontWeight: '700', color: WHITE },
+  resultAmount: { fontSize: 22, fontWeight: '800', color: TEAL, letterSpacing: -0.5 },
+  resultMeta: { fontSize: 12, color: MUTED, marginBottom: 6 },
+  tipOutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  resultInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  resultName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: WHITE,
-  },
-  resultMeta: {
-    fontSize: 12,
-    color: MUTED,
-  },
-  resultAmount: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: TEAL,
-    letterSpacing: -0.5,
-  },
+  tipOutLabel: { fontSize: 12, color: MUTED },
+  tipOutAmount: { fontSize: 12, fontWeight: '600', color: AMBER },
+
+  // Totals row
   totalRow: {
     backgroundColor: TEAL_DIM,
     borderWidth: 1,
@@ -726,31 +874,57 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
   },
-  totalLabel: {
+  totalLabel: { fontSize: 14, fontWeight: '700', color: TEAL },
+  totalSub: { fontSize: 11, color: MUTED, marginTop: 2 },
+  totalAmount: { fontSize: 18, fontWeight: '800', color: TEAL },
+
+  // Pool card
+  poolCard: {
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    overflow: 'hidden',
+    marginBottom: 14,
+    paddingVertical: 4,
+  },
+  poolCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  poolCardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: MUTED,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: TEAL,
+  poolCardTotal: { fontSize: 15, fontWeight: '800', color: AMBER },
+  poolRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
   },
+  poolName: { fontSize: 14, fontWeight: '600', color: WHITE },
+  poolMeta: { fontSize: 11, color: MUTED, marginTop: 2 },
+  poolAmount: { fontSize: 16, fontWeight: '800', color: TEAL },
 
-  // Save & Pay Out button
+  // Save button
   payoutBtn: {
     backgroundColor: TEAL,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  payoutBtnDisabled: {
-    opacity: 0.6,
-  },
-  payoutBtnText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#09100e',
-    letterSpacing: 0.2,
-  },
+  payoutBtnDisabled: { opacity: 0.6 },
+  payoutBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
 });
