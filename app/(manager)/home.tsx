@@ -16,6 +16,8 @@ const BG = '#09100e';
 const CARD = '#162019';
 const TEAL = '#00e5a0';
 const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const AMBER = '#f59e0b';
+const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 
@@ -38,6 +40,7 @@ export default function ManagerHome() {
   const [tipsThisWeek, setTipsThisWeek] = useState(FALLBACK_STATS.tipsThisWeek);
   const [staffActive, setStaffActive] = useState(FALLBACK_STATS.staffActive);
   const [bankNotLinked, setBankNotLinked] = useState(FALLBACK_STATS.bankNotLinked);
+  const [housePoolBalance, setHousePoolBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [managerQuote, setManagerQuote] = useState<Quote | null>(null);
 
@@ -54,7 +57,7 @@ export default function ManagerHome() {
     async function fetchDashboardData() {
       try {
         const [locationRes, staffRes, shiftsRes, bankRes] = await Promise.all([
-          supabase.from('locations').select('name').limit(1),
+          supabase.from('locations').select('name, house_pool_balance').limit(1),
           supabase.from('staff_members').select('id'),
           supabase.from('shifts').select('total_tips'),
           supabase.from('staff_members').select('id').eq('bank_linked', false),
@@ -83,6 +86,7 @@ export default function ManagerHome() {
 
         if (locationRes.data && locationRes.data[0]) {
           setLocationName(locationRes.data[0].name);
+          setHousePoolBalance(locationRes.data[0].house_pool_balance ?? 0);
         }
 
         if (staffRes.data) {
@@ -179,6 +183,26 @@ export default function ManagerHome() {
             <Text style={styles.progressTarget}>Goal: $10,000</Text>
           </View>
         </View>
+
+        {/* House Pool Card */}
+        <TouchableOpacity
+          style={styles.housePoolCard}
+          onPress={() => router.push('/(manager)/housepool')}
+          activeOpacity={0.85}>
+          <View style={styles.housePoolLeft}>
+            <Text style={styles.housePoolIcon}>🏦</Text>
+            <View style={styles.housePoolInfo}>
+              <Text style={styles.housePoolTitle}>House Pool</Text>
+              <Text style={styles.housePoolSub}>Support staff tip pool</Text>
+            </View>
+          </View>
+          <View style={styles.housePoolRight}>
+            <Text style={styles.housePoolBalance}>
+              {'$' + (housePoolBalance / 100).toFixed(2)}
+            </Text>
+            <Text style={styles.housePoolArrow}>›</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Leaderboard Preview */}
         <View style={styles.section}>
@@ -378,6 +402,54 @@ const styles = StyleSheet.create({
   progressTarget: {
     fontSize: 13,
     color: MUTED,
+  },
+
+  // House Pool Card
+  housePoolCard: {
+    backgroundColor: '#1a1606',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#2a1f06',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  housePoolLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  housePoolIcon: {
+    fontSize: 26,
+  },
+  housePoolInfo: {
+    gap: 2,
+  },
+  housePoolTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  housePoolSub: {
+    fontSize: 12,
+    color: MUTED,
+  },
+  housePoolRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  housePoolBalance: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: AMBER,
+  },
+  housePoolArrow: {
+    fontSize: 20,
+    color: AMBER,
+    fontWeight: '300',
   },
 
   // Leaderboard

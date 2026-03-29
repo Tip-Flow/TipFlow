@@ -66,9 +66,13 @@ export default function ManagerLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />
-      {/* calculate is a full screen — not a tab */}
+      {/* calculate and housepool are full screens — not tabs */}
       <Tabs.Screen
         name="calculate"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="housepool"
         options={{ href: null }}
       />
     </Tabs>
