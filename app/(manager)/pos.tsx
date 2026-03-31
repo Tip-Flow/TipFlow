@@ -352,6 +352,14 @@ export default function POSScreen() {
           })}
         </View>
 
+        {/* Shift Goals CTA */}
+        <TouchableOpacity
+          style={styles.shiftGoalsBtn}
+          activeOpacity={0.8}
+          onPress={() => router.push('/(manager)/shiftgoals')}>
+          <Text style={styles.shiftGoalsBtnText}>🎯  Set tonight's shift goals →</Text>
+        </TouchableOpacity>
+
         {/* Supported POS Systems */}
         <View style={styles.supportedCard}>
           <Text style={styles.supportedTitle}>Supported POS Systems</Text>
@@ -844,6 +852,17 @@ const styles = StyleSheet.create({
   scanBtnTeal: { borderColor: TEAL, backgroundColor: TEAL_DIM },
   scanBtnAmber: { borderColor: AMBER, backgroundColor: AMBER_DIM },
   scanBtnText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.1 },
+
+  // Shift Goals button
+  shiftGoalsBtn: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: TEAL,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  shiftGoalsBtnText: { fontSize: 15, fontWeight: '700', color: TEAL, letterSpacing: 0.2 },
 
   // Supported POS card
   supportedCard: { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },

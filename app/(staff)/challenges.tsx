@@ -1,5 +1,26 @@
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../../lib/supabase';
+
+// Demo — replace with real auth'd staff ID
+const MY_STAFF_ID = 'staff-1';
+const TODAY_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+type ShiftGoal = {
+  id: string;
+  title: string;
+  goal_type: string;
+  target_item: string | null;
+  winner_staff_id: string | null;
+};
+
+const GOAL_TYPE_LABELS: Record<string, string> = {
+  top_sales:       '🏆 Top Sales',
+  most_upsells:    '📈 Most Upsells',
+  specific_item:   '🎯 Specific Item',
+  managers_choice: "⭐ Manager's Choice",
+};
 
 const BG     = '#09100e';
 const CARD   = '#162019';
@@ -161,6 +182,34 @@ function MilestoneCard({ milestone }: { milestone: Milestone }) {
 
 export default function ChallengesScreen() {
   const earnedCount = MILESTONES.filter((m) => m.earned).length;
+  const [shiftGoals, setShiftGoals] = useState<ShiftGoal[]>([]);
+
+  useEffect(() => {
+    async function loadGoals() {
+      // Log what we're querying so we can verify the date
+      console.log('[ChallengesScreen] Fetching shift goals for date:', TODAY_DATE);
+
+      // Fetch all shifts for today, then pull their goals via join.
+      // This avoids relying on a hardcoded shift_id that may not match the
+      // shift the manager actually created.
+      const { data, error } = await supabase
+        .from('shifts')
+        .select('id, shift_goals(id, title, goal_type, target_item, winner_staff_id)')
+        .eq('date', TODAY_DATE);
+
+      // Log the raw response so we can see exactly what Supabase returns
+      console.log('[ChallengesScreen] raw Supabase response:', JSON.stringify(data));
+      if (error) {
+        console.log('[ChallengesScreen] Supabase error:', error.message);
+      }
+
+      const goals = data?.flatMap((shift) => (shift.shift_goals as ShiftGoal[]) ?? []) ?? [];
+      console.log('[ChallengesScreen] resolved shift_ids used:', data?.map((s) => s.id));
+      console.log('[ChallengesScreen] goals found:', goals.length);
+      setShiftGoals(goals);
+    }
+    loadGoals();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -168,6 +217,44 @@ export default function ChallengesScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
+
+        {/* Tonight's Shift Goals */}
+        {shiftGoals.length > 0 && (
+          <View style={styles.shiftGoalsSection}>
+            <Text style={styles.shiftGoalsHeading}>Tonight's Shift Goals 🎯</Text>
+            {shiftGoals.map((goal) => {
+              const won = goal.winner_staff_id === MY_STAFF_ID;
+              return (
+                <View key={goal.id} style={[styles.shiftGoalCard, won && styles.shiftGoalCardWon]}>
+                  <View style={styles.shiftGoalTop}>
+                    <Text style={styles.shiftGoalTitle}>{goal.title}</Text>
+                    <View style={styles.shiftGoalBadge}>
+                      <Text style={styles.shiftGoalBadgeText}>
+                        {GOAL_TYPE_LABELS[goal.goal_type] ?? goal.goal_type}
+                      </Text>
+                    </View>
+                  </View>
+                  {goal.target_item ? (
+                    <Text style={styles.shiftGoalItem}>"{goal.target_item}"</Text>
+                  ) : null}
+                  {won ? (
+                    <View style={styles.shiftGoalWonBar}>
+                      <Text style={styles.shiftGoalWonText}>
+                        🎉 You won! Your manager has been notified
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.shiftGoalIncentiveBar}>
+                      <Text style={styles.shiftGoalIncentiveText}>
+                        Earn an incentive if you win!
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Header */}
         <View style={styles.header}>
@@ -219,6 +306,49 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 12,
   },
+
+  // Shift Goals section
+  shiftGoalsSection: { gap: 10 },
+  shiftGoalsHeading: { fontSize: 18, fontWeight: '800', color: '#e8f5ef', letterSpacing: -0.3 },
+  shiftGoalCard: {
+    backgroundColor: CARD,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 8,
+  },
+  shiftGoalCardWon: { borderColor: '#1a4a2e', backgroundColor: '#0d1f16' },
+  shiftGoalTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  shiftGoalTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#e8f5ef' },
+  shiftGoalBadge: {
+    backgroundColor: 'rgba(0,229,160,0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,160,0.3)',
+  },
+  shiftGoalBadgeText: { fontSize: 11, fontWeight: '700', color: TEAL },
+  shiftGoalItem: { fontSize: 12, color: MUTED, fontStyle: 'italic' },
+  shiftGoalIncentiveBar: {
+    backgroundColor: 'rgba(0,229,160,0.08)',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,160,0.2)',
+  },
+  shiftGoalIncentiveText: { fontSize: 13, fontWeight: '600', color: TEAL },
+  shiftGoalWonBar: {
+    backgroundColor: '#0a2a1c',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#1a4a2e',
+  },
+  shiftGoalWonText: { fontSize: 13, fontWeight: '700', color: TEAL },
 
   // Header
   header: {
