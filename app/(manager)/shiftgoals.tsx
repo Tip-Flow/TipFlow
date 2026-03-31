@@ -375,7 +375,7 @@ export default function ShiftGoalsScreen() {
               <Text style={styles.backLabel}>POS</Text>
             </TouchableOpacity>
             <Text style={styles.title}>Shift Goals</Text>
-            <Text style={styles.subtitle}>Set tonight's challenges</Text>
+            <Text style={styles.subtitle}>Set tonight's goals</Text>
             <View style={styles.shiftPill}>
               <Text style={styles.shiftPillText}>{shiftName}  ·  {TODAY_LABEL}</Text>
             </View>

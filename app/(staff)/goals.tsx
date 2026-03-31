@@ -180,14 +180,14 @@ function MilestoneCard({ milestone }: { milestone: Milestone }) {
   );
 }
 
-export default function ChallengesScreen() {
+export default function GoalsScreen() {
   const earnedCount = MILESTONES.filter((m) => m.earned).length;
   const [shiftGoals, setShiftGoals] = useState<ShiftGoal[]>([]);
 
   useEffect(() => {
     async function loadGoals() {
       // Log what we're querying so we can verify the date
-      console.log('[ChallengesScreen] Fetching shift goals for date:', TODAY_DATE);
+      console.log('[GoalsScreen] Fetching shift goals for date:', TODAY_DATE);
 
       // Fetch all shifts for today, then pull their goals via join.
       // This avoids relying on a hardcoded shift_id that may not match the
@@ -198,14 +198,14 @@ export default function ChallengesScreen() {
         .eq('date', TODAY_DATE);
 
       // Log the raw response so we can see exactly what Supabase returns
-      console.log('[ChallengesScreen] raw Supabase response:', JSON.stringify(data));
+      console.log('[GoalsScreen] raw Supabase response:', JSON.stringify(data));
       if (error) {
-        console.log('[ChallengesScreen] Supabase error:', error.message);
+        console.log('[GoalsScreen] Supabase error:', error.message);
       }
 
       const goals = data?.flatMap((shift) => (shift.shift_goals as ShiftGoal[]) ?? []) ?? [];
-      console.log('[ChallengesScreen] resolved shift_ids used:', data?.map((s) => s.id));
-      console.log('[ChallengesScreen] goals found:', goals.length);
+      console.log('[GoalsScreen] resolved shift_ids used:', data?.map((s) => s.id));
+      console.log('[GoalsScreen] goals found:', goals.length);
       setShiftGoals(goals);
     }
     loadGoals();

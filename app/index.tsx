@@ -3,12 +3,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
   SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -79,54 +81,61 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={styles.inner}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'height' : undefined}
+        keyboardVerticalOffset={StatusBar.currentHeight ?? 0}>
+        <ScrollView
+          contentContainerStyle={styles.inner}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}>
 
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>💸</Text>
-          <Text style={styles.logoText}>TipFlow</Text>
-          <Text style={styles.tagline}>Tip distribution, simplified.</Text>
-        </View>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoEmoji}>💸</Text>
+            <Text style={styles.logoText}>TipFlow</Text>
+            <Text style={styles.tagline}>Tip distribution, simplified.</Text>
+          </View>
 
-        <View style={styles.formContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#4a5e56"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            returnKeyType="next"
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#4a5e56"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            returnKeyType="done"
-            onSubmitEditing={handleSignIn}
-            editable={!loading}
-          />
+          <View style={styles.formContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#4a5e56"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              returnKeyType="next"
+              editable={!loading}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#4a5e56"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleSignIn}
+              editable={!loading}
+            />
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            activeOpacity={0.8}
-            onPress={handleSignIn}
-            disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color={BG} />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              activeOpacity={0.8}
+              onPress={handleSignIn}
+              disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color={BG} />
+              ) : (
+                <Text style={styles.buttonText}>Sign In</Text>
+              )}
+            </TouchableOpacity>
+          </View>
 
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -137,11 +146,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
-  inner: {
+  keyboardView: {
     flex: 1,
+  },
+  inner: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 48,
     gap: 48,
   },
   logoContainer: {

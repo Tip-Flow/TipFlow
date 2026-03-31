@@ -39,9 +39,9 @@ export default function StaffLayout() {
         }}
       />
       <Tabs.Screen
-        name="challenges"
+        name="goals"
         options={{
-          title: 'Challenges',
+          title: 'Goals',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="bolt.fill" color={color} />,
         }}
       />
