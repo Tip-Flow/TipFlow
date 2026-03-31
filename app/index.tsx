@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import DailyQuote from './components/DailyQuote';
 
-type PendingRole = 'manager' | 'staff' | null;
+type PendingRole = 'manager' | 'staff' | 'regional' | null;
 
 const TEAL = '#00e5a0';
 const BG = '#09100e';
@@ -31,6 +31,7 @@ export default function LoginScreen() {
 
   function detectRole(userEmail: string): PendingRole {
     const lower = userEmail.toLowerCase();
+    if (lower.includes('regional')) return 'regional';
     if (lower.includes('jamie')) return 'manager';
     if (lower.includes('alex')) return 'staff';
     // Default fallback — treat unknown as staff
@@ -38,7 +39,9 @@ export default function LoginScreen() {
   }
 
   function handleDismiss() {
-    if (pendingRole === 'manager') {
+    if (pendingRole === 'regional') {
+      router.replace('/(regional)/overview');
+    } else if (pendingRole === 'manager') {
       router.replace('/(manager)/home');
     } else {
       router.replace('/(staff)/mytips');
@@ -133,6 +136,23 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
             </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.regionalButton, loading && styles.buttonDisabled]}
+              activeOpacity={0.8}
+              onPress={() => {
+                setEmail('regional@canteen.ca');
+                setPassword('password');
+              }}
+              disabled={loading}>
+              <Text style={styles.regionalButtonText}>Sign in as Regional Manager</Text>
+            </TouchableOpacity>
           </View>
 
         </ScrollView>
@@ -211,5 +231,33 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#1f3028',
+  },
+  dividerText: {
+    fontSize: 13,
+    color: '#4a5e56',
+    fontWeight: '500',
+  },
+  regionalButton: {
+    backgroundColor: '#162019',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1f3028',
+  },
+  regionalButtonText: {
+    color: '#6b7a74',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
