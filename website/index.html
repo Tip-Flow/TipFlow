@@ -1411,10 +1411,18 @@
 
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 1.5rem;
       max-width: 1100px;
       margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 560px) {
+      .features-grid { grid-template-columns: 1fr; }
     }
 
     .feature-card {
@@ -1454,6 +1462,146 @@
       font-size: 0.88rem;
       color: var(--text-muted);
       line-height: 1.65;
+    }
+
+    /* ── CALC ENGINE ── */
+    .calc-engine { background: var(--bg-dark); }
+
+    .calc-diagram {
+      max-width: 740px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .calc-box {
+      width: 100%;
+      background: #162019;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.6rem;
+      font-size: 0.92rem;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .calc-box.teal-border  { border-color: var(--teal); }
+    .calc-box.amber-border { border-color: #f59e0b; }
+    .calc-box.green-border { border-color: #22c55e; }
+
+    .calc-box strong { color: var(--teal); font-weight: 700; }
+    .calc-box .cb-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem; }
+
+    .calc-arrow {
+      font-size: 1.4rem;
+      color: var(--teal);
+      line-height: 1;
+      padding: 0.3rem 0;
+      user-select: none;
+    }
+
+    .calc-split {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .calc-split .calc-box { width: auto; }
+    .calc-split .cb-label-amber { color: #f59e0b; }
+
+    .calc-pool-rows { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.6rem; }
+
+    .calc-pool-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+      padding: 0.45rem 0.75rem;
+      background: rgba(0,200,160,0.05);
+      border-radius: 8px;
+    }
+
+    .calc-pool-row .cpr-left { display: flex; align-items: center; gap: 0.5rem; }
+    .calc-pool-row .cpr-pts  { color: var(--teal); font-weight: 600; font-size: 0.82rem; }
+    .calc-pool-row .cpr-share { color: var(--text-muted); font-size: 0.82rem; }
+
+    .calc-tagline {
+      margin-top: 1.6rem;
+      font-size: 0.9rem;
+      font-style: italic;
+      color: var(--teal);
+      text-align: center;
+    }
+
+    /* ── THREE TIER ── */
+    .three-tier { background: var(--bg-card2); }
+
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 860px) { .tier-grid { grid-template-columns: 1fr; } }
+
+    .tier-col {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 1.8rem;
+      transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+    }
+
+    .tier-col:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,200,160,0.08);
+    }
+
+    .tier-col-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .tier-col-icon {
+      font-size: 1.6rem;
+      width: 52px; height: 52px;
+      border-radius: 13px;
+      background: var(--teal-glow);
+      border: 1px solid var(--border-strong);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .tier-col-head h3 { font-size: 1rem; font-weight: 700; color: var(--text); }
+
+    .tier-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .tier-list li {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      padding-left: 1.1rem;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .tier-list li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--teal);
+      font-size: 0.8rem;
     }
 
     /* ── HUMAN PERFORMANCE ── */
@@ -2123,6 +2271,80 @@
       opacity: 1;
       transform: translateY(0);
     }
+
+    /* ── DEMO NEW SCREENS ── */
+    .ds-reg-kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .ds-reg-kpi {
+      background: #111a17;
+      border-radius: 8px;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,200,160,0.18);
+    }
+    .ds-reg-kpi-val { font-size: 14px; font-weight: 800; margin-bottom: 1px; }
+    .ds-reg-kpi-lbl { font-size: 9px; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; }
+    .ds-reg-kpi-val.tc { color: #00c8a0; }
+    .ds-reg-kpi-val.tb { color: #60a5fa; }
+    .ds-reg-kpi-val.tg { color: #4ade80; }
+    .ds-reg-kpi-val.ta { color: #f59e0b; }
+    .ds-reg-approval {
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.4);
+      border-radius: 8px;
+      padding: 9px 10px;
+      margin-bottom: 8px;
+    }
+    .ds-reg-appr-title { font-size: 9px; font-weight: 700; color: #f59e0b; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+    .ds-reg-appr-text { font-size: 10px; color: #e8f0eb; margin-bottom: 7px; }
+    .ds-reg-appr-btns { display: flex; gap: 6px; }
+    .ds-reg-appr-approve { background: #00c8a0; color: #09100e; border: none; border-radius: 5px; padding: 4px 10px; font-size: 9px; font-weight: 700; cursor: pointer; }
+    .ds-reg-appr-reject  { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); border-radius: 5px; padding: 4px 10px; font-size: 9px; font-weight: 700; cursor: pointer; }
+    .ds-reg-tab-bar { display: flex; border-top: 1px solid rgba(0,200,160,0.15); }
+    .ds-reg-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px 2px 4px; font-size: 8px; color: #7a9d90; gap: 2px; }
+    .ds-reg-tab.active-tab { color: #00c8a0; }
+    .ds-reg-tab .ti { font-size: 11px; }
+
+    /* House Pool screen */
+    .ds-hp-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ds-hp-balance-card { background: #111a17; border: 1px solid rgba(0,200,160,0.35); border-radius: 10px; padding: 14px; text-align: center; }
+    .ds-hp-balance-val { font-size: 28px; font-weight: 900; color: #00c8a0; margin-bottom: 3px; }
+    .ds-hp-balance-sub { font-size: 9px; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .ds-hp-next-payout { font-size: 10px; color: #e8f0eb; margin-top: 4px; }
+    .ds-hp-pay-btn { width: 100%; background: #f59e0b; color: #09100e; border: none; border-radius: 8px; padding: 9px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .ds-hp-dist-label { font-size: 9px; font-weight: 700; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .ds-hp-dist-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: rgba(0,200,160,0.05); border-radius: 6px; margin-bottom: 4px; font-size: 10px; }
+    .ds-hp-dist-role { display: flex; align-items: center; gap: 5px; color: #e8f0eb; }
+    .ds-hp-dist-pts { color: #00c8a0; font-size: 9px; font-weight: 600; }
+    .ds-hp-dist-type { color: #7a9d90; font-size: 9px; }
+
+    /* Shift Goals screen */
+    .ds-sg-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ds-sg-header-row { margin-bottom: 4px; }
+    .ds-sg-title { font-size: 13px; font-weight: 800; color: #e8f0eb; }
+    .ds-sg-sub { font-size: 9px; color: #7a9d90; margin-top: 1px; }
+    .ds-sg-goal-card { background: #111a17; border: 1px solid rgba(0,200,160,0.4); border-radius: 8px; padding: 10px 11px; }
+    .ds-sg-goal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .ds-sg-goal-name { font-size: 10px; font-weight: 700; color: #e8f0eb; }
+    .ds-sg-badge { font-size: 8px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 100px; padding: 2px 6px; }
+    .ds-sg-goal-footer { display: flex; justify-content: space-between; align-items: center; }
+    .ds-sg-delete { font-size: 8px; color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; padding: 2px 7px; cursor: pointer; }
+    .ds-sg-create { background: #111a17; border: 1px solid rgba(0,200,160,0.18); border-radius: 8px; padding: 10px 11px; }
+    .ds-sg-create-label { font-size: 9px; font-weight: 700; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .ds-sg-input { background: #0d1512; border: 1px solid rgba(0,200,160,0.25); border-radius: 6px; padding: 6px 9px; font-size: 10px; color: #e8f0eb; width: 100%; margin-bottom: 7px; }
+    .ds-sg-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
+    .ds-sg-chip { font-size: 8px; color: #7a9d90; border: 1px solid rgba(0,200,160,0.2); border-radius: 100px; padding: 2px 7px; cursor: pointer; background: transparent; }
+    .ds-sg-chip.active { color: #00c8a0; border-color: #00c8a0; background: rgba(0,200,160,0.08); }
+    .ds-sg-add-btn { width: 100%; background: #00c8a0; color: #09100e; border: none; border-radius: 7px; padding: 7px; font-size: 10px; font-weight: 700; cursor: pointer; }
+
+    /* Tonight's goals on staff screen */
+    .ds-tonight-card { background: rgba(0,200,160,0.07); border: 1px solid rgba(0,200,160,0.3); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+    .ds-tonight-label { font-size: 9px; font-weight: 700; color: #00c8a0; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+    .ds-tonight-goal { font-size: 10px; color: #e8f0eb; font-weight: 600; margin-bottom: 3px; }
+    .ds-tonight-earn { font-size: 9px; color: #00c8a0; font-style: italic; }
   </style>
 </head>
 <body>
@@ -2143,9 +2365,9 @@
 <section class="hero" id="home">
   <div class="hero-eyebrow">🍁 Built for Canadian Restaurants</div>
   <h1>No cash. No spreadsheets.<br><span>Just tips.</span></h1>
-  <p>The only Canadian tip management app built for restaurants. POS → AptPay → Staff bank accounts. Instant.</p>
+  <p>The most sophisticated Canadian restaurant tip management platform. POS → Instant calculations → AptPay → Staff bank accounts. Built for every restaurant from single locations to national groups.</p>
   <div class="hero-ctas">
-    <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Start Free Trial</a>
+    <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Get TipFlow</a>
     <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Book a Free Demo</a>
     <a href="#demo" class="btn-outline" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">See TipFlow →</a>
   </div>
@@ -2155,6 +2377,7 @@
     <span>🔒 RPAA Registered</span>
     <span>⚡ AptPay Powered</span>
     <span>🏦 Interac e-Transfer</span>
+    <span>🏢 Regional Management</span>
   </div>
 </section>
 
@@ -2212,8 +2435,54 @@
             </div>
           </div>
 
-          <!-- SCREEN 3: Manager Dashboard -->
-          <div class="ds ds-3">
+          <!-- SCREEN 3: Regional Manager Overview -->
+          <div class="ds ds-3" style="flex-direction:column;background:#09100e;">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds3-topbar">
+              <div>
+                <p class="ds3-greeting">Good evening 👋</p>
+                <p class="ds3-sub">Regional Manager · Canteen Group</p>
+              </div>
+              <div class="ds3-avatar">RM</div>
+            </div>
+            <div style="padding:0 12px;flex:1;overflow-y:auto;">
+              <div class="ds-reg-kpi-grid">
+                <div class="ds-reg-kpi">
+                  <div class="ds-reg-kpi-val tc">3</div>
+                  <div class="ds-reg-kpi-lbl">Locations</div>
+                </div>
+                <div class="ds-reg-kpi">
+                  <div class="ds-reg-kpi-val tb">24</div>
+                  <div class="ds-reg-kpi-lbl">Staff</div>
+                </div>
+                <div class="ds-reg-kpi">
+                  <div class="ds-reg-kpi-val tg">$28,450</div>
+                  <div class="ds-reg-kpi-lbl">Tips This Week</div>
+                </div>
+                <div class="ds-reg-kpi">
+                  <div class="ds-reg-kpi-val ta">$1,240</div>
+                  <div class="ds-reg-kpi-lbl">House Pool</div>
+                </div>
+              </div>
+              <div class="ds-reg-approval">
+                <div class="ds-reg-appr-title">⏳ Pending Approval</div>
+                <div class="ds-reg-appr-text">Ossington · Line Cook · 2.25 → 3.0 pts/hr</div>
+                <div class="ds-reg-appr-btns">
+                  <button class="ds-reg-appr-approve">✓ Approve</button>
+                  <button class="ds-reg-appr-reject">✗ Reject</button>
+                </div>
+              </div>
+            </div>
+            <div class="ds-tab-bar ds-reg-tab-bar">
+              <div class="ds-reg-tab active-tab"><span class="ti">🏠</span>Overview</div>
+              <div class="ds-reg-tab"><span class="ti">📍</span>Locations</div>
+              <div class="ds-reg-tab"><span class="ti">👥</span>Team</div>
+              <div class="ds-reg-tab"><span class="ti">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 4: Manager Dashboard -->
+          <div class="ds ds-4">
             <div class="ds-status-bar">
               <span>9:41</span><span>●●●●</span>
             </div>
@@ -2253,7 +2522,7 @@
               <div class="ds3-goal-sub">$7,900 of $10,000 · 2 days left</div>
             </div>
             <div class="ds3-quick-row">
-              <div class="ds3-quick-btn" onclick="demoGoTo(3)">
+              <div class="ds3-quick-btn" onclick="demoGoTo(4)">
                 <span>📊</span><span>POS Import</span>
               </div>
               <div class="ds3-quick-btn">
@@ -2265,16 +2534,16 @@
             </div>
             <div class="ds-tab-bar">
               <div class="ds-tab active-tab"><span class="ds-tab-icon">🏠</span>Home</div>
-              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🔌</span>POS</div>
-              <div class="ds-tab" onclick="demoGoTo(6)"><span class="ds-tab-icon">⚡</span>Payouts</div>
-              <div class="ds-tab" onclick="demoGoTo(7)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab" onclick="demoGoTo(4)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(9)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(10)"><span class="ds-tab-icon">🏆</span>Rewards</div>
               <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
               <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
             </div>
           </div>
 
-          <!-- SCREEN 4: POS Import -->
-          <div class="ds ds-4">
+          <!-- SCREEN 5: POS Import -->
+          <div class="ds ds-5">
             <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
             <div class="ds4-header">
               <button class="ds-back" onclick="demoNav(-1)">‹</button>
@@ -2298,23 +2567,24 @@
                 <div class="ds4-info-row"><span>Total Sales</span><span>$6,000</span></div>
               </div>
               <button class="ds-btn-teal ds4-pull-btn" id="posPullBtn" onclick="triggerPOSPull()">Pull Tonight's Report</button>
+              <button class="ds-btn-outline" style="width:100%;margin-top:8px;font-size:0.82rem;padding:0.5rem;" onclick="demoNav(1)">📷 Scan Report</button>
               <div class="ds4-progress-wrap" id="posProgress" style="display:none">
                 <div class="ds4-prog-label" id="posProgLabel">Connecting to Square…</div>
                 <div class="ds4-prog-track"><div class="ds4-prog-fill" id="progFill"></div></div>
               </div>
             </div>
             <div class="ds-tab-bar">
-              <div class="ds-tab" onclick="demoGoTo(2)"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🏠</span>Home</div>
               <div class="ds-tab active-tab"><span class="ds-tab-icon">🔌</span>POS</div>
-              <div class="ds-tab" onclick="demoGoTo(6)"><span class="ds-tab-icon">⚡</span>Payouts</div>
-              <div class="ds-tab" onclick="demoGoTo(7)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab" onclick="demoGoTo(9)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(10)"><span class="ds-tab-icon">🏆</span>Rewards</div>
               <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
               <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
             </div>
           </div>
 
-          <!-- SCREEN 5: Calculate Tips -->
-          <div class="ds ds-5">
+          <!-- SCREEN 6: Calculate Tips -->
+          <div class="ds ds-6">
             <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
             <div class="ds4-header">
               <button class="ds-back" onclick="demoNav(-1)">‹</button>
@@ -2375,8 +2645,96 @@
             </div>
           </div>
 
-          <!-- SCREEN 6: Payout Success -->
-          <div class="ds ds-6">
+          <!-- SCREEN 7: House Pool -->
+          <div class="ds ds-7" style="flex-direction:column;background:#09100e;">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds4-header">
+              <button class="ds-back" onclick="demoNav(-1)">‹</button>
+              <span>House Pool</span>
+              <span></span>
+            </div>
+            <div class="ds-hp-body">
+              <div class="ds-hp-balance-card">
+                <div class="ds-hp-balance-val">$1,240</div>
+                <div class="ds-hp-balance-sub">Accumulated since last payout</div>
+                <div class="ds-hp-next-payout">Next payout: in 8 days</div>
+              </div>
+              <button class="ds-hp-pay-btn">Pay Out Now</button>
+              <div>
+                <div class="ds-hp-dist-label">Distribution Preview</div>
+                <div class="ds-hp-dist-row">
+                  <div class="ds-hp-dist-role"><span>🍳</span> Kitchen</div>
+                  <span class="ds-hp-dist-pts">2.25 pts/hr</span>
+                  <span class="ds-hp-dist-type">Variable</span>
+                </div>
+                <div class="ds-hp-dist-row">
+                  <div class="ds-hp-dist-role"><span>🧹</span> Dishwasher</div>
+                  <span class="ds-hp-dist-pts">1.0 pt/hr</span>
+                  <span class="ds-hp-dist-type">Variable</span>
+                </div>
+                <div class="ds-hp-dist-row">
+                  <div class="ds-hp-dist-role"><span>💼</span> Salary Manager</div>
+                  <span class="ds-hp-dist-pts">Fixed $1,000</span>
+                  <span class="ds-hp-dist-type"></span>
+                </div>
+              </div>
+            </div>
+            <div class="ds-tab-bar">
+              <div class="ds-tab active-tab"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(4)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(9)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(10)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
+              <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 8: Shift Goals -->
+          <div class="ds ds-8" style="flex-direction:column;background:#09100e;">
+            <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
+            <div class="ds4-header">
+              <button class="ds-back" onclick="demoNav(-1)">‹</button>
+              <span>Shift Goals</span>
+              <span></span>
+            </div>
+            <div class="ds-sg-body">
+              <div class="ds-sg-header-row">
+                <div class="ds-sg-title">Set tonight's goals</div>
+                <div class="ds-sg-sub">Staff see these instantly on their screen</div>
+              </div>
+              <div class="ds-sg-goal-card">
+                <div class="ds-sg-goal-top">
+                  <span class="ds-sg-goal-name">Move the halibut special 🎯</span>
+                  <span class="ds-sg-badge">Specific Item</span>
+                </div>
+                <div class="ds-sg-goal-footer">
+                  <button class="ds-sg-delete">✗ Remove</button>
+                </div>
+              </div>
+              <div class="ds-sg-create">
+                <div class="ds-sg-create-label">Create Goal</div>
+                <div class="ds-sg-input">Most desserts sold</div>
+                <div class="ds-sg-chips">
+                  <button class="ds-sg-chip">🏆 Top Sales</button>
+                  <button class="ds-sg-chip">📈 Most Upsells</button>
+                  <button class="ds-sg-chip active">🎯 Specific Item</button>
+                  <button class="ds-sg-chip">⭐ Manager's Choice</button>
+                </div>
+                <button class="ds-sg-add-btn">Add Goal</button>
+              </div>
+            </div>
+            <div class="ds-tab-bar">
+              <div class="ds-tab active-tab"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(4)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(9)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(10)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
+              <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
+            </div>
+          </div>
+
+          <!-- SCREEN 9: Payout Success -->
+          <div class="ds ds-9">
             <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
             <div class="ds6-body">
               <div class="ds6-success-icon">✅</div>
@@ -2393,8 +2751,8 @@
             </div>
           </div>
 
-          <!-- SCREEN 7: Payout History -->
-          <div class="ds ds-7">
+          <!-- SCREEN 10: Payout History -->
+          <div class="ds ds-10">
             <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
             <div class="ds7h-header">
               <button class="ds-back" onclick="demoNav(-1)">‹</button>
@@ -2441,17 +2799,17 @@
               </div>
             </div>
             <div class="ds-tab-bar">
-              <div class="ds-tab" onclick="demoGoTo(2)"><span class="ds-tab-icon">🏠</span>Home</div>
-              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(4)"><span class="ds-tab-icon">🔌</span>POS</div>
               <div class="ds-tab active-tab"><span class="ds-tab-icon">⚡</span>Payouts</div>
-              <div class="ds-tab" onclick="demoGoTo(7)"><span class="ds-tab-icon">🏆</span>Rewards</div>
+              <div class="ds-tab" onclick="demoGoTo(10)"><span class="ds-tab-icon">🏆</span>Rewards</div>
               <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
               <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
             </div>
           </div>
 
-          <!-- SCREEN 8: Rewards & Incentives -->
-          <div class="ds ds-8">
+          <!-- SCREEN 11: Rewards & Incentives -->
+          <div class="ds ds-11">
             <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
             <div class="ds8-header">
               <button class="ds-back" onclick="demoNav(-1)">‹</button>
@@ -2512,17 +2870,17 @@
               </div>
             </div>
             <div class="ds-tab-bar">
-              <div class="ds-tab" onclick="demoGoTo(2)"><span class="ds-tab-icon">🏠</span>Home</div>
-              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🔌</span>POS</div>
-              <div class="ds-tab" onclick="demoGoTo(6)"><span class="ds-tab-icon">⚡</span>Payouts</div>
+              <div class="ds-tab" onclick="demoGoTo(3)"><span class="ds-tab-icon">🏠</span>Home</div>
+              <div class="ds-tab" onclick="demoGoTo(4)"><span class="ds-tab-icon">🔌</span>POS</div>
+              <div class="ds-tab" onclick="demoGoTo(9)"><span class="ds-tab-icon">⚡</span>Payouts</div>
               <div class="ds-tab active-tab"><span class="ds-tab-icon">🏆</span>Rewards</div>
               <div class="ds-tab"><span class="ds-tab-icon">👥</span>Staff</div>
               <div class="ds-tab"><span class="ds-tab-icon">⚙️</span>Settings</div>
             </div>
           </div>
 
-          <!-- SCREEN 9: Staff Portal -->
-          <div class="ds ds-9">
+          <!-- SCREEN 12: Staff Portal -->
+          <div class="ds ds-12">
             <div class="ds-status-bar"><span>9:41</span><span>●●●●</span></div>
             <div class="ds7-top">
               <div class="ds7-profile">
@@ -2531,6 +2889,13 @@
                   <div class="ds7-name">Alex Dubois</div>
                   <div class="ds7-loc">Ossington</div>
                 </div>
+              </div>
+            </div>
+            <div style="padding:0 12px 4px;">
+              <div class="ds-tonight-card">
+                <div class="ds-tonight-label">Tonight's Goals 🎯</div>
+                <div class="ds-tonight-goal">Move the halibut special</div>
+                <div class="ds-tonight-earn">Earn an incentive if you win! 🎉</div>
               </div>
             </div>
             <div class="ds7-earnings-card">
@@ -2592,6 +2957,9 @@
     <span class="demo-dot" onclick="demoGoTo(6)"></span>
     <span class="demo-dot" onclick="demoGoTo(7)"></span>
     <span class="demo-dot" onclick="demoGoTo(8)"></span>
+    <span class="demo-dot" onclick="demoGoTo(9)"></span>
+    <span class="demo-dot" onclick="demoGoTo(10)"></span>
+    <span class="demo-dot" onclick="demoGoTo(11)"></span>
   </div>
 
   <!-- Screen label -->
@@ -2678,33 +3046,194 @@
     <div class="feature-card fade-up">
       <div class="feature-icon">🔌</div>
       <h3>Any POS System</h3>
-      <p>Native integrations with Square and Lightspeed via API. Works with any POS via CSV upload. If your POS can export a file, TipFlow can read it.</p>
+      <p>Square API, Lightspeed, CSV upload or photo scan from any POS.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">📷</div>
+      <h3>Photo Scan</h3>
+      <p>Point your camera at any printed POS report. TipFlow reads it automatically.</p>
     </div>
     <div class="feature-card fade-up">
       <div class="feature-icon">⚡</div>
       <h3>Instant Payouts</h3>
-      <p>Interac e-Transfer to staff bank accounts 24/7 — including weekends and holidays. No more waiting for next payday. Tips paid the night they're earned.</p>
+      <p>Interac e-Transfer to staff bank accounts 24/7 via AptPay.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">💰</div>
+      <h3>Real Tip Calculations</h3>
+      <p>Based on server sales, not guesswork. Bar tip outs and house pool contributions calculated automatically.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">🏦</div>
+      <h3>House Pool Management</h3>
+      <p>Accumulates every shift, distributes bi-weekly by points or fixed amounts to support staff.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">🎯</div>
+      <h3>Shift Goals</h3>
+      <p>Managers set custom challenges before each shift. Move the halibut special. Most desserts sold. Top wine sales.</p>
     </div>
     <div class="feature-card fade-up">
       <div class="feature-icon">🍁</div>
       <h3>CRA Compliant</h3>
-      <p>Direct and Controlled tip classification built in. Every payout creates a full CRA audit trail. T4 and T1 reporting handled correctly, every time.</p>
+      <p>Direct and Controlled tip classification. Complete audit trail for every dollar distributed.</p>
     </div>
     <div class="feature-card fade-up">
       <div class="feature-icon">🏆</div>
-      <h3>Staff Motivation</h3>
-      <p>A personal progress system — challenges, streaks, and badges — that inspires great service. Staff see their own growth, not each other's dollar amounts.</p>
+      <h3>Personal Growth System</h3>
+      <p>Bronze → Silver → Gold → Platinum → Elite. Staff grow at their own pace, never compared to colleagues.</p>
     </div>
     <div class="feature-card fade-up">
-      <div class="feature-icon">💸</div>
-      <h3>Today's Inspiration</h3>
-      <p>Daily wellness quotes rotate on every login, setting a positive tone for every shift. Small touches that make TipFlow feel like more than just a payroll tool.</p>
+      <div class="feature-icon">💚</div>
+      <h3>Daily Intentions</h3>
+      <p>Every login opens with a wellness quote that sets the tone for the shift.</p>
     </div>
     <div class="feature-card fade-up">
       <div class="feature-icon">🔒</div>
       <h3>Bank-Level Security</h3>
-      <p>AES-256 encryption at rest, TLS 1.3 in transit, biometric auth before every payout, and Canadian data residency (AWS ca-central-1). RPAA registered.</p>
+      <p>AES-256 encryption, RPAA registered, Canadian data residency.</p>
     </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">👥</div>
+      <h3>Three-Tier Management</h3>
+      <p>Staff · Location Manager · Regional Manager. Every role sees exactly what they need.</p>
+    </div>
+    <div class="feature-card fade-up">
+      <div class="feature-icon">📊</div>
+      <h3>Regional Dashboard</h3>
+      <p>Multi-location KPIs, pending approvals, team levels across all locations.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── CALC ENGINE ── -->
+<section class="calc-engine section-pad">
+  <div class="centered fade-up" style="max-width:700px;margin:0 auto 3rem;">
+    <div class="section-label">Tip Calculation</div>
+    <h2 class="section-title">The most accurate tip calculation engine in Canada</h2>
+    <p class="section-sub">Built with real restaurant operators. Matches how your restaurant actually works.</p>
+  </div>
+
+  <div class="calc-diagram fade-up">
+
+    <!-- Step 1 -->
+    <div class="calc-box">
+      <div class="cb-label">Step 1 — Server shift</div>
+      Server sells <strong>$1,000</strong> in sales &nbsp;·&nbsp; Earns <strong>$180</strong> in tips
+    </div>
+
+    <div class="calc-arrow">↓</div>
+
+    <!-- Step 2 split -->
+    <div class="calc-split">
+      <div class="calc-box teal-border">
+        <div class="cb-label">Bar tip out</div>
+        1.5% of sales<br>
+        = <strong>$15</strong><br>
+        <span style="font-size:0.82rem;color:var(--text-muted);">Direct to bar same shift</span>
+      </div>
+      <div class="calc-box amber-border">
+        <div class="cb-label" style="color:#f59e0b;">House pool</div>
+        5% of sales<br>
+        = <strong style="color:#f59e0b;">$50</strong><br>
+        <span style="font-size:0.82rem;color:var(--text-muted);">Accumulated bi-weekly</span>
+      </div>
+    </div>
+
+    <div class="calc-arrow">↓</div>
+
+    <!-- Step 3 -->
+    <div class="calc-box green-border">
+      <div class="cb-label" style="color:#22c55e;">Step 3 — Server keeps</div>
+      $180 − $65 = <strong style="color:#22c55e;">$115</strong>
+    </div>
+
+    <div class="calc-arrow">↓</div>
+
+    <!-- Step 4 -->
+    <div class="calc-box">
+      <div class="cb-label">Step 4 — House pool distributes every 2 weeks by points</div>
+      <div class="calc-pool-rows">
+        <div class="calc-pool-row">
+          <div class="cpr-left"><span>🍳</span> Kitchen</div>
+          <span class="cpr-pts">2.25 pts/hr</span>
+          <span class="cpr-share">Variable share</span>
+        </div>
+        <div class="calc-pool-row">
+          <div class="cpr-left"><span>🧹</span> Dishwasher</div>
+          <span class="cpr-pts">1.0 pt/hr</span>
+          <span class="cpr-share">Variable share</span>
+        </div>
+        <div class="calc-pool-row">
+          <div class="cpr-left"><span>👔</span> Floor Manager</div>
+          <span class="cpr-pts">3.0 pts/hr</span>
+          <span class="cpr-share">Variable share</span>
+        </div>
+        <div class="calc-pool-row">
+          <div class="cpr-left"><span>💼</span> Salary Manager</div>
+          <span class="cpr-pts">Fixed $1,000</span>
+          <span class="cpr-share">Per period</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="calc-tagline fade-up">Every percentage is configurable. Every restaurant is different. TipFlow adapts to you.</p>
+</section>
+
+<!-- ── THREE TIER ── -->
+<section class="three-tier section-pad">
+  <div class="centered fade-up" style="max-width:700px;margin:0 auto 3rem;">
+    <div class="section-label">Management</div>
+    <h2 class="section-title">Built for single locations and national restaurant groups</h2>
+    <p class="section-sub">Three tiers. Every role sees exactly what they need.</p>
+  </div>
+
+  <div class="tier-grid fade-up">
+
+    <div class="tier-col">
+      <div class="tier-col-head">
+        <div class="tier-col-icon">🏢</div>
+        <h3>Regional Manager</h3>
+      </div>
+      <ul class="tier-list">
+        <li>Multi-location KPI dashboard</li>
+        <li>Approve points change requests</li>
+        <li>Set default rules for all locations</li>
+        <li>Team performance across all locations</li>
+        <li>House pool oversight</li>
+      </ul>
+    </div>
+
+    <div class="tier-col">
+      <div class="tier-col-head">
+        <div class="tier-col-icon">👔</div>
+        <h3>Location Manager</h3>
+      </div>
+      <ul class="tier-list">
+        <li>Import from any POS system</li>
+        <li>Calculate tip outs automatically</li>
+        <li>Manage house pool bi-weekly</li>
+        <li>Create custom shift goals</li>
+        <li>Staff bank linking via Flinks</li>
+      </ul>
+    </div>
+
+    <div class="tier-col">
+      <div class="tier-col-head">
+        <div class="tier-col-icon">🧑‍🍳</div>
+        <h3>Staff</h3>
+      </div>
+      <ul class="tier-list">
+        <li>Personal earnings and payouts</li>
+        <li>Personal growth levels Bronze→Elite</li>
+        <li>Tonight's shift goals</li>
+        <li>Milestones and incentives</li>
+        <li>Daily intention quotes</li>
+      </ul>
+    </div>
+
   </div>
 </section>
 
@@ -2851,7 +3380,7 @@
   <div class="hp-founder-card fade-up">
     <span class="hp-quote-marks">"</span>
     <p class="hp-founder-quote">We designed TipFlow's motivation system based on the neuroscience of human performance. When people feel psychologically safe, recognised for their personal growth and aligned with a sense of purpose — their nervous system is regulated, their presence is elevated, and their service becomes extraordinary. This isn't just good for staff. It's good for business.</p>
-    <p class="hp-founder-attr">— Dr. Sukhi Muker, Co-founder · Nervous System Specialist</p>
+    <p class="hp-founder-attr">— TipFlow, Built on the science of human performance</p>
   </div>
 
 </section>
@@ -2972,7 +3501,7 @@
     <h2>Ready to end the cash scramble?</h2>
     <p>Join Canadian restaurants running a faster, fairer, and fully automated tip operation.</p>
     <div class="cta-ctas">
-      <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Start Free Trial</a>
+      <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Get TipFlow</a>
       <a href="https://calendly.com/tipflow" target="_blank" class="btn-outline" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Book a Free Demo</a>
     </div>
   </div>
@@ -2983,7 +3512,7 @@
   <div class="footer-inner">
     <div class="footer-brand">
       <div class="logo">TipFlow 💸</div>
-      <p>The Canadian tip management platform built for restaurants. POS to payday — automated.</p>
+      <p>TipFlow — Built in Canada 🍁</p>
     </div>
     <div class="footer-links">
       <div class="footer-col">
@@ -3034,17 +3563,20 @@
   const DEMO_CAPTIONS = [
     "Every login starts with intention — a daily quote to set the tone for the shift",
     "Secure login for managers and staff — Face ID available",
+    "Regional managers see all locations, KPIs and approve points change requests",
     "Real-time dashboard — live data from your restaurant",
-    "Connect your POS — Square API, Lightspeed, or upload any CSV",
+    "Connect your POS — Square API, Lightspeed, CSV upload, or photo scan any printed report",
     "Automatic tip calculation — fair splits based on role and hours worked",
+    "House pool accumulates every shift and distributes bi-weekly to support staff by points or fixed amounts",
+    "Managers set custom shift goals that instantly appear on staff screens — driving upsells and revenue",
     "Instant payouts — Interac e-Transfer to every staff member's bank account",
-    "Complete payout history — every transaction recorded with AptPay reference numbers for CRA audit trail.",
-    "Rewards & Incentives — streaks, personal bests, and team levels keep staff motivated shift after shift.",
-    "Staff portal — personal progress, milestones and earnings. No competition."
+    "Complete payout history — every transaction recorded with AptPay reference numbers for CRA audit trail",
+    "Rewards & Incentives — streaks, personal bests, and team levels keep staff motivated shift after shift",
+    "Staff portal — personal progress, tonight's goals, milestones and earnings. No competition."
   ];
 
   let demoIndex = 0;
-  const totalScreens = 9;
+  const totalScreens = 12;
 
   function demoGoTo(idx) {
     if (idx < 0) idx = totalScreens - 1;
@@ -3064,8 +3596,8 @@
 
     document.getElementById('demoCaption').textContent = DEMO_CAPTIONS[idx];
 
-    // Reset POS pull button when leaving screen 4
-    if (demoIndex === 3 && idx !== 3) resetPOSPull();
+    // Reset POS pull button when leaving screen 5
+    if (demoIndex === 4 && idx !== 4) resetPOSPull();
 
     demoIndex = idx;
   }
