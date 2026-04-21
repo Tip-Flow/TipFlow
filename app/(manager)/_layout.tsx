@@ -39,6 +39,13 @@ export default function ManagerLayout() {
         }}
       />
       <Tabs.Screen
+        name="calculate"
+        options={{
+          title: 'Calculate',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="plusminus" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="payouts"
         options={{
           title: 'Payouts',
@@ -67,10 +74,6 @@ export default function ManagerLayout() {
         }}
       />
       {/* Full screens — not tabs */}
-      <Tabs.Screen
-        name="calculate"
-        options={{ href: null }}
-      />
       <Tabs.Screen
         name="housepool"
         options={{ href: null }}

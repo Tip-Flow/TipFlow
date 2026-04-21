@@ -14,7 +14,6 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import {
   calculateShiftSummary,
@@ -111,8 +110,6 @@ function formatDate(dateStr: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
-  const router = useRouter();
-
   // ── Main form state ───────────────────────────────────────────────────────
   const [shiftName, setShiftName] = useState('');
   const [shiftDate, setShiftDate] = useState(today());
@@ -575,7 +572,15 @@ export default function CalculateScreen() {
         .eq('id', locationId);
       if (balanceError) throw balanceError;
 
-      router.back();
+      // Reset form for next shift
+      setShiftName('');
+      setShiftDate(today());
+      setActiveShiftId(null);
+      setSummary(null);
+      setHousePoolAllocations(null);
+      setServers((prev) => prev.map((s) => ({ ...s, sales: '', tipsEarned: '', hoursWorked: '', included: true })));
+      setSupportStaff((prev) => prev.map((s) => ({ ...s, hoursWorked: '', included: true })));
+      if (locationId) fetchActiveShifts(locationId);
     } catch (err: unknown) {
       Alert.alert('Save failed', err instanceof Error ? err.message : String(err));
     } finally {
@@ -600,9 +605,7 @@ export default function CalculateScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerRow}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Text style={styles.backText}>← Back</Text>
-              </TouchableOpacity>
+              <Text style={styles.title}>Calculate Tips</Text>
               <TouchableOpacity
                 style={styles.newShiftBtn}
                 onPress={openNewShiftModal}
@@ -610,7 +613,6 @@ export default function CalculateScreen() {
                 <Text style={styles.newShiftBtnText}>+ New Shift</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.title}>Calculate Tips</Text>
             <Text style={styles.subtitle}>Enter each server's sales and tips earned</Text>
           </View>
 
@@ -1090,8 +1092,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  backBtn: {},
-  backText: { fontSize: 15, color: TEAL, fontWeight: '600' },
   title: { fontSize: 26, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, color: MUTED },
 
