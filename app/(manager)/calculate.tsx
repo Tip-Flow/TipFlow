@@ -366,9 +366,7 @@ export default function CalculateScreen() {
       if (balanceError) throw balanceError;
       console.log('[TipFlow] house_pool_balance updated:', currentBalance, '+', summary.totalHousePool, '=', currentBalance + summary.totalHousePool);
 
-      Alert.alert('Saved!', 'Shift and tip allocations have been saved.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (err: unknown) {
       Alert.alert('Save failed', err instanceof Error ? err.message : String(err));
     } finally {

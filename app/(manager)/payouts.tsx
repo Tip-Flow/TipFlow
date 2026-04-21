@@ -152,6 +152,8 @@ export default function PayoutsScreen() {
 
   async function handlePayout(shift: PendingShift) {
     setPayingShiftId(shift.id);
+    // Optimistic: remove from pending immediately
+    setPendingShifts((prev) => prev.filter((s) => s.id !== shift.id));
     try {
       const aptpayRef = 'APT-TEST-' + Date.now();
       const paidAt = new Date().toISOString();
@@ -168,12 +170,11 @@ export default function PayoutsScreen() {
         .eq('shift_id', shift.id);
       if (allocError) throw allocError;
 
-      Alert.alert(
-        'Success',
-        'Payouts recorded! AptPay integration coming soon.',
-        [{ text: 'OK', onPress: fetchData }]
-      );
+      // Refresh history in background
+      fetchData();
     } catch (err: unknown) {
+      // Restore shift on failure
+      setPendingShifts((prev) => [shift, ...prev]);
       Alert.alert('Payout failed', err instanceof Error ? err.message : String(err));
     } finally {
       setPayingShiftId(null);
