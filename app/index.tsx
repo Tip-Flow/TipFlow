@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import DailyQuote from './components/DailyQuote';
+import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 
 type PendingRole = 'manager' | 'staff' | 'regional' | null;
 
@@ -28,6 +29,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [pendingRole, setPendingRole] = useState<PendingRole>(null);
+  const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
   function detectRole(userEmail: string): PendingRole {
     const lower = userEmail.toLowerCase();
@@ -38,15 +40,59 @@ export default function LoginScreen() {
     return 'staff';
   }
 
-  function handleDismiss() {
+  async function handleDismissQuote() {
     if (pendingRole === 'regional') {
       router.replace('/(regional)/overview');
+      setPendingRole(null);
     } else if (pendingRole === 'manager') {
       router.replace('/(manager)/home');
+      setPendingRole(null);
     } else {
-      router.replace('/(staff)/mytips');
+      // Staff: check for today's shift goals before navigating
+      const goals = await fetchTodaysShiftGoals();
+      if (goals.length > 0) {
+        setPendingGoals(goals);
+      } else {
+        router.replace('/(staff)/mytips');
+        setPendingRole(null);
+      }
     }
+  }
+
+  function handleDismissGoals() {
+    router.replace('/(staff)/mytips');
     setPendingRole(null);
+    setPendingGoals(null);
+  }
+
+  async function fetchTodaysShiftGoals(): Promise<ShiftGoal[]> {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: locationData } = await supabase
+        .from('locations')
+        .select('id')
+        .limit(1)
+        .single();
+      if (!locationData) return [];
+
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('id')
+        .eq('location_id', locationData.id)
+        .eq('date', today);
+      if (!shiftsData || shiftsData.length === 0) return [];
+
+      const shiftIds = shiftsData.map((s) => s.id);
+      const { data: goalsData } = await supabase
+        .from('shift_goals')
+        .select('id, title, goal_type, target_item')
+        .in('shift_id', shiftIds)
+        .order('created_at', { ascending: true });
+
+      return (goalsData ?? []) as ShiftGoal[];
+    } catch {
+      return [];
+    }
   }
 
   async function handleSignIn() {
@@ -73,10 +119,18 @@ export default function LoginScreen() {
     }
   }
 
-  if (pendingRole !== null) {
+  if (pendingRole !== null && pendingGoals === null) {
     return (
       <SafeAreaView style={styles.container}>
-        <DailyQuote role={pendingRole} onDismiss={handleDismiss} />
+        <DailyQuote role={pendingRole} onDismiss={handleDismissQuote} />
+      </SafeAreaView>
+    );
+  }
+
+  if (pendingGoals !== null) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ShiftGoalsSplash goals={pendingGoals} onDismiss={handleDismissGoals} />
       </SafeAreaView>
     );
   }
