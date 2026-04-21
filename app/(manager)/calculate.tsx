@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,7 @@ const BG = '#09100e';
 const CARD = '#162019';
 const TEAL = '#00e5a0';
 const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const TEAL_BORDER = 'rgba(0,229,160,0.4)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
@@ -81,6 +83,13 @@ interface SupportEntry {
   included: boolean;
 }
 
+interface ActiveShift {
+  id: string;
+  name: string;
+  date: string;
+  staffCount: number;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function today(): string {
   return new Date().toISOString().split('T')[0];
@@ -95,23 +104,44 @@ function dollarsToCents(dollars: string): number {
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
   const router = useRouter();
 
+  // ── Main form state ───────────────────────────────────────────────────────
   const [shiftName, setShiftName] = useState('');
   const [shiftDate, setShiftDate] = useState(today());
-
   const [servers, setServers] = useState<ServerEntry[]>([]);
   const [supportStaff, setSupportStaff] = useState<SupportEntry[]>([]);
   const [locationId, setLocationId] = useState<string | null>(null);
   const [loadingStaff, setLoadingStaff] = useState(true);
-
   const [summary, setSummary] = useState<ShiftSummaryResult | null>(null);
   const [housePoolAllocations, setHousePoolAllocations] = useState<HousePoolAllocation[] | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // ── Fetch staff on mount ──────────────────────────────────────────────────
+  // ── Active (pending) shifts ───────────────────────────────────────────────
+  const [activeShifts, setActiveShifts] = useState<ActiveShift[]>([]);
+  const [loadingActive, setLoadingActive] = useState(false);
+  // When a pending shift is loaded into the form, this is its ID
+  const [activeShiftId, setActiveShiftId] = useState<string | null>(null);
+
+  // ── New Shift modal state ─────────────────────────────────────────────────
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newShiftName, setNewShiftName] = useState('');
+  const [newShiftDate, setNewShiftDate] = useState(today());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [modalSales, setModalSales] = useState<Record<string, string>>({});
+  const [creatingShift, setCreatingShift] = useState(false);
+
+  // ── All staff for the modal ───────────────────────────────────────────────
+  const allStaff = [...servers, ...supportStaff];
+
+  // ── Fetch staff + location on mount ──────────────────────────────────────
   useEffect(() => {
     async function fetchStaff() {
       setLoadingStaff(true);
@@ -166,6 +196,36 @@ export default function CalculateScreen() {
     fetchStaff();
   }, []);
 
+  // ── Fetch active (pending) shifts when location is known ──────────────────
+  const fetchActiveShifts = useCallback(async (locId: string) => {
+    setLoadingActive(true);
+    try {
+      const { data } = await supabase
+        .from('shifts')
+        .select('id, name, date, tip_allocations(id)')
+        .eq('location_id', locId)
+        .eq('status', 'active')
+        .order('date', { ascending: false });
+
+      setActiveShifts(
+        (data ?? []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          date: s.date,
+          staffCount: (s.tip_allocations ?? []).length,
+        })),
+      );
+    } catch (err) {
+      console.error('Failed to fetch active shifts:', err);
+    } finally {
+      setLoadingActive(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (locationId) fetchActiveShifts(locationId);
+  }, [locationId, fetchActiveShifts]);
+
   // ── Update helpers ────────────────────────────────────────────────────────
   function updateServer(
     id: string,
@@ -197,6 +257,129 @@ export default function CalculateScreen() {
       prev.map((s) => (s.id === id ? { ...s, included: !s.included } : s)),
     );
     setSummary(null);
+  }
+
+  // ── New Shift modal helpers ───────────────────────────────────────────────
+  function openNewShiftModal() {
+    setNewShiftName('');
+    setNewShiftDate(today());
+    setSelectedIds(new Set());
+    setModalSales({});
+    setModalVisible(true);
+  }
+
+  function toggleStaffSelection(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function updateModalSales(id: string, value: string) {
+    if (/^\d*(\.\d{0,2})?$/.test(value)) {
+      setModalSales((prev) => ({ ...prev, [id]: value }));
+    }
+  }
+
+  async function handleCreateShift() {
+    if (!newShiftName.trim()) {
+      Alert.alert('Missing shift name', 'Give tonight\'s shift a name.');
+      return;
+    }
+    if (selectedIds.size === 0) {
+      Alert.alert('No staff selected', 'Select at least one staff member for this shift.');
+      return;
+    }
+    if (!locationId) return;
+
+    setSaving(true);
+    try {
+      const { data: shiftData, error: shiftError } = await supabase
+        .from('shifts')
+        .insert({
+          location_id: locationId,
+          date: newShiftDate,
+          name: newShiftName.trim(),
+          total_tips: 0,
+          total_sales: 0,
+          status: 'active',
+          pos_source: 'manual',
+        })
+        .select('id')
+        .single();
+      if (shiftError) throw shiftError;
+
+      const stubs = allStaff
+        .filter((s) => selectedIds.has(s.id))
+        .map((s) => ({
+          shift_id: shiftData.id,
+          staff_id: s.id,
+          hours_worked: 0,
+          role_weight: SERVER_ROLES.has(s.role) ? 1.0 : 0,
+          server_sales: SERVER_ROLES.has(s.role)
+            ? dollarsToCents(modalSales[s.id] ?? '0')
+            : 0,
+          calculated_amount: 0,
+        }));
+
+      const { error: allocError } = await supabase.from('tip_allocations').insert(stubs);
+      if (allocError) throw allocError;
+
+      setModalVisible(false);
+      fetchActiveShifts(locationId);
+    } catch (err: unknown) {
+      Alert.alert('Failed to create shift', err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Load a pending shift into the calculation form ────────────────────────
+  async function handleLoadShift(shift: ActiveShift) {
+    try {
+      const { data: allocs } = await supabase
+        .from('tip_allocations')
+        .select('staff_id, server_sales, hours_worked')
+        .eq('shift_id', shift.id);
+
+      const allocMap: Record<string, { server_sales: number; hours_worked: number }> = {};
+      for (const a of allocs ?? []) {
+        allocMap[a.staff_id] = { server_sales: a.server_sales ?? 0, hours_worked: a.hours_worked ?? 0 };
+      }
+
+      setShiftName(shift.name);
+      setShiftDate(shift.date);
+      setActiveShiftId(shift.id);
+      setSummary(null);
+      setHousePoolAllocations(null);
+
+      setServers((prev) =>
+        prev.map((s) => ({
+          ...s,
+          included: !!allocMap[s.id],
+          sales: allocMap[s.id]?.server_sales
+            ? centsToDisplay(allocMap[s.id].server_sales)
+            : '',
+          tipsEarned: '',
+          hoursWorked: '',
+        })),
+      );
+
+      setSupportStaff((prev) =>
+        prev.map((s) => ({
+          ...s,
+          included: !!allocMap[s.id],
+          hoursWorked: '',
+        })),
+      );
+    } catch (err) {
+      Alert.alert('Failed to load shift', err instanceof Error ? err.message : String(err));
+    }
   }
 
   // ── Calculate ─────────────────────────────────────────────────────────────
@@ -238,7 +421,6 @@ export default function CalculateScreen() {
       const newSummary = calculateShiftSummary(serverInputs, DEFAULT_TIP_OUT_RULES);
       setSummary(newSummary);
 
-      // Distribute house pool among active support staff by hours (points)
       const activeSupport = supportStaff.filter(
         (s) => s.included && parseFloat(s.hoursWorked) > 0,
       );
@@ -275,30 +457,16 @@ export default function CalculateScreen() {
     const totalTipsCents = summary.perServerBreakdown.reduce((sum, s) => sum + s.tipsEarned, 0);
     const totalSalesCents = summary.perServerBreakdown.reduce((sum, s) => sum + s.sales, 0);
 
-    setSaving(true);
-    try {
-      const { data: shiftData, error: shiftError } = await supabase
-        .from('shifts')
-        .insert({
-          location_id: locationId,
-          date: shiftDate,
-          name: shiftName.trim(),
-          total_tips: totalTipsCents,
-          total_sales: totalSalesCents,
-          status: 'calculated',
-          pos_source: 'manual',
-        })
-        .select('id')
-        .single();
-      if (shiftError) throw shiftError;
+    const directTotals = getDirectTipOutTotals();
 
-      const allocations: object[] = [];
+    // Build allocations array (shift_id placeholder replaced below)
+    function buildAllocations(shiftId: string): object[] {
+      const rows: object[] = [];
 
-      // Server allocations — what each server keeps after tip-outs
-      for (const s of summary.perServerBreakdown) {
+      for (const s of summary!.perServerBreakdown) {
         const directTipOutsTotal = s.directTipOuts.reduce((sum, t) => sum + t.amount, 0);
-        const row = {
-          shift_id: shiftData.id,
+        rows.push({
+          shift_id: shiftId,
           staff_id: s.id,
           hours_worked: s.hoursWorked,
           role_weight: 1.0,
@@ -308,15 +476,12 @@ export default function CalculateScreen() {
           house_pool_contribution: s.housePoolContribution,
           tips_kept: s.tipsKept,
           calculated_amount: s.tipsKept,
-        };
-        console.log('[TipFlow] Server allocation:', row);
-        allocations.push(row);
+        });
       }
 
-      // House pool allocations
-      for (const a of housePoolAllocations) {
-        allocations.push({
-          shift_id: shiftData.id,
+      for (const a of housePoolAllocations!) {
+        rows.push({
+          shift_id: shiftId,
           staff_id: a.staffId,
           hours_worked: a.hoursWorked,
           role_weight: 0,
@@ -324,8 +489,6 @@ export default function CalculateScreen() {
         });
       }
 
-      // Direct tip-out allocations — split equally among active staff of each role
-      const directTotals = getDirectTipOutTotals();
       for (const [role, totalAmount] of Object.entries(directTotals)) {
         const recipients = supportStaff.filter(
           (s) => s.included && s.role === role && parseFloat(s.hoursWorked) > 0,
@@ -336,8 +499,8 @@ export default function CalculateScreen() {
         for (const r of recipients) {
           const amount = leftover > 0 ? perPerson + 1 : perPerson;
           if (leftover > 0) leftover--;
-          allocations.push({
-            shift_id: shiftData.id,
+          rows.push({
+            shift_id: shiftId,
             staff_id: r.id,
             hours_worked: parseFloat(r.hoursWorked) || 0,
             role_weight: 0,
@@ -346,13 +509,60 @@ export default function CalculateScreen() {
         }
       }
 
-      console.log('[TipFlow] All allocations to insert:', JSON.stringify(allocations, null, 2));
-      console.log('[TipFlow] Total house pool to add to location balance:', summary.totalHousePool);
+      return rows;
+    }
 
-      const { error: allocError } = await supabase.from('tip_allocations').insert(allocations);
+    setSaving(true);
+    try {
+      let shiftId: string;
+
+      if (activeShiftId) {
+        // Update existing active shift
+        const { error: updateError } = await supabase
+          .from('shifts')
+          .update({
+            name: shiftName.trim(),
+            date: shiftDate,
+            total_tips: totalTipsCents,
+            total_sales: totalSalesCents,
+            status: 'calculated',
+          })
+          .eq('id', activeShiftId);
+        if (updateError) throw updateError;
+
+        // Replace stub allocations with calculated ones
+        const { error: deleteError } = await supabase
+          .from('tip_allocations')
+          .delete()
+          .eq('shift_id', activeShiftId);
+        if (deleteError) throw deleteError;
+
+        shiftId = activeShiftId;
+      } else {
+        // Create a brand-new shift
+        const { data: shiftData, error: shiftError } = await supabase
+          .from('shifts')
+          .insert({
+            location_id: locationId,
+            date: shiftDate,
+            name: shiftName.trim(),
+            total_tips: totalTipsCents,
+            total_sales: totalSalesCents,
+            status: 'calculated',
+            pos_source: 'manual',
+          })
+          .select('id')
+          .single();
+        if (shiftError) throw shiftError;
+        shiftId = shiftData.id;
+      }
+
+      const { error: allocError } = await supabase
+        .from('tip_allocations')
+        .insert(buildAllocations(shiftId));
       if (allocError) throw allocError;
 
-      // Update location's house_pool_balance
+      // Update house pool balance
       const { data: locBalance } = await supabase
         .from('locations')
         .select('house_pool_balance')
@@ -364,7 +574,6 @@ export default function CalculateScreen() {
         .update({ house_pool_balance: currentBalance + summary.totalHousePool })
         .eq('id', locationId);
       if (balanceError) throw balanceError;
-      console.log('[TipFlow] house_pool_balance updated:', currentBalance, '+', summary.totalHousePool, '=', currentBalance + summary.totalHousePool);
 
       router.back();
     } catch (err: unknown) {
@@ -390,12 +599,67 @@ export default function CalculateScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <Text style={styles.backText}>← Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newShiftBtn}
+                onPress={openNewShiftModal}
+                activeOpacity={0.8}>
+                <Text style={styles.newShiftBtnText}>+ New Shift</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.title}>Calculate Tips</Text>
             <Text style={styles.subtitle}>Enter each server's sales and tips earned</Text>
           </View>
+
+          {/* ── Pending (active) shifts ──────────────────────────────────── */}
+          {(loadingActive || activeShifts.length > 0) && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Pending Shifts</Text>
+              {loadingActive ? (
+                <ActivityIndicator color={TEAL} style={{ marginVertical: 16 }} />
+              ) : (
+                activeShifts.map((shift, index) => (
+                  <View key={shift.id}>
+                    {index > 0 && <View style={styles.divider} />}
+                    <View style={styles.pendingRow}>
+                      <View style={styles.pendingInfo}>
+                        <Text style={styles.pendingName}>{shift.name}</Text>
+                        <Text style={styles.pendingMeta}>
+                          {formatDate(shift.date)} · {shift.staffCount} staff
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.loadBtn,
+                          activeShiftId === shift.id && styles.loadBtnActive,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => handleLoadShift(shift)}>
+                        <Text style={[
+                          styles.loadBtnText,
+                          activeShiftId === shift.id && styles.loadBtnTextActive,
+                        ]}>
+                          {activeShiftId === shift.id ? '✓ Loaded' : 'Load →'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {/* Loaded shift indicator */}
+          {activeShiftId && (
+            <View style={styles.loadedBanner}>
+              <Text style={styles.loadedBannerText}>
+                ✓ Editing: {shiftName} — complete the fields below and calculate
+              </Text>
+            </View>
+          )}
 
           {/* Tip-out rules */}
           <View style={styles.card}>
@@ -564,7 +828,6 @@ export default function CalculateScreen() {
             <View style={styles.resultsSection}>
               <Text style={styles.resultsTitle}>Results</Text>
 
-              {/* Per-server breakdown */}
               {summary.perServerBreakdown.map((s, index) => (
                 <View
                   key={s.id}
@@ -574,10 +837,7 @@ export default function CalculateScreen() {
                   ]}>
                   <View style={styles.resultHeaderRow}>
                     <Text style={styles.resultName}>{s.name}</Text>
-                    <Text style={[
-                      styles.resultAmount,
-                      s.tipsKept < 0 && { color: RED },
-                    ]}>
+                    <Text style={[styles.resultAmount, s.tipsKept < 0 && { color: RED }]}>
                       ${centsToDisplay(s.tipsKept)}
                     </Text>
                   </View>
@@ -603,7 +863,6 @@ export default function CalculateScreen() {
                 </View>
               ))}
 
-              {/* Servers total */}
               <View style={styles.totalRow}>
                 <View>
                   <Text style={styles.totalLabel}>Servers keep</Text>
@@ -612,7 +871,6 @@ export default function CalculateScreen() {
                 <Text style={styles.totalAmount}>${centsToDisplay(summary.totalTipsKept)}</Text>
               </View>
 
-              {/* Direct tip-out totals */}
               {Object.keys(directTipOutTotals).length > 0 && (
                 <View style={styles.poolCard}>
                   <Text style={styles.poolCardTitle}>Direct Tip-Outs</Text>
@@ -630,7 +888,6 @@ export default function CalculateScreen() {
                 </View>
               )}
 
-              {/* House pool distribution */}
               {summary.totalHousePool > 0 && (
                 <View style={styles.poolCard}>
                   <View style={styles.poolCardHeader}>
@@ -667,7 +924,6 @@ export default function CalculateScreen() {
                 </View>
               )}
 
-              {/* Save & Pay Out */}
               <TouchableOpacity
                 style={[styles.payoutBtn, saving && styles.payoutBtnDisabled]}
                 onPress={handleSaveAndPayout}
@@ -684,6 +940,138 @@ export default function CalculateScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── New Shift Modal ─────────────────────────────────────────────────── */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setModalVisible(false)}>
+        <SafeAreaView style={styles.modalSafe}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+
+              {/* Modal header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>New Shift</Text>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={() => setModalVisible(false)}
+                  activeOpacity={0.7}>
+                  <Text style={styles.closeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalSubtitle}>
+                Set up tonight's shift and pre-load sales before calculating tips
+              </Text>
+
+              {/* Shift name */}
+              <View style={styles.modalCard}>
+                <Text style={styles.modalCardTitle}>Shift Details</Text>
+                <View style={styles.modalField}>
+                  <Text style={styles.modalFieldLabel}>Shift Name</Text>
+                  <TextInput
+                    style={styles.modalTextInput}
+                    placeholder="e.g. Saturday Dinner"
+                    placeholderTextColor={MUTED}
+                    value={newShiftName}
+                    onChangeText={setNewShiftName}
+                  />
+                </View>
+                <View style={styles.modalDivider} />
+                <View style={styles.modalField}>
+                  <Text style={styles.modalFieldLabel}>Date</Text>
+                  <TextInput
+                    style={styles.modalTextInput}
+                    value={newShiftDate}
+                    onChangeText={setNewShiftDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={MUTED}
+                  />
+                </View>
+              </View>
+
+              {/* Staff multi-select */}
+              <View style={styles.modalCard}>
+                <Text style={styles.modalCardTitle}>
+                  Staff on Tonight's Shift
+                  {selectedIds.size > 0 && (
+                    <Text style={styles.modalCardCount}>  {selectedIds.size} selected</Text>
+                  )}
+                </Text>
+
+                {loadingStaff ? (
+                  <ActivityIndicator color={TEAL} style={{ marginVertical: 16 }} />
+                ) : allStaff.length === 0 ? (
+                  <Text style={styles.emptyText}>No staff found for this location.</Text>
+                ) : (
+                  allStaff.map((s, index) => {
+                    const isSelected = selectedIds.has(s.id);
+                    const isServer = SERVER_ROLES.has(s.role);
+                    return (
+                      <View key={s.id}>
+                        {index > 0 && <View style={styles.modalDivider} />}
+                        <TouchableOpacity
+                          style={[styles.staffSelectRow, isSelected && styles.staffSelectRowActive]}
+                          activeOpacity={0.7}
+                          onPress={() => toggleStaffSelection(s.id)}>
+                          {/* Checkbox */}
+                          <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
+                            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                          </View>
+                          <View style={styles.staffSelectInfo}>
+                            <Text style={[styles.staffSelectName, isSelected && { color: WHITE }]}>
+                              {ROLE_EMOJIS[s.role] ?? ''} {s.name}
+                            </Text>
+                            <Text style={styles.staffSelectRole}>
+                              {ROLE_LABELS[s.role] ?? s.role}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* Sales input for servers when selected */}
+                        {isServer && isSelected && (
+                          <View style={styles.salesInputRow}>
+                            <Text style={styles.salesInputLabel}>Sales ($)</Text>
+                            <TextInput
+                              style={styles.salesInput}
+                              placeholder="0.00"
+                              placeholderTextColor={MUTED}
+                              value={modalSales[s.id] ?? ''}
+                              onChangeText={(v) => updateModalSales(s.id, v)}
+                              keyboardType="decimal-pad"
+                            />
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+
+              {/* Save */}
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, creatingShift && styles.payoutBtnDisabled]}
+                onPress={handleCreateShift}
+                activeOpacity={0.8}
+                disabled={creatingShift}>
+                {creatingShift ? (
+                  <ActivityIndicator color={BG} />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Create Shift</Text>
+                )}
+              </TouchableOpacity>
+
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -696,10 +1084,63 @@ const styles = StyleSheet.create({
 
   // Header
   header: { gap: 4 },
-  backBtn: { marginBottom: 8 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  backBtn: {},
   backText: { fontSize: 15, color: TEAL, fontWeight: '600' },
   title: { fontSize: 26, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, color: MUTED },
+
+  // New Shift button
+  newShiftBtn: {
+    backgroundColor: TEAL,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  newShiftBtnText: { fontSize: 13, fontWeight: '700', color: BG, letterSpacing: 0.1 },
+
+  // Pending shifts
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  pendingInfo: { flex: 1, gap: 3 },
+  pendingName: { fontSize: 15, fontWeight: '700', color: WHITE },
+  pendingMeta: { fontSize: 12, color: MUTED },
+  loadBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: '#0e1a14',
+  },
+  loadBtnActive: {
+    backgroundColor: TEAL_DIM,
+    borderColor: TEAL_BORDER,
+  },
+  loadBtnText: { fontSize: 13, fontWeight: '700', color: MUTED },
+  loadBtnTextActive: { color: TEAL },
+
+  // Loaded banner
+  loadedBanner: {
+    backgroundColor: TEAL_DIM,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: TEAL_BORDER,
+  },
+  loadedBannerText: { fontSize: 13, fontWeight: '600', color: TEAL, lineHeight: 18 },
 
   // Card
   card: {
@@ -925,4 +1366,135 @@ const styles = StyleSheet.create({
   },
   payoutBtnDisabled: { opacity: 0.6 },
   payoutBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
+
+  // ── New Shift Modal ────────────────────────────────────────────────────────
+  modalSafe: { flex: 1, backgroundColor: BG },
+  modalScroll: { flex: 1 },
+  modalContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 48, gap: 20 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: { fontSize: 24, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
+  modalSubtitle: { fontSize: 13, color: MUTED, marginTop: -12, lineHeight: 18 },
+  closeBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  closeBtnText: { fontSize: 14, color: MUTED, fontWeight: '700' },
+
+  modalCard: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    overflow: 'hidden',
+    paddingVertical: 4,
+  },
+  modalCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: MUTED,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  modalCardCount: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: 0,
+    textTransform: 'none',
+  },
+  modalDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 16 },
+  modalField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  modalFieldLabel: { fontSize: 15, fontWeight: '600', color: WHITE, flex: 1 },
+  modalTextInput: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: TEAL,
+    textAlign: 'right',
+    minWidth: 100,
+    padding: 0,
+  },
+
+  // Staff select rows in modal
+  staffSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  staffSelectRowActive: {
+    backgroundColor: 'rgba(0,229,160,0.05)',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    backgroundColor: '#0e1a14',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: TEAL,
+    borderColor: TEAL,
+  },
+  checkmark: { fontSize: 12, fontWeight: '800', color: BG },
+  staffSelectInfo: { flex: 1, gap: 2 },
+  staffSelectName: { fontSize: 15, fontWeight: '600', color: MUTED },
+  staffSelectRole: { fontSize: 12, color: MUTED },
+
+  // Sales input within modal
+  salesInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 0,
+    marginTop: -6,
+  },
+  salesInputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    paddingLeft: 34,
+  },
+  salesInput: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEAL,
+    backgroundColor: '#0e1a14',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    minWidth: 90,
+    textAlign: 'right',
+  },
+
+  modalSaveBtn: {
+    backgroundColor: TEAL,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalSaveBtnText: { fontSize: 17, fontWeight: '800', color: BG, letterSpacing: 0.2 },
 });
