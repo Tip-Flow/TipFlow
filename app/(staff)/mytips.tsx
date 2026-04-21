@@ -65,13 +65,6 @@ export default function MyTipsScreen() {
           </View>
         </View>
 
-        {/* Tax Info Bar */}
-        <View style={styles.infoBar}>
-          <Text style={styles.infoText}>
-            Direct Tips — No CPP/EI deductions. Self-report on T1.
-          </Text>
-        </View>
-
         {/* Milestones Preview */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>

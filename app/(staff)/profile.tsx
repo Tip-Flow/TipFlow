@@ -117,7 +117,6 @@ export default function ProfileScreen() {
 const SETTINGS = [
   { icon: '🔔', label: 'Notifications' },
   { icon: '🔒', label: 'Security & Face ID' },
-  { icon: '📄', label: 'CRA Tax Info' },
   { icon: '❓', label: 'Help & Support' },
 ];
 
