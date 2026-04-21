@@ -1,4 +1,19 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  SafeAreaView,
+} from 'react-native';
+import { supabase } from '@/lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -13,6 +28,22 @@ const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
 const ORANGE = '#fb923c';
 const ORANGE_DIM = 'rgba(249,115,22,0.15)';
+
+const GOAL_TYPES = [
+  { key: 'top_sales',       label: 'Top Sales',        icon: '💰' },
+  { key: 'most_upsells',    label: 'Most Upsells',     icon: '📈' },
+  { key: 'specific_item',   label: 'Specific Item',    icon: '🎯' },
+  { key: 'managers_choice', label: "Manager's Choice", icon: '⭐' },
+] as const;
+
+type GoalType = typeof GOAL_TYPES[number]['key'];
+
+type ShiftGoal = {
+  id: string;
+  title: string;
+  goal_type: GoalType;
+  target_item: string | null;
+};
 
 const incentivesEarned = [
   { name: 'Alex Dubois',  milestone: '5 Shift Streak 🔥', date: 'Today' },
@@ -41,7 +72,121 @@ const recentMilestones = [
   '⭐ Alex Dubois - Diamond Earner badge unlocked',
 ];
 
+function today(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 export default function RewardsScreen() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [goalType, setGoalType] = useState<GoalType>('top_sales');
+  const [description, setDescription] = useState('');
+  const [targetItem, setTargetItem] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [todaysGoals, setTodaysGoals] = useState<ShiftGoal[]>([]);
+  const [loadingGoals, setLoadingGoals] = useState(true);
+
+  const fetchTodaysGoals = useCallback(async () => {
+    setLoadingGoals(true);
+    try {
+      const { data: locData } = await supabase
+        .from('locations')
+        .select('id')
+        .limit(1)
+        .single();
+      if (!locData) return;
+
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('id')
+        .eq('location_id', locData.id)
+        .eq('date', today());
+
+      if (!shiftsData || shiftsData.length === 0) return;
+
+      const shiftIds = shiftsData.map((s: { id: string }) => s.id);
+      const { data: goalsData } = await supabase
+        .from('shift_goals')
+        .select('id, title, goal_type, target_item')
+        .in('shift_id', shiftIds)
+        .order('created_at', { ascending: true });
+
+      setTodaysGoals((goalsData ?? []) as ShiftGoal[]);
+    } catch (err) {
+      console.error('Failed to load shift goals:', err);
+    } finally {
+      setLoadingGoals(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTodaysGoals();
+  }, [fetchTodaysGoals]);
+
+  function openModal() {
+    setGoalType('top_sales');
+    setDescription('');
+    setTargetItem('');
+    setModalVisible(true);
+  }
+
+  async function handleSave() {
+    if (!description.trim()) {
+      Alert.alert('Missing description', 'Please describe the goal for your team.');
+      return;
+    }
+    if (goalType === 'specific_item' && !targetItem.trim()) {
+      Alert.alert('Missing item', 'Please enter the specific item for this goal.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: locData } = await supabase
+        .from('locations')
+        .select('id')
+        .limit(1)
+        .single();
+      if (!locData) throw new Error('No location found.');
+
+      const { data: shiftsData } = await supabase
+        .from('shifts')
+        .select('id')
+        .eq('location_id', locData.id)
+        .eq('date', today())
+        .limit(1);
+
+      const shiftId = shiftsData?.[0]?.id ?? null;
+      if (!shiftId) {
+        Alert.alert(
+          'No shift for tonight',
+          "Create tonight's shift in the Calculate tab first, then set goals here."
+        );
+        return;
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+      const createdBy = userData?.user?.id ?? null;
+
+      const { error } = await supabase.from('shift_goals').insert({
+        shift_id: shiftId,
+        location_id: locData.id,
+        title: description.trim(),
+        goal_type: goalType,
+        target_item: goalType === 'specific_item' ? targetItem.trim() : null,
+        created_by: createdBy,
+      });
+      if (error) throw error;
+
+      setModalVisible(false);
+      fetchTodaysGoals();
+    } catch (err: unknown) {
+      Alert.alert('Failed to save', err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -51,6 +196,49 @@ export default function RewardsScreen() {
 
         {/* Header */}
         <Text style={styles.title}>Rewards & Incentives</Text>
+
+        {/* ── Shift Goals ─────────────────────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.shiftGoalsHeader}>
+            <Text style={styles.cardTitle}>Tonight's Shift Goals</Text>
+            <TouchableOpacity style={styles.createGoalBtn} onPress={openModal} activeOpacity={0.8}>
+              <Text style={styles.createGoalBtnText}>+ Create</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.divider} />
+
+          {loadingGoals ? (
+            <ActivityIndicator color={TEAL} size="small" style={styles.goalsLoader} />
+          ) : todaysGoals.length === 0 ? (
+            <View style={styles.goalsEmpty}>
+              <Text style={styles.goalsEmptyText}>No goals set for tonight yet</Text>
+              <Text style={styles.goalsEmptySubtext}>
+                Tap + Create to motivate your team with a shift goal
+              </Text>
+            </View>
+          ) : (
+            todaysGoals.map((goal, index) => {
+              const meta = GOAL_TYPES.find((g) => g.key === goal.goal_type);
+              return (
+                <View
+                  key={goal.id}
+                  style={[styles.goalRow, index < todaysGoals.length - 1 && styles.rowBorder]}>
+                  <View style={styles.goalIconWrap}>
+                    <Text style={styles.goalIcon}>{meta?.icon ?? '🎯'}</Text>
+                  </View>
+                  <View style={styles.goalInfo}>
+                    <Text style={styles.goalTypeLabel}>{meta?.label ?? goal.goal_type}</Text>
+                    <Text style={styles.goalTitle}>{goal.title}</Text>
+                    {goal.target_item ? (
+                      <Text style={styles.goalItem}>Item: {goal.target_item}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
 
         {/* Incentives Earned — amber border, most important */}
         <View style={styles.amberCard}>
@@ -160,6 +348,92 @@ export default function RewardsScreen() {
         </View>
 
       </ScrollView>
+
+      {/* ── Create Shift Goal Modal ─────────────────────────────────────────── */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={styles.modalSheet}>
+
+            {/* Modal header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create Shift Goal</Text>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => setModalVisible(false)}
+                activeOpacity={0.7}>
+                <Text style={styles.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Staff will see this goal on login tonight
+            </Text>
+
+            {/* Goal type chips */}
+            <Text style={styles.fieldLabel}>Goal Type</Text>
+            <View style={styles.typeChips}>
+              {GOAL_TYPES.map((g) => (
+                <TouchableOpacity
+                  key={g.key}
+                  style={[styles.typeChip, goalType === g.key && styles.typeChipActive]}
+                  activeOpacity={0.7}
+                  onPress={() => setGoalType(g.key)}>
+                  <Text style={styles.typeChipIcon}>{g.icon}</Text>
+                  <Text style={[styles.typeChipText, goalType === g.key && styles.typeChipTextActive]}>
+                    {g.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Description */}
+            <Text style={styles.fieldLabel}>Description</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Highest wine sales wins a bonus this shift"
+              placeholderTextColor={MUTED}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              maxLength={140}
+            />
+
+            {/* Target item (specific_item only) */}
+            {goalType === 'specific_item' && (
+              <>
+                <Text style={styles.fieldLabel}>Specific Item</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. Halibut special, Bottle of Barolo"
+                  placeholderTextColor={MUTED}
+                  value={targetItem}
+                  onChangeText={setTargetItem}
+                />
+              </>
+            )}
+
+            {/* Save */}
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              activeOpacity={0.8}
+              disabled={saving}>
+              {saving ? (
+                <ActivityIndicator color={BG} />
+              ) : (
+                <Text style={styles.saveBtnText}>Set Goal for Tonight</Text>
+              )}
+            </TouchableOpacity>
+
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -243,6 +517,86 @@ const styles = StyleSheet.create({
   rowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
+  },
+
+  // Shift Goals section
+  shiftGoalsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 14,
+  },
+  createGoalBtn: {
+    backgroundColor: TEAL_DIM,
+    borderWidth: 1,
+    borderColor: TEAL_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  createGoalBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEAL,
+  },
+  goalsLoader: {
+    marginVertical: 20,
+  },
+  goalsEmpty: {
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    gap: 4,
+  },
+  goalsEmptyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: MUTED,
+  },
+  goalsEmptySubtext: {
+    fontSize: 13,
+    color: MUTED,
+    lineHeight: 18,
+  },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  goalIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: TEAL_DIM,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  goalIcon: {
+    fontSize: 17,
+  },
+  goalInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  goalTypeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  goalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: WHITE,
+    lineHeight: 20,
+  },
+  goalItem: {
+    fontSize: 12,
+    color: MUTED,
   },
 
   // Incentives Earned
@@ -395,5 +749,122 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: WHITE,
     lineHeight: 20,
+  },
+
+  // ── Create Goal Modal ──────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: CARD,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    gap: 14,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: WHITE,
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: MUTED,
+    marginTop: -6,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0e1a14',
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnText: {
+    fontSize: 13,
+    color: MUTED,
+    fontWeight: '700',
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: MUTED,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  typeChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: -4,
+  },
+  typeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: '#0e1a14',
+  },
+  typeChipActive: {
+    backgroundColor: TEAL_DIM,
+    borderColor: TEAL_BORDER,
+  },
+  typeChipIcon: {
+    fontSize: 14,
+  },
+  typeChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: MUTED,
+  },
+  typeChipTextActive: {
+    color: TEAL,
+  },
+  textInput: {
+    backgroundColor: '#0e1a14',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: WHITE,
+    fontWeight: '500',
+    marginTop: -4,
+    minHeight: 48,
+  },
+  saveBtn: {
+    backgroundColor: TEAL,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: BG,
+    letterSpacing: 0.1,
   },
 });
