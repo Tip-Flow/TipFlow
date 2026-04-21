@@ -211,6 +211,16 @@ export default function POSScreen() {
     });
   }
 
+  function handleRescan() {
+    setOcrPreviewVisible(false);
+    setOcrResult(null);
+    setScanSheetVisible(true);
+  }
+
+  function isRowLowConfidence(row: CSVStaffRow): boolean {
+    return row.hoursWorked === 0 || row.tips === 0;
+  }
+
   // ── Edit row ──────────────────────────────────────────────────────────────
 
   function openEditModal(idx: number) {
@@ -570,9 +580,9 @@ export default function POSScreen() {
                 {/* Header */}
                 <View style={styles.modalHeader}>
                   <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={styles.modalTitle}>Scan Preview</Text>
+                    <Text style={styles.modalTitle}>Review Scanned Data</Text>
                     <Text style={styles.modalSubtitle}>
-                      {ocrResult.rows.length} staff member{ocrResult.rows.length !== 1 ? 's' : ''} detected
+                      {ocrResult.rows.length} item{ocrResult.rows.length !== 1 ? 's' : ''} detected
                     </Text>
                     {/* Confidence badge */}
                     <View style={[
@@ -639,44 +649,65 @@ export default function POSScreen() {
                       <Text style={[styles.tableHeaderCell, styles.colEdit]}> </Text>
                     </View>
                     <View style={styles.tableDivider} />
-                    {ocrResult.rows.map((row, index) => (
-                      <View key={index}>
-                        {index > 0 && <View style={styles.tableRowDivider} />}
-                        <TouchableOpacity
-                          style={styles.tableRow}
-                          activeOpacity={0.7}
-                          onPress={() => openEditModal(index)}>
-                          <Text style={[styles.tableCellName, styles.colName]} numberOfLines={1}>
-                            {row.name}
-                          </Text>
-                          <Text style={[styles.tableCellMuted, styles.colRole]} numberOfLines={1}>
-                            {row.role}
-                          </Text>
-                          <Text style={[styles.tableCellMuted, styles.colHours]}>
-                            {row.hoursWorked > 0 ? `${row.hoursWorked}h` : '—'}
-                          </Text>
-                          <Text style={[styles.tableCellTeal, styles.colTips]}>
-                            {row.tips > 0 ? `$${centsToDisplay(row.tips)}` : '—'}
-                          </Text>
-                          <Text style={[styles.editIconCell, styles.colEdit]}>✏️</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
+                    {ocrResult.rows.map((row, index) => {
+                      const lowConf = isRowLowConfidence(row);
+                      return (
+                        <View key={index}>
+                          {index > 0 && <View style={styles.tableRowDivider} />}
+                          <TouchableOpacity
+                            style={[styles.tableRow, lowConf && styles.tableRowAmber]}
+                            activeOpacity={0.7}
+                            onPress={() => openEditModal(index)}>
+                            <Text style={[styles.tableCellName, styles.colName]} numberOfLines={1}>
+                              {row.name}
+                            </Text>
+                            <Text style={[styles.tableCellMuted, styles.colRole]} numberOfLines={1}>
+                              {row.role}
+                            </Text>
+                            <Text style={[
+                              styles.tableCellMuted,
+                              styles.colHours,
+                              row.hoursWorked === 0 && styles.tableCellAmber,
+                            ]}>
+                              {row.hoursWorked > 0 ? `${row.hoursWorked}h` : '?'}
+                            </Text>
+                            <Text style={[
+                              styles.tableCellTeal,
+                              styles.colTips,
+                              row.tips === 0 && styles.tableCellAmber,
+                            ]}>
+                              {row.tips > 0 ? `$${centsToDisplay(row.tips)}` : '?'}
+                            </Text>
+                            <Text style={[styles.editIconCell, styles.colEdit]}>✏️</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
 
-                <Text style={styles.hint}>
-                  Looks wrong? Tap any row to fix it manually.
-                </Text>
-
-                {ocrResult.rows.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.useDataBtn}
-                    onPress={handleUseOCRData}
-                    activeOpacity={0.8}>
-                    <Text style={styles.useDataBtnText}>Use This Data</Text>
-                  </TouchableOpacity>
+                {ocrResult.rows.some(isRowLowConfidence) && (
+                  <Text style={styles.hintAmber}>
+                    ⚠️  Amber rows have missing values — tap to edit before importing.
+                  </Text>
                 )}
+
+                <View style={styles.ocrActionRow}>
+                  <TouchableOpacity
+                    style={styles.rescanBtn}
+                    onPress={handleRescan}
+                    activeOpacity={0.8}>
+                    <Text style={styles.rescanBtnText}>Rescan</Text>
+                  </TouchableOpacity>
+                  {ocrResult.rows.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.confirmBtn}
+                      onPress={handleUseOCRData}
+                      activeOpacity={0.8}>
+                      <Text style={styles.confirmBtnText}>Confirm & Import</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </>
             )}
           </ScrollView>
@@ -994,8 +1025,24 @@ const styles = StyleSheet.create({
   colEdit: { width: 28, textAlign: 'center' },
 
   hint: { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 18 },
+  hintAmber: { fontSize: 13, color: AMBER, textAlign: 'center', lineHeight: 18 },
   useDataBtn: { backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   useDataBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
+  tableRowAmber: { backgroundColor: 'rgba(245,158,11,0.07)' },
+  tableCellAmber: { color: AMBER, fontWeight: '700' },
+  ocrActionRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  rescanBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    backgroundColor: CARD,
+  },
+  rescanBtnText: { fontSize: 16, fontWeight: '700', color: MUTED, letterSpacing: 0.1 },
+  confirmBtn: { flex: 2, backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  confirmBtnText: { fontSize: 16, fontWeight: '800', color: '#09100e', letterSpacing: 0.1 },
 
   // ── Edit row modal ───────────────────────────────────────────────────────
   editOverlay: {
