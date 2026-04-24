@@ -3,7 +3,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 const BG = '#09100e';
-const TEAL = '#00e5a0';
+const BLUE = '#4169E1';
 const INACTIVE = '#3d4f47';
 
 export default function ManagerLayout() {
@@ -12,7 +12,7 @@ export default function ManagerLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: TEAL,
+        tabBarActiveTintColor: BLUE,
         tabBarInactiveTintColor: INACTIVE,
         tabBarStyle: {
           backgroundColor: BG,

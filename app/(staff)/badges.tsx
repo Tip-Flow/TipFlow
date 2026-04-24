@@ -11,7 +11,7 @@ const EARNED_BADGES = [
     emoji: '💸',
     title: 'First Payout',
     desc: 'Received your first tip',
-    accent: '#00e5a0',
+    accent: '#4169E1',
     iconBg: '#0d3324',
   },
   {

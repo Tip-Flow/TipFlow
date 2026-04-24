@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BG     = '#09100e';
 const CARD   = '#162019';
-const TEAL   = '#00e5a0';
+const BLUE   = '#4169E1';
 const GOLD   = '#f5c542';
 const MUTED  = '#6b7a74';
 const LABEL  = '#9db8ad';
@@ -15,7 +15,7 @@ const LEVELS = [
   { name: 'Silver Server', icon: '🥈', min: 15, max: 18, color: '#b0bec5', nextName: 'Gold Server'   },
   { name: 'Gold Server',   icon: '⭐', min: 18, max: 21, color: '#f5c542', nextName: 'Platinum'      },
   { name: 'Platinum',      icon: '💎', min: 21, max: 24, color: '#7ec8e3', nextName: 'Elite'         },
-  { name: 'Elite',         icon: '🏆', min: 24, max: 100, color: '#00e5a0', nextName: null            },
+  { name: 'Elite',         icon: '🏆', min: 24, max: 100, color: '#4169E1', nextName: null            },
 ];
 
 function getLevel(avg: number) {
@@ -146,7 +146,7 @@ export default function ProgressScreen() {
                         styles.barFill,
                         {
                           height: `${barHeight}%` as any,
-                          backgroundColor: isAboveAvg ? TEAL : '#2a4a3a',
+                          backgroundColor: isAboveAvg ? BLUE : '#2a4a3a',
                         },
                       ]}
                     />
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
     borderWidth: 1.5,
-    borderColor: TEAL,
+    borderColor: BLUE,
     gap: 12,
   },
   levelTopRow: {
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   avgPillText: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   progressTrack: {
     height: 8,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 4,
   },
   levelNextText: {
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
   },
   legendText: {
     fontSize: 12,

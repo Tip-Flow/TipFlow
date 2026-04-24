@@ -24,8 +24,8 @@ const GOAL_TYPE_LABELS: Record<string, string> = {
 
 const BG     = '#09100e';
 const CARD   = '#162019';
-const TEAL   = '#00e5a0';
-const TEAL_DIM = '#00b880';
+const BLUE   = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const GOLD   = '#f5c842';
 const MUTED  = '#6b7a74';
 const BORDER = '#1e3028';
@@ -322,24 +322,24 @@ const styles = StyleSheet.create({
   shiftGoalTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   shiftGoalTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#e8f5ef' },
   shiftGoalBadge: {
-    backgroundColor: 'rgba(0,229,160,0.12)',
+    backgroundColor: 'rgba(65, 105, 225, 0.12)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: 'rgba(0,229,160,0.3)',
+    borderColor: 'rgba(65, 105, 225, 0.3)',
   },
-  shiftGoalBadgeText: { fontSize: 11, fontWeight: '700', color: TEAL },
+  shiftGoalBadgeText: { fontSize: 11, fontWeight: '700', color: BLUE },
   shiftGoalItem: { fontSize: 12, color: MUTED, fontStyle: 'italic' },
   shiftGoalIncentiveBar: {
-    backgroundColor: 'rgba(0,229,160,0.08)',
+    backgroundColor: 'rgba(65, 105, 225, 0.08)',
     borderRadius: 8,
     paddingVertical: 7,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0,229,160,0.2)',
+    borderColor: 'rgba(65, 105, 225, 0.2)',
   },
-  shiftGoalIncentiveText: { fontSize: 13, fontWeight: '600', color: TEAL },
+  shiftGoalIncentiveText: { fontSize: 13, fontWeight: '600', color: BLUE },
   shiftGoalWonBar: {
     backgroundColor: '#0a2a1c',
     borderRadius: 8,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1a4a2e',
   },
-  shiftGoalWonText: { fontSize: 13, fontWeight: '700', color: TEAL },
+  shiftGoalWonText: { fontSize: 13, fontWeight: '700', color: BLUE },
 
   // Header
   header: {
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -1,
   },
   summaryEmoji: {
@@ -457,11 +457,11 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 4,
   },
   progressFillEarned: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
   },
   progressLabels: {
     flexDirection: 'row',
@@ -487,13 +487,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: TEAL,
+    borderColor: BLUE,
     zIndex: 1,
   },
   earnedBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 0.8,
   },
 
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
   earnedBarText: {
     fontSize: 13,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '600',
     lineHeight: 18,
   },

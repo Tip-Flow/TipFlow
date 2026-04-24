@@ -19,7 +19,7 @@ import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 
 type PendingRole = 'manager' | 'staff' | 'regional' | null;
 
-const TEAL = '#00e5a0';
+const BLUE = '#4169E1';
 const BG = '#09100e';
 
 export default function LoginScreen() {
@@ -149,8 +149,8 @@ export default function LoginScreen() {
 
           <View style={styles.logoContainer}>
             <Text style={styles.logoEmoji}>💸</Text>
-            <Text style={styles.logoText}>TipFlow</Text>
-            <Text style={styles.tagline}>Tip distribution, simplified.</Text>
+            <Text style={styles.logoText}>Mise</Text>
+            <Text style={styles.tagline}>Everything in its Place.</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 48,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -1,
   },
   tagline: {
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: BG,
+    color: '#ffffff',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.2,

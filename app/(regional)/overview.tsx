@@ -12,8 +12,8 @@ import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65, 105, 225, 0.15)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const RED = '#f87171';
@@ -39,9 +39,9 @@ export default function RegionalOverview() {
   const [approvalVisible, setApprovalVisible] = useState(true);
 
   const stats = [
-    { label: 'Total Locations', value: '3', icon: '📍', accent: TEAL },
-    { label: 'Total Staff', value: '24', icon: '👥', accent: TEAL },
-    { label: 'Tips This Week', value: '$28,450', icon: '📈', accent: TEAL },
+    { label: 'Total Locations', value: '3', icon: '📍', accent: BLUE },
+    { label: 'Total Staff', value: '24', icon: '👥', accent: BLUE },
+    { label: 'Tips This Week', value: '$28,450', icon: '📈', accent: BLUE },
     { label: 'House Pool Balance', value: '$1,240', icon: '🏦', accent: AMBER },
   ];
 
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   locationName: { fontSize: 15, fontWeight: '700', color: WHITE },
   locationCity: { fontSize: 12, color: MUTED },
   locationRight: { alignItems: 'flex-end', gap: 2 },
-  locationTips: { fontSize: 15, fontWeight: '700', color: TEAL },
+  locationTips: { fontSize: 15, fontWeight: '700', color: BLUE },
   locationStaff: { fontSize: 12, color: MUTED },
   approvalCard: {
     backgroundColor: CARD,
@@ -272,12 +272,12 @@ const styles = StyleSheet.create({
   approvalRequested: { fontSize: 12, color: MUTED },
   approvalActions: { flexDirection: 'row', gap: 8 },
   approveBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  approveBtnText: { fontSize: 13, fontWeight: '700', color: BG },
+  approveBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
   rejectBtn: {
     backgroundColor: RED_DIM,
     paddingHorizontal: 14,
@@ -298,14 +298,14 @@ const styles = StyleSheet.create({
   milestonesLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 2,
   },
   milestonesRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   milestonesCount: {
     fontSize: 48,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -2,
   },
   milestonesText: {

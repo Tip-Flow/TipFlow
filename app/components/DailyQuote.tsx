@@ -9,8 +9,8 @@ import {
 import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.18)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65, 105, 225, 0.18)';
 const MUTED = '#4a5e56';
 
 type Props = {
@@ -50,7 +50,7 @@ export default function DailyQuote({ role, onDismiss }: Props) {
         {/* Logo */}
         <View style={styles.logoRow}>
           <Text style={styles.logoEmoji}>💸</Text>
-          <Text style={styles.logoText}>TipFlow</Text>
+          <Text style={styles.logoText}>Mise</Text>
         </View>
 
         {/* Quote block */}
@@ -76,6 +76,9 @@ export default function DailyQuote({ role, onDismiss }: Props) {
             <Text style={styles.author}>— {quote.author}</Text>
           ) : null}
         </View>
+
+        {/* Tagline */}
+        <Text style={styles.taglineMise}>Everything in its Place.</Text>
 
         {/* Dismiss hint */}
         <Text style={styles.hint}>Tap anywhere to continue →</Text>
@@ -105,7 +108,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 18,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -0.3,
   },
   quoteBlock: {
@@ -116,10 +119,10 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -135,14 +138,20 @@ const styles = StyleSheet.create({
   },
   line: {
     height: 2,
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 1,
   },
   author: {
     fontSize: 15,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '500',
     letterSpacing: 0.3,
+  },
+  taglineMise: {
+    fontSize: 11,
+    color: MUTED,
+    letterSpacing: 1,
+    fontStyle: 'italic',
   },
   hint: {
     fontSize: 13,

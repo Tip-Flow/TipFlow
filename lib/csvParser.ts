@@ -60,7 +60,7 @@ function parseCents(raw: string): number {
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
-/** Normalize a free-text role to a valid TipFlow role, defaulting to 'server'. */
+/** Normalize a free-text role to a valid app role, defaulting to 'server'. */
 function normalizeRole(raw: string): ValidRole {
   const lower = raw.toLowerCase();
   if (lower.includes('bar')) return 'bartender';

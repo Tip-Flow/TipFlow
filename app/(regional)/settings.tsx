@@ -11,8 +11,8 @@ import {
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   settingInput: {
     fontSize: 15,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     minWidth: 40,
     textAlign: 'right',
   },
@@ -229,16 +229,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
   },
-  periodChipActive: { backgroundColor: TEAL_DIM, borderColor: TEAL },
+  periodChipActive: { backgroundColor: BLUE_DIM, borderColor: BLUE },
   periodText: { fontSize: 13, fontWeight: '600', color: MUTED },
-  periodTextActive: { color: TEAL },
+  periodTextActive: { color: BLUE },
   saveBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 4,
   },
   saveBtnDone: { backgroundColor: '#22c55e' },
-  saveBtnText: { fontSize: 17, fontWeight: '700', color: BG, letterSpacing: 0.2 },
+  saveBtnText: { fontSize: 17, fontWeight: '700', color: '#ffffff', letterSpacing: 0.2 },
 });

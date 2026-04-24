@@ -17,9 +17,9 @@ import { supabase } from '@/lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
-const TEAL_BORDER = 'rgba(0,229,160,0.4)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
+const BLUE_BORDER = 'rgba(65,105,225,0.4)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const AMBER_BORDER = 'rgba(245,158,11,0.4)';
@@ -209,7 +209,7 @@ export default function RewardsScreen() {
           <View style={styles.divider} />
 
           {loadingGoals ? (
-            <ActivityIndicator color={TEAL} size="small" style={styles.goalsLoader} />
+            <ActivityIndicator color={BLUE} size="small" style={styles.goalsLoader} />
           ) : todaysGoals.length === 0 ? (
             <View style={styles.goalsEmpty}>
               <Text style={styles.goalsEmptyText}>No goals set for tonight yet</Text>
@@ -527,9 +527,9 @@ const styles = StyleSheet.create({
     paddingRight: 14,
   },
   createGoalBtn: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   createGoalBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   goalsLoader: {
     marginVertical: 20,
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   goalTypeLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
@@ -626,9 +626,9 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   deliverBtn: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   deliverBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
 
   // Team Levels
@@ -667,13 +667,13 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 6,
-    backgroundColor: 'rgba(0,229,160,0.12)',
+    backgroundColor: 'rgba(65, 105, 225, 0.12)',
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 3,
   },
   levelNextLabel: {
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
 
   // Team Milestones
   milestoneSummary: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     marginHorizontal: 18,
     marginTop: 12,
     borderRadius: 10,
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   milestoneCount: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   milestoneRow: {
     paddingHorizontal: 18,
@@ -824,8 +824,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0e1a14',
   },
   typeChipActive: {
-    backgroundColor: TEAL_DIM,
-    borderColor: TEAL_BORDER,
+    backgroundColor: BLUE_DIM,
+    borderColor: BLUE_BORDER,
   },
   typeChipIcon: {
     fontSize: 14,
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   typeChipTextActive: {
-    color: TEAL,
+    color: BLUE,
   },
   textInput: {
     backgroundColor: '#0e1a14',
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   saveBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 16,
     fontWeight: '800',
-    color: BG,
+    color: '#ffffff',
     letterSpacing: 0.1,
   },
 });

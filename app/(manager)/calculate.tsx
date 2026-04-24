@@ -27,9 +27,9 @@ import {
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
-const TEAL_BORDER = 'rgba(0,229,160,0.4)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
+const BLUE_BORDER = 'rgba(65,105,225,0.4)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
@@ -621,7 +621,7 @@ export default function CalculateScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Pending Shifts</Text>
               {loadingActive ? (
-                <ActivityIndicator color={TEAL} style={{ marginVertical: 16 }} />
+                <ActivityIndicator color={BLUE} style={{ marginVertical: 16 }} />
               ) : (
                 activeShifts.map((shift, index) => (
                   <View key={shift.id}>
@@ -720,7 +720,7 @@ export default function CalculateScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Servers</Text>
             {loadingStaff ? (
-              <ActivityIndicator color={TEAL} style={{ marginVertical: 20 }} />
+              <ActivityIndicator color={BLUE} style={{ marginVertical: 20 }} />
             ) : servers.length === 0 ? (
               <Text style={styles.emptyText}>
                 No servers found. Add server staff in the Staff tab.
@@ -737,8 +737,8 @@ export default function CalculateScreen() {
                       <Switch
                         value={s.included}
                         onValueChange={() => toggleServer(s.id)}
-                        trackColor={{ false: BORDER, true: TEAL_DIM }}
-                        thumbColor={s.included ? TEAL : MUTED}
+                        trackColor={{ false: BORDER, true: BLUE_DIM }}
+                        thumbColor={s.included ? BLUE : MUTED}
                       />
                     </View>
                     {s.included && (
@@ -811,8 +811,8 @@ export default function CalculateScreen() {
                     <Switch
                       value={s.included}
                       onValueChange={() => toggleSupport(s.id)}
-                      trackColor={{ false: BORDER, true: TEAL_DIM }}
-                      thumbColor={s.included ? TEAL : MUTED}
+                      trackColor={{ false: BORDER, true: BLUE_DIM }}
+                      thumbColor={s.included ? BLUE : MUTED}
                     />
                   </View>
                 </View>
@@ -1009,7 +1009,7 @@ export default function CalculateScreen() {
                 </Text>
 
                 {loadingStaff ? (
-                  <ActivityIndicator color={TEAL} style={{ marginVertical: 16 }} />
+                  <ActivityIndicator color={BLUE} style={{ marginVertical: 16 }} />
                 ) : allStaff.length === 0 ? (
                   <Text style={styles.emptyText}>No staff found for this location.</Text>
                 ) : (
@@ -1097,12 +1097,12 @@ const styles = StyleSheet.create({
 
   // New Shift button
   newShiftBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  newShiftBtnText: { fontSize: 13, fontWeight: '700', color: BG, letterSpacing: 0.1 },
+  newShiftBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
 
   // Pending shifts
   pendingRow: {
@@ -1125,22 +1125,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#0e1a14',
   },
   loadBtnActive: {
-    backgroundColor: TEAL_DIM,
-    borderColor: TEAL_BORDER,
+    backgroundColor: BLUE_DIM,
+    borderColor: BLUE_BORDER,
   },
   loadBtnText: { fontSize: 13, fontWeight: '700', color: MUTED },
-  loadBtnTextActive: { color: TEAL },
+  loadBtnTextActive: { color: BLUE },
 
   // Loaded banner
   loadedBanner: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
   },
-  loadedBannerText: { fontSize: 13, fontWeight: '600', color: TEAL, lineHeight: 18 },
+  loadedBannerText: { fontSize: 13, fontWeight: '600', color: BLUE, lineHeight: 18 },
 
   // Card
   card: {
@@ -1181,10 +1181,10 @@ const styles = StyleSheet.create({
   ruleRole: { fontSize: 14, fontWeight: '600', color: WHITE, flex: 1 },
   rulePct: { fontSize: 13, color: MUTED },
   ruleBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeTeal: { backgroundColor: 'rgba(0,229,160,0.12)' },
+  badgeTeal: { backgroundColor: 'rgba(65, 105, 225, 0.12)' },
   badgeAmber: { backgroundColor: 'rgba(245,158,11,0.12)' },
   ruleBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
-  badgeTealText: { color: TEAL },
+  badgeTealText: { color: BLUE },
   badgeAmberText: { color: AMBER },
 
   // Field row (shift details)
@@ -1199,7 +1199,7 @@ const styles = StyleSheet.create({
   textInput: {
     fontSize: 15,
     fontWeight: '600',
-    color: TEAL,
+    color: BLUE,
     textAlign: 'right',
     minWidth: 100,
     padding: 0,
@@ -1220,7 +1220,7 @@ const styles = StyleSheet.create({
   smallInput: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     backgroundColor: '#0e1a14',
     borderRadius: 8,
     borderWidth: 1,
@@ -1244,7 +1244,7 @@ const styles = StyleSheet.create({
   hoursInput: {
     fontSize: 15,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     backgroundColor: '#0e1a14',
     borderRadius: 8,
     borderWidth: 1,
@@ -1258,8 +1258,8 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: MUTED, paddingHorizontal: 16, paddingVertical: 20, textAlign: 'center', lineHeight: 20 },
 
   // Calculate button
-  calcBtn: { backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  calcBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
+  calcBtn: { backgroundColor: BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  calcBtnText: { fontSize: 17, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 },
 
   // Results
   resultsSection: { gap: 2 },
@@ -1287,7 +1287,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   resultName: { fontSize: 16, fontWeight: '700', color: WHITE },
-  resultAmount: { fontSize: 22, fontWeight: '800', color: TEAL, letterSpacing: -0.5 },
+  resultAmount: { fontSize: 22, fontWeight: '800', color: BLUE, letterSpacing: -0.5 },
   resultMeta: { fontSize: 12, color: MUTED, marginBottom: 6 },
   tipOutRow: {
     flexDirection: 'row',
@@ -1300,9 +1300,9 @@ const styles = StyleSheet.create({
 
   // Totals row
   totalRow: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderWidth: 1,
-    borderColor: 'rgba(0,229,160,0.25)',
+    borderColor: 'rgba(65, 105, 225, 0.25)',
     borderTopWidth: 0,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -1313,9 +1313,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
   },
-  totalLabel: { fontSize: 14, fontWeight: '700', color: TEAL },
+  totalLabel: { fontSize: 14, fontWeight: '700', color: BLUE },
   totalSub: { fontSize: 11, color: MUTED, marginTop: 2 },
-  totalAmount: { fontSize: 18, fontWeight: '800', color: TEAL },
+  totalAmount: { fontSize: 18, fontWeight: '800', color: BLUE },
 
   // Pool card
   poolCard: {
@@ -1355,17 +1355,17 @@ const styles = StyleSheet.create({
   },
   poolName: { fontSize: 14, fontWeight: '600', color: WHITE },
   poolMeta: { fontSize: 11, color: MUTED, marginTop: 2 },
-  poolAmount: { fontSize: 16, fontWeight: '800', color: TEAL },
+  poolAmount: { fontSize: 16, fontWeight: '800', color: BLUE },
 
   // Save button
   payoutBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
   payoutBtnDisabled: { opacity: 0.6 },
-  payoutBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
+  payoutBtnText: { fontSize: 17, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 },
 
   // ── New Shift Modal ────────────────────────────────────────────────────────
   modalSafe: { flex: 1, backgroundColor: BG },
@@ -1406,7 +1406,7 @@ const styles = StyleSheet.create({
   modalCardCount: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 0,
     textTransform: 'none',
   },
@@ -1422,7 +1422,7 @@ const styles = StyleSheet.create({
   modalTextInput: {
     fontSize: 15,
     fontWeight: '600',
-    color: TEAL,
+    color: BLUE,
     textAlign: 'right',
     minWidth: 100,
     padding: 0,
@@ -1437,7 +1437,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   staffSelectRowActive: {
-    backgroundColor: 'rgba(0,229,160,0.05)',
+    backgroundColor: 'rgba(65, 105, 225, 0.05)',
   },
   checkbox: {
     width: 22,
@@ -1450,10 +1450,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: TEAL,
-    borderColor: TEAL,
+    backgroundColor: BLUE,
+    borderColor: BLUE,
   },
-  checkmark: { fontSize: 12, fontWeight: '800', color: BG },
+  checkmark: { fontSize: 12, fontWeight: '800', color: '#ffffff' },
   staffSelectInfo: { flex: 1, gap: 2 },
   staffSelectName: { fontSize: 15, fontWeight: '600', color: MUTED },
   staffSelectRole: { fontSize: 12, color: MUTED },
@@ -1479,7 +1479,7 @@ const styles = StyleSheet.create({
   salesInput: {
     fontSize: 15,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     backgroundColor: '#0e1a14',
     borderRadius: 8,
     borderWidth: 1,
@@ -1491,10 +1491,10 @@ const styles = StyleSheet.create({
   },
 
   modalSaveBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  modalSaveBtnText: { fontSize: 17, fontWeight: '800', color: BG, letterSpacing: 0.2 },
+  modalSaveBtnText: { fontSize: 17, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 },
 });

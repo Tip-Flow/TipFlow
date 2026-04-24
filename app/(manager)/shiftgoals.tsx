@@ -17,9 +17,9 @@ import { supabase } from '../../lib/supabase';
 
 const BG     = '#09100e';
 const CARD   = '#162019';
-const TEAL   = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
-const TEAL_BORDER = 'rgba(0,229,160,0.35)';
+const BLUE   = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
+const BLUE_BORDER = 'rgba(65,105,225,0.35)';
 const MUTED  = '#6b7a74';
 const WHITE  = '#e8f0ec';
 const BORDER = '#1f3028';
@@ -560,8 +560,8 @@ const styles = StyleSheet.create({
   // Header
   header: { marginTop: 8, gap: 6 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4 },
-  backChevron: { fontSize: 24, color: TEAL, lineHeight: 28 },
-  backLabel: { fontSize: 15, color: TEAL, fontWeight: '600' },
+  backChevron: { fontSize: 24, color: BLUE, lineHeight: 28 },
+  backLabel: { fontSize: 15, color: BLUE, fontWeight: '600' },
   title: { fontSize: 28, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, color: MUTED, fontWeight: '500' },
   shiftPill: {
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     borderColor: '#1a4a2e',
     marginTop: 2,
   },
-  shiftPillText: { fontSize: 13, color: TEAL, fontWeight: '600' },
+  shiftPillText: { fontSize: 13, color: BLUE, fontWeight: '600' },
 
   // Cards
   card: {
@@ -608,14 +608,14 @@ const styles = StyleSheet.create({
   goalTitle: { fontSize: 15, fontWeight: '700', color: WHITE },
   goalMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   typeBadge: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
   },
-  typeBadgeText: { fontSize: 11, fontWeight: '700', color: TEAL, letterSpacing: 0.2 },
+  typeBadgeText: { fontSize: 11, fontWeight: '700', color: BLUE, letterSpacing: 0.2 },
   targetItem: { fontSize: 12, color: LABEL, fontStyle: 'italic' },
   winnerBadge: {
     alignSelf: 'flex-start',
@@ -668,24 +668,24 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   chipSelected: {
-    backgroundColor: TEAL_DIM,
-    borderColor: TEAL_BORDER,
+    backgroundColor: BLUE_DIM,
+    borderColor: BLUE_BORDER,
   },
   chipIcon: { fontSize: 20 },
   chipLabel: { fontSize: 13, fontWeight: '700', color: WHITE, marginTop: 2 },
-  chipLabelSelected: { color: TEAL },
+  chipLabelSelected: { color: BLUE },
   chipSub: { fontSize: 11, color: MUTED, lineHeight: 16 },
   chipSubSelected: { color: '#5fba8a' },
 
   // Add button
   addBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
   addBtnDisabled: { opacity: 0.5 },
-  addBtnText: { fontSize: 15, fontWeight: '800', color: '#09100e', letterSpacing: 0.3 },
+  addBtnText: { fontSize: 15, fontWeight: '800', color: '#ffffff', letterSpacing: 0.3 },
 
   // Mark winner section
   winnerRow: {
@@ -699,14 +699,14 @@ const styles = StyleSheet.create({
   },
   winnerRowTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: WHITE },
   markWinnerBtn: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
   },
-  markWinnerText: { fontSize: 13, fontWeight: '700', color: TEAL },
+  markWinnerText: { fontSize: 13, fontWeight: '700', color: BLUE },
 
   // Staff picker modal
   pickerOverlay: {
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pickerAvatarText: { fontSize: 14, fontWeight: '700', color: TEAL },
+  pickerAvatarText: { fontSize: 14, fontWeight: '700', color: BLUE },
   pickerName: { fontSize: 15, fontWeight: '700', color: WHITE },
   pickerRole: { fontSize: 12, color: MUTED, marginTop: 1 },
   pickerCancel: {

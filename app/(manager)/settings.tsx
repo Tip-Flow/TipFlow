@@ -14,8 +14,8 @@ import {
 
 const BG      = '#09100e';
 const CARD    = '#162019';
-const TEAL    = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE    = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const AMBER   = '#f59e0b';
 const RED     = '#ff4d4d';
 const MUTED   = '#6b7a74';
@@ -116,7 +116,7 @@ const ts = StyleSheet.create({
     alignItems: 'center',
   },
   tabActive: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
   },
   label: {
     fontSize: 14,
@@ -124,7 +124,7 @@ const ts = StyleSheet.create({
     color: MUTED,
   },
   labelActive: {
-    color: '#09100e',
+    color: '#ffffff',
   },
 });
 
@@ -175,7 +175,7 @@ const pt = StyleSheet.create({
     borderRadius: 6,
   },
   pillActive: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
   },
   pillHouse: {
     backgroundColor: AMBER,
@@ -186,7 +186,7 @@ const pt = StyleSheet.create({
     color: MUTED,
   },
   textActive: {
-    color: '#09100e',
+    color: '#ffffff',
   },
 });
 
@@ -233,7 +233,7 @@ const dt = StyleSheet.create({
     borderRadius: 6,
   },
   pillActive: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
   },
   text: {
     fontSize: 11,
@@ -241,7 +241,7 @@ const dt = StyleSheet.create({
     color: MUTED,
   },
   textActive: {
-    color: '#09100e',
+    color: '#ffffff',
   },
 });
 
@@ -372,7 +372,7 @@ function TipOutTab() {
           <Text style={[s.summaryLabel, { fontWeight: '700', color: WHITE }]}>
             Total tip out
           </Text>
-          <Text style={[s.summaryValue, { color: TEAL }]}>
+          <Text style={[s.summaryValue, { color: BLUE }]}>
             {grandTotal.toFixed(1)}% of server sales
           </Text>
         </View>
@@ -542,7 +542,7 @@ const s = StyleSheet.create({
   exampleCard: {
     backgroundColor: CARD,
     borderLeftWidth: 3,
-    borderLeftColor: TEAL,
+    borderLeftColor: BLUE,
     borderRadius: 10,
     padding: 14,
     marginBottom: 18,
@@ -553,7 +553,7 @@ const s = StyleSheet.create({
     lineHeight: 20,
   },
   exampleBold: {
-    color: TEAL,
+    color: BLUE,
     fontWeight: '700',
   },
 
@@ -604,7 +604,7 @@ const s = StyleSheet.create({
   pctInput: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     minWidth: 30,
     textAlign: 'right',
     padding: 0,
@@ -631,7 +631,7 @@ const s = StyleSheet.create({
   // Add rule button
   addBtn: {
     borderWidth: 1.5,
-    borderColor: TEAL,
+    borderColor: BLUE,
     borderStyle: 'dashed',
     borderRadius: 12,
     paddingVertical: 12,
@@ -641,7 +641,7 @@ const s = StyleSheet.create({
   addBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
 
   // Summary card
@@ -679,7 +679,7 @@ const s = StyleSheet.create({
 
   // Save button
   saveBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
@@ -687,7 +687,7 @@ const s = StyleSheet.create({
   saveBtnText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#09100e',
+    color: '#ffffff',
     letterSpacing: 0.2,
   },
 
@@ -718,7 +718,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   periodPillActive: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
   },
   periodPillText: {
     fontSize: 13,
@@ -726,7 +726,7 @@ const s = StyleSheet.create({
     color: MUTED,
   },
   periodPillTextActive: {
-    color: '#09100e',
+    color: '#ffffff',
   },
 
   // Balance card
@@ -750,7 +750,7 @@ const s = StyleSheet.create({
   balanceAmount: {
     fontSize: 42,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -1,
     marginBottom: 6,
   },
@@ -768,7 +768,7 @@ const s = StyleSheet.create({
   payNowText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#09100e',
+    color: '#ffffff',
     letterSpacing: 0.2,
   },
 

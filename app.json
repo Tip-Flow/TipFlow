@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "tipflow",
-    "slug": "tipflow",
+    "name": "Mise",
+    "slug": "mise",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tipflow",
+    "scheme": "mise",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tipflow.tipflow",
+      "bundleIdentifier": "com.mise.mise",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#EEF2FF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -38,8 +38,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "TipFlow needs access to your photos to import POS report screenshots.",
-          "cameraPermission": "TipFlow needs camera access to photograph your POS reports."
+          "photosPermission": "Mise needs access to your photos to import POS report screenshots.",
+          "cameraPermission": "Mise needs camera access to photograph your POS reports."
         }
       ],
       [

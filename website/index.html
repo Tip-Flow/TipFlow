@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TipFlow — No cash. No spreadsheets. Just tips.</title>
+  <title>Mise — Everything in Its Place.</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --teal: #00c8a0;
-      --teal-dark: #00a884;
-      --teal-glow: rgba(0, 200, 160, 0.18);
-      --bg-dark: #09100e;
-      --bg-card: #111a17;
-      --bg-card2: #0d1512;
-      --text: #e8f5f0;
-      --text-muted: #7a9d90;
-      --border: rgba(0, 200, 160, 0.15);
-      --border-strong: rgba(0, 200, 160, 0.3);
+      --teal: #4169E1;
+      --teal-dark: #2850C8;
+      --teal-glow: rgba(65, 105, 225, 0.18);
+      --bg-dark: #0F172A;
+      --bg-card: #1E2A4A;
+      --bg-card2: #F0F4FF;
+      --text: #FFFFFF;
+      --text-muted: #CBD5E1;
+      --border: rgba(65, 105, 225, 0.15);
+      --border-strong: rgba(65, 105, 225, 0.3);
       --radius: 14px;
       --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
     }
@@ -44,7 +44,7 @@
       justify-content: space-between;
       padding: 0 5%;
       height: 68px;
-      background: rgba(9, 16, 14, 0.88);
+      background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
       border-bottom: 1px solid var(--border);
@@ -74,7 +74,7 @@
 
     .btn-teal {
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-weight: 700;
       font-size: 0.88rem;
       padding: 0.6rem 1.35rem;
@@ -88,7 +88,7 @@
     .btn-teal:hover {
       background: var(--teal-dark);
       transform: translateY(-1px);
-      box-shadow: 0 4px 20px rgba(0, 200, 160, 0.35);
+      box-shadow: 0 4px 20px rgba(65, 105, 225, 0.35);
     }
 
     /* ── HERO ── */
@@ -110,7 +110,7 @@
       top: -200px; left: 50%;
       transform: translateX(-50%);
       width: 900px; height: 700px;
-      background: radial-gradient(ellipse at center, rgba(0, 200, 160, 0.10) 0%, transparent 65%);
+      background: radial-gradient(ellipse at center, rgba(65, 105, 225, 0.10) 0%, transparent 65%);
       pointer-events: none;
     }
 
@@ -127,7 +127,7 @@
       border-radius: 100px;
       padding: 0.38rem 1rem;
       margin-bottom: 1.8rem;
-      background: rgba(0, 200, 160, 0.07);
+      background: rgba(65, 105, 225, 0.07);
     }
 
     .hero h1 {
@@ -140,7 +140,7 @@
     }
 
     .hero h1 span {
-      background: linear-gradient(135deg, var(--teal) 0%, #00e5b8 100%);
+      background: linear-gradient(135deg, var(--teal) 0%, #4169E1 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -244,7 +244,7 @@
       top: 0; left: 50%;
       transform: translateX(-50%);
       width: 800px; height: 500px;
-      background: radial-gradient(ellipse at center, rgba(0, 200, 160, 0.07) 0%, transparent 65%);
+      background: radial-gradient(ellipse at center, rgba(65, 105, 225, 0.07) 0%, transparent 65%);
       pointer-events: none;
     }
 
@@ -268,10 +268,10 @@
       height: 560px;
       background: linear-gradient(145deg, #1a2420, #0f1a16);
       border-radius: 44px;
-      border: 2px solid rgba(0, 200, 160, 0.25);
+      border: 2px solid rgba(65, 105, 225, 0.25);
       box-shadow:
-        0 0 0 1px rgba(0, 200, 160, 0.08),
-        0 0 60px rgba(0, 200, 160, 0.12),
+        0 0 0 1px rgba(65, 105, 225, 0.08),
+        0 0 60px rgba(65, 105, 225, 0.12),
         0 30px 80px rgba(0, 0, 0, 0.6),
         inset 0 1px 0 rgba(255,255,255,0.06);
       position: relative;
@@ -286,7 +286,7 @@
       background: #0f1a16;
       border-radius: 0 0 20px 20px;
       z-index: 10;
-      border-bottom: 1px solid rgba(0,200,160,0.1);
+      border-bottom: 1px solid rgba(65, 105, 225, 0.1);
     }
 
     .phone-screen {
@@ -339,7 +339,7 @@
     .ds-btn-teal {
       width: 100%;
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-weight: 700;
       font-size: 12px;
       padding: 11px;
@@ -419,7 +419,7 @@
       align-items: center;
       justify-content: center;
       padding: 30px 22px 20px;
-      background: radial-gradient(ellipse at 50% 30%, rgba(0,200,160,0.14) 0%, transparent 65%), #090e0c;
+      background: radial-gradient(ellipse at 50% 30%, rgba(65, 105, 225, 0.14) 0%, transparent 65%), #090e0c;
       cursor: pointer;
       gap: 0;
     }
@@ -442,8 +442,8 @@
     }
 
     .ds1-quote-wrap {
-      background: rgba(0,200,160,0.06);
-      border: 1px solid rgba(0,200,160,0.2);
+      background: rgba(65, 105, 225, 0.06);
+      border: 1px solid rgba(65, 105, 225, 0.2);
       border-radius: 14px;
       padding: 16px 14px;
       margin-bottom: 28px;
@@ -552,7 +552,7 @@
       width: 32px; height: 32px;
       border-radius: 50%;
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-weight: 800;
       font-size: 10px;
       display: flex;
@@ -624,7 +624,7 @@
 
     .ds3-progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, var(--teal), #00e5b8);
+      background: linear-gradient(90deg, var(--teal), #4169E1);
       border-radius: 4px;
     }
 
@@ -761,7 +761,7 @@
 
     .ds4-prog-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--teal), #00e5b8);
+      background: linear-gradient(90deg, var(--teal), #4169E1);
       border-radius: 4px;
       width: 0%;
       transition: width 0.4s ease;
@@ -777,8 +777,8 @@
     }
 
     .ds5-shift-card {
-      background: rgba(0,200,160,0.07);
-      border: 1px solid rgba(0,200,160,0.2);
+      background: rgba(65, 105, 225, 0.07);
+      border: 1px solid rgba(65, 105, 225, 0.2);
       border-radius: 10px;
       padding: 10px 12px;
       margin-bottom: 8px;
@@ -816,7 +816,7 @@
     .ds5-avatar {
       width: 26px; height: 26px;
       border-radius: 50%;
-      background: rgba(0,200,160,0.2);
+      background: rgba(65, 105, 225, 0.2);
       color: var(--teal);
       font-weight: 700;
       font-size: 8px;
@@ -901,7 +901,7 @@
     .ds6-staff-row span:nth-child(2) { flex: 1; color: var(--text); }
 
     .ds6-chk {
-      color: #00c8a0;
+      color: #4169E1;
       font-weight: 700;
       font-size: 11px;
     }
@@ -922,7 +922,7 @@
       width: 36px; height: 36px;
       border-radius: 50%;
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-weight: 800;
       font-size: 11px;
       display: flex;
@@ -935,8 +935,8 @@
 
     .ds7-earnings-card {
       margin: 0 12px 10px;
-      background: linear-gradient(135deg, rgba(0,200,160,0.12), rgba(0,200,160,0.04));
-      border: 1px solid rgba(0,200,160,0.25);
+      background: linear-gradient(135deg, rgba(65, 105, 225, 0.12), rgba(65, 105, 225, 0.04));
+      border: 1px solid rgba(65, 105, 225, 0.25);
       border-radius: 14px;
       padding: 14px;
       text-align: center;
@@ -999,8 +999,8 @@
 
     .ds7-intention-card {
       margin: 8px 12px 10px;
-      background: rgba(0,200,160,0.06);
-      border: 1px solid rgba(0,200,160,0.15);
+      background: rgba(65, 105, 225, 0.06);
+      border: 1px solid rgba(65, 105, 225, 0.15);
       border-radius: 10px;
       padding: 9px 12px;
       flex-shrink: 0;
@@ -1082,9 +1082,9 @@
     .ds7h-badge-sent {
       font-size: 7.5px;
       font-weight: 700;
-      background: rgba(0,200,160,0.12);
+      background: rgba(65, 105, 225, 0.12);
       color: var(--teal);
-      border: 1px solid rgba(0,200,160,0.25);
+      border: 1px solid rgba(65, 105, 225, 0.25);
       border-radius: 100px;
       padding: 2px 7px;
     }
@@ -1151,7 +1151,7 @@
 
     .ds8-deliver-btn {
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-size: 7.5px;
       font-weight: 700;
       border: none;
@@ -1258,7 +1258,7 @@
     }
 
     /* ── PROBLEM ── */
-    .problem { background: var(--bg-card2); }
+    .problem { background: #F0F4FF; }
 
     .problem-grid {
       display: grid;
@@ -1329,7 +1329,7 @@
     }
 
     /* ── SOLUTION FLOW ── */
-    .solution { background: var(--bg-dark); }
+    .solution { background: #FFFFFF; }
 
     .flow-container {
       display: flex;
@@ -1407,7 +1407,7 @@
     }
 
     /* ── FEATURES ── */
-    .features { background: var(--bg-card2); }
+    .features { background: #F0F4FF; }
 
     .features-grid {
       display: grid;
@@ -1436,7 +1436,7 @@
     .feature-card:hover {
       border-color: var(--border-strong);
       transform: translateY(-3px);
-      box-shadow: 0 8px 32px rgba(0, 200, 160, 0.08);
+      box-shadow: 0 8px 32px rgba(65, 105, 225, 0.08);
     }
 
     .feature-icon {
@@ -1465,7 +1465,7 @@
     }
 
     /* ── CALC ENGINE ── */
-    .calc-engine { background: var(--bg-dark); }
+    .calc-engine { background: #FFFFFF; }
 
     .calc-diagram {
       max-width: 740px;
@@ -1478,7 +1478,7 @@
 
     .calc-box {
       width: 100%;
-      background: #162019;
+      background: #F0F4FF;
       border: 1px solid var(--border-strong);
       border-radius: var(--radius);
       padding: 1.2rem 1.6rem;
@@ -1520,7 +1520,7 @@
       align-items: center;
       font-size: 0.88rem;
       padding: 0.45rem 0.75rem;
-      background: rgba(0,200,160,0.05);
+      background: rgba(65, 105, 225, 0.05);
       border-radius: 8px;
     }
 
@@ -1537,7 +1537,7 @@
     }
 
     /* ── THREE TIER ── */
-    .three-tier { background: var(--bg-card2); }
+    .three-tier { background: #F0F4FF; }
 
     .tier-grid {
       display: grid;
@@ -1560,7 +1560,7 @@
     .tier-col:hover {
       border-color: var(--border-strong);
       transform: translateY(-3px);
-      box-shadow: 0 8px 32px rgba(0,200,160,0.08);
+      box-shadow: 0 8px 32px rgba(65, 105, 225, 0.08);
     }
 
     .tier-col-head {
@@ -1605,7 +1605,7 @@
     }
 
     /* ── HUMAN PERFORMANCE ── */
-    .human-perf { background: #09100e; }
+    .human-perf { background: #FFFFFF; }
 
     .human-perf-grid {
       display: grid;
@@ -1620,7 +1620,7 @@
     }
 
     .hp-column {
-      background: #111a17;
+      background: #F8F9FF;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 2.2rem 2rem;
@@ -1674,7 +1674,7 @@
     .hp-upsell-card {
       max-width: 1100px;
       margin: 0 auto 2.5rem;
-      background: #162019;
+      background: #F8F9FF;
       border: 1px solid var(--border-strong);
       border-radius: var(--radius);
       padding: 2.4rem 2.2rem;
@@ -1733,7 +1733,7 @@
     }
 
     .hp-milestone-card {
-      background: #111a17;
+      background: #F8F9FF;
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 1.1rem 1rem;
@@ -1770,7 +1770,7 @@
     .hp-founder-card {
       max-width: 1100px;
       margin: 0 auto;
-      background: #0d1512;
+      background: #F8F9FF;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 2.8rem 2.4rem;
@@ -1802,7 +1802,7 @@
     }
 
     /* ── CRA COMPLIANCE ── */
-    .cra { background: #09100e; }
+    .cra { background: #F0F4FF; }
 
     .cra-tip-grid {
       display: grid;
@@ -1817,12 +1817,12 @@
     }
 
     .cra-tip-card {
-      background: #111a17;
+      background: #F8F9FF;
       border-radius: var(--radius);
       padding: 2.2rem 2rem;
     }
 
-    .cra-tip-card.direct { border: 1px solid rgba(0, 200, 130, 0.45); }
+    .cra-tip-card.direct { border: 1px solid rgba(65, 105, 225, 0.45); }
     .cra-tip-card.controlled { border: 1px solid var(--border-strong); }
 
     .cra-tip-card h3 {
@@ -1856,9 +1856,9 @@
     }
 
     .cra-tip-card.direct .cra-tag {
-      background: rgba(0, 200, 130, 0.12);
-      color: #00c882;
-      border: 1px solid rgba(0, 200, 130, 0.3);
+      background: rgba(65, 105, 225, 0.12);
+      color: var(--teal);
+      border: 1px solid rgba(65, 105, 225, 0.3);
     }
 
     .cra-tip-card.controlled .cra-tag {
@@ -1870,7 +1870,7 @@
     .cra-audit-card {
       max-width: 1100px;
       margin: 0 auto;
-      background: #162019;
+      background: #F8F9FF;
       border: 1px solid var(--border-strong);
       border-radius: var(--radius);
       padding: 2.4rem 2.2rem;
@@ -1911,7 +1911,7 @@
     }
 
     /* ── PRICING ── */
-    .pricing { background: var(--bg-dark); }
+    .pricing { background: #FFFFFF; }
 
     .pricing-grid {
       display: grid;
@@ -1937,8 +1937,8 @@
 
     .price-card.popular {
       border-color: var(--teal);
-      background: linear-gradient(160deg, rgba(0, 200, 160, 0.06), var(--bg-card));
-      box-shadow: 0 0 40px rgba(0, 200, 160, 0.12);
+      background: linear-gradient(160deg, rgba(65, 105, 225, 0.06), var(--bg-card));
+      box-shadow: 0 0 40px rgba(65, 105, 225, 0.12);
     }
 
     .popular-badge {
@@ -1946,7 +1946,7 @@
       top: -13px; left: 50%;
       transform: translateX(-50%);
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-size: 0.7rem;
       font-weight: 800;
       letter-spacing: 0.1em;
@@ -2033,7 +2033,7 @@
     .btn-teal-full {
       width: 100%;
       background: var(--teal);
-      color: #09100e;
+      color: #ffffff;
       font-weight: 700;
       font-size: 0.9rem;
       padding: 0.85rem;
@@ -2046,7 +2046,7 @@
     .btn-teal-full:hover {
       background: var(--teal-dark);
       transform: translateY(-1px);
-      box-shadow: 0 4px 20px rgba(0, 200, 160, 0.35);
+      box-shadow: 0 4px 20px rgba(65, 105, 225, 0.35);
     }
 
     .btn-outline-full {
@@ -2081,7 +2081,7 @@
 
     /* ── ABOUT ── */
     .about {
-      background: var(--bg-card2);
+      background: #F0F4FF;
       padding: 80px 5%;
     }
 
@@ -2144,7 +2144,7 @@
 
     /* ── CTA STRIP ── */
     .cta-strip {
-      background: linear-gradient(135deg, rgba(0, 200, 160, 0.12) 0%, rgba(0, 200, 160, 0.04) 100%);
+      background: linear-gradient(135deg, rgba(65, 105, 225, 0.12) 0%, rgba(65, 105, 225, 0.04) 100%);
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
       padding: 80px 5%;
@@ -2280,14 +2280,14 @@
       margin-bottom: 8px;
     }
     .ds-reg-kpi {
-      background: #111a17;
+      background: #1E2A4A;
       border-radius: 8px;
       padding: 8px 10px;
-      border: 1px solid rgba(0,200,160,0.18);
+      border: 1px solid rgba(65, 105, 225, 0.18);
     }
     .ds-reg-kpi-val { font-size: 14px; font-weight: 800; margin-bottom: 1px; }
-    .ds-reg-kpi-lbl { font-size: 9px; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; }
-    .ds-reg-kpi-val.tc { color: #00c8a0; }
+    .ds-reg-kpi-lbl { font-size: 9px; color: #CBD5E1; text-transform: uppercase; letter-spacing: 0.08em; }
+    .ds-reg-kpi-val.tc { color: #4169E1; }
     .ds-reg-kpi-val.tb { color: #60a5fa; }
     .ds-reg-kpi-val.tg { color: #4ade80; }
     .ds-reg-kpi-val.ta { color: #f59e0b; }
@@ -2301,24 +2301,24 @@
     .ds-reg-appr-title { font-size: 9px; font-weight: 700; color: #f59e0b; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
     .ds-reg-appr-text { font-size: 10px; color: #e8f0eb; margin-bottom: 7px; }
     .ds-reg-appr-btns { display: flex; gap: 6px; }
-    .ds-reg-appr-approve { background: #00c8a0; color: #09100e; border: none; border-radius: 5px; padding: 4px 10px; font-size: 9px; font-weight: 700; cursor: pointer; }
+    .ds-reg-appr-approve { background: #4169E1; color: #ffffff; border: none; border-radius: 5px; padding: 4px 10px; font-size: 9px; font-weight: 700; cursor: pointer; }
     .ds-reg-appr-reject  { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); border-radius: 5px; padding: 4px 10px; font-size: 9px; font-weight: 700; cursor: pointer; }
-    .ds-reg-tab-bar { display: flex; border-top: 1px solid rgba(0,200,160,0.15); }
+    .ds-reg-tab-bar { display: flex; border-top: 1px solid rgba(65, 105, 225, 0.15); }
     .ds-reg-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px 2px 4px; font-size: 8px; color: #7a9d90; gap: 2px; }
-    .ds-reg-tab.active-tab { color: #00c8a0; }
+    .ds-reg-tab.active-tab { color: #4169E1; }
     .ds-reg-tab .ti { font-size: 11px; }
 
     /* House Pool screen */
     .ds-hp-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
-    .ds-hp-balance-card { background: #111a17; border: 1px solid rgba(0,200,160,0.35); border-radius: 10px; padding: 14px; text-align: center; }
-    .ds-hp-balance-val { font-size: 28px; font-weight: 900; color: #00c8a0; margin-bottom: 3px; }
+    .ds-hp-balance-card { background: #111a17; border: 1px solid rgba(65, 105, 225, 0.35); border-radius: 10px; padding: 14px; text-align: center; }
+    .ds-hp-balance-val { font-size: 28px; font-weight: 900; color: #4169E1; margin-bottom: 3px; }
     .ds-hp-balance-sub { font-size: 9px; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
     .ds-hp-next-payout { font-size: 10px; color: #e8f0eb; margin-top: 4px; }
-    .ds-hp-pay-btn { width: 100%; background: #f59e0b; color: #09100e; border: none; border-radius: 8px; padding: 9px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .ds-hp-pay-btn { width: 100%; background: #f59e0b; color: #ffffff; border: none; border-radius: 8px; padding: 9px; font-size: 11px; font-weight: 700; cursor: pointer; }
     .ds-hp-dist-label { font-size: 9px; font-weight: 700; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-    .ds-hp-dist-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: rgba(0,200,160,0.05); border-radius: 6px; margin-bottom: 4px; font-size: 10px; }
+    .ds-hp-dist-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: rgba(65, 105, 225, 0.05); border-radius: 6px; margin-bottom: 4px; font-size: 10px; }
     .ds-hp-dist-role { display: flex; align-items: center; gap: 5px; color: #e8f0eb; }
-    .ds-hp-dist-pts { color: #00c8a0; font-size: 9px; font-weight: 600; }
+    .ds-hp-dist-pts { color: #4169E1; font-size: 9px; font-weight: 600; }
     .ds-hp-dist-type { color: #7a9d90; font-size: 9px; }
 
     /* Shift Goals screen */
@@ -2326,52 +2326,161 @@
     .ds-sg-header-row { margin-bottom: 4px; }
     .ds-sg-title { font-size: 13px; font-weight: 800; color: #e8f0eb; }
     .ds-sg-sub { font-size: 9px; color: #7a9d90; margin-top: 1px; }
-    .ds-sg-goal-card { background: #111a17; border: 1px solid rgba(0,200,160,0.4); border-radius: 8px; padding: 10px 11px; }
+    .ds-sg-goal-card { background: #111a17; border: 1px solid rgba(65, 105, 225, 0.4); border-radius: 8px; padding: 10px 11px; }
     .ds-sg-goal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
     .ds-sg-goal-name { font-size: 10px; font-weight: 700; color: #e8f0eb; }
     .ds-sg-badge { font-size: 8px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 100px; padding: 2px 6px; }
     .ds-sg-goal-footer { display: flex; justify-content: space-between; align-items: center; }
     .ds-sg-delete { font-size: 8px; color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; padding: 2px 7px; cursor: pointer; }
-    .ds-sg-create { background: #111a17; border: 1px solid rgba(0,200,160,0.18); border-radius: 8px; padding: 10px 11px; }
+    .ds-sg-create { background: #111a17; border: 1px solid rgba(65, 105, 225, 0.18); border-radius: 8px; padding: 10px 11px; }
     .ds-sg-create-label { font-size: 9px; font-weight: 700; color: #7a9d90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-    .ds-sg-input { background: #0d1512; border: 1px solid rgba(0,200,160,0.25); border-radius: 6px; padding: 6px 9px; font-size: 10px; color: #e8f0eb; width: 100%; margin-bottom: 7px; }
+    .ds-sg-input { background: #0d1512; border: 1px solid rgba(65, 105, 225, 0.25); border-radius: 6px; padding: 6px 9px; font-size: 10px; color: #e8f0eb; width: 100%; margin-bottom: 7px; }
     .ds-sg-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
-    .ds-sg-chip { font-size: 8px; color: #7a9d90; border: 1px solid rgba(0,200,160,0.2); border-radius: 100px; padding: 2px 7px; cursor: pointer; background: transparent; }
-    .ds-sg-chip.active { color: #00c8a0; border-color: #00c8a0; background: rgba(0,200,160,0.08); }
-    .ds-sg-add-btn { width: 100%; background: #00c8a0; color: #09100e; border: none; border-radius: 7px; padding: 7px; font-size: 10px; font-weight: 700; cursor: pointer; }
+    .ds-sg-chip { font-size: 8px; color: #7a9d90; border: 1px solid rgba(65, 105, 225, 0.2); border-radius: 100px; padding: 2px 7px; cursor: pointer; background: transparent; }
+    .ds-sg-chip.active { color: #4169E1; border-color: #4169E1; background: rgba(65, 105, 225, 0.08); }
+    .ds-sg-add-btn { width: 100%; background: #4169E1; color: #ffffff; border: none; border-radius: 7px; padding: 7px; font-size: 10px; font-weight: 700; cursor: pointer; }
 
     /* Tonight's goals on staff screen */
-    .ds-tonight-card { background: rgba(0,200,160,0.07); border: 1px solid rgba(0,200,160,0.3); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
-    .ds-tonight-label { font-size: 9px; font-weight: 700; color: #00c8a0; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+    .ds-tonight-card { background: rgba(65, 105, 225, 0.07); border: 1px solid rgba(65, 105, 225, 0.3); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+    .ds-tonight-label { font-size: 9px; font-weight: 700; color: #4169E1; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
     .ds-tonight-goal { font-size: 10px; color: #e8f0eb; font-weight: 600; margin-bottom: 3px; }
-    .ds-tonight-earn { font-size: 9px; color: #00c8a0; font-style: italic; }
+    .ds-tonight-earn { font-size: 9px; color: #4169E1; font-style: italic; }
+
+    /* ── LIGHT SECTION OVERRIDES ── */
+
+    /* Section headings and subtext on light backgrounds */
+    .problem .section-title, .problem .section-sub,
+    .solution .section-title, .solution .section-sub,
+    .features .section-title, .features .section-sub,
+    .calc-engine .section-title, .calc-engine .section-sub,
+    .three-tier .section-title, .three-tier .section-sub,
+    .human-perf .section-title, .human-perf .section-sub,
+    .cra .section-title, .cra .section-sub,
+    .pricing .section-title, .pricing .section-sub,
+    .about h2 { color: #1E2A4A; }
+
+    .problem .section-sub, .solution .section-sub,
+    .features .section-sub, .calc-engine .section-sub,
+    .three-tier .section-sub, .human-perf .section-sub,
+    .cra .section-sub, .pricing .section-sub { color: #4A5568; }
+
+    /* Pain cards (problem section) */
+    .pain-card { background: #F8F9FF; border-color: rgba(65,105,225,0.18); }
+    .pain-card h3 { color: #1E2A4A; }
+    .pain-card p { color: #4A5568; }
+
+    /* Flow steps (solution section) */
+    .flow-step { background: #F8F9FF; border-color: rgba(65,105,225,0.18); }
+    .flow-step h3 { color: #1E2A4A; }
+    .flow-step p { color: #4A5568; }
+
+    /* Feature cards — light bg + royal blue left border */
+    .feature-card {
+      background: #F0F4FF;
+      border: 1px solid rgba(65,105,225,0.18);
+      border-left: 3px solid #4169E1;
+    }
+    .feature-card h3 { color: #1E2A4A; }
+    .feature-card p { color: #4A5568; }
+
+    /* Calc boxes */
+    .calc-box { color: #1E2A4A; border-color: rgba(65,105,225,0.25); }
+    .calc-box .cb-label { color: #4A5568; }
+    .calc-box strong { color: #4169E1; }
+    .calc-pool-row { background: rgba(65,105,225,0.07); }
+    .calc-pool-row .cpr-share { color: #4A5568; }
+
+    /* Tier cols */
+    .tier-col { background: #F8F9FF; border-color: rgba(65,105,225,0.18); }
+    .tier-col-head h3 { color: #1E2A4A; }
+    .tier-list li { color: #4A5568; }
+
+    /* Human perf section */
+    .hp-column { border-color: rgba(65,105,225,0.18); }
+    .hp-column h3 { color: #4169E1; }
+    .hp-column .hp-intro { color: #4A5568; border-bottom-color: rgba(65,105,225,0.15); }
+    .hp-feature-row .hp-text strong { color: #1E2A4A; }
+    .hp-feature-row .hp-text span { color: #4A5568; }
+    .hp-upsell-card { border-color: rgba(65,105,225,0.25); }
+    .hp-upsell-card h3 { color: #1E2A4A; }
+    .hp-upsell-card .hp-upsell-intro { color: #4A5568; }
+    .hp-upsell-bullets li { color: #4A5568; }
+    .hp-upsell-subheading { color: #1E2A4A; }
+    .hp-milestone-card { border-color: rgba(65,105,225,0.15); }
+    .hp-milestone-card span { color: #4A5568; }
+    .hp-milestone-note { color: #4A5568; }
+    .hp-founder-card { border-color: rgba(65,105,225,0.2); }
+    .hp-founder-quote { color: #1E2A4A; }
+    .hp-quote-marks { color: #4169E1; }
+
+    /* CRA section */
+    .cra-tip-card h3 { color: #1E2A4A; }
+    .cra-tip-card .cra-subtitle { color: #4A5568; }
+    .cra-tip-card p { color: #4A5568; }
+    .cra-audit-card { border-color: rgba(65,105,225,0.25); }
+    .cra-audit-card h3 { color: #1E2A4A; }
+    .cra-audit-item { color: #4A5568; }
+
+    /* Pricing section */
+    .price-card { background: #F8F9FF; border-color: rgba(65,105,225,0.18); }
+    .price-card.popular {
+      border-color: #4169E1;
+      background: linear-gradient(160deg, rgba(65,105,225,0.06), #F8F9FF);
+    }
+    .price-amount .num { color: #1E2A4A; }
+    .price-amount .dollar { color: #4A5568; }
+    .price-amount .per { color: #4A5568; }
+    .price-desc { color: #4A5568; }
+    .price-features li { color: #4A5568; }
+    .price-divider { background: rgba(65,105,225,0.12); }
+    .btn-outline-full { color: #1E2A4A; border-color: rgba(65,105,225,0.35); }
+    .btn-outline-full:hover { background: rgba(65,105,225,0.06); }
+    .pricing-note { color: #4A5568; }
+    .pricing-note strong { color: #1E2A4A; }
+
+    /* About section */
+    .stat-item { background: #F8F9FF; border-color: rgba(65,105,225,0.18); }
+    .stat-label { color: #4A5568; }
+    .about p { color: #4A5568; }
+
+    /* CTA strip - light bg feels cleaner */
+    .cta-strip {
+      background: linear-gradient(135deg, rgba(65,105,225,0.08) 0%, rgba(65,105,225,0.02) 100%);
+      border-top-color: rgba(65,105,225,0.15);
+      border-bottom-color: rgba(65,105,225,0.15);
+    }
+    .cta-strip h2 { color: #1E2A4A; }
+    .cta-strip p { color: #4A5568; }
+    .btn-outline { color: #1E2A4A; }
+
   </style>
 </head>
 <body>
 
 <!-- ── NAVIGATION ── -->
 <nav>
-  <div class="nav-logo">TipFlow 💸</div>
+  <div class="nav-logo">Mise</div>
   <ul class="nav-links">
     <li><a href="#demo">Demo</a></li>
     <li><a href="#features">Features</a></li>
     <li><a href="#pricing">Pricing</a></li>
     <li><a href="#about">About</a></li>
   </ul>
-  <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="text-decoration:none;">Book a Demo</a>
+  <a href="https://calendly.com/mise" target="_blank" class="btn-teal" style="text-decoration:none;">Book a Demo</a>
 </nav>
 
 <!-- ── HERO ── -->
 <section class="hero" id="home">
-  <div class="hero-eyebrow">🍁 Built for Canadian Restaurants</div>
-  <h1>No cash. No spreadsheets.<br><span>Just tips.</span></h1>
-  <p>The most sophisticated Canadian restaurant tip management platform. POS → Instant calculations → AptPay → Staff bank accounts. Built for every restaurant from single locations to national groups.</p>
+  <div class="hero-eyebrow">🍁 Built for Restaurants</div>
+  <div style="font-size:clamp(4rem,12vw,9rem);font-weight:900;color:#4169E1;letter-spacing:-0.04em;line-height:1;margin-bottom:0.3em;">Mise</div>
+  <h1 style="font-size:clamp(1.6rem,3.5vw,2.6rem);font-weight:400;letter-spacing:0.01em;line-height:1.2;color:var(--text);margin-bottom:1.6rem;">Everything in Its Place.</h1>
+  <p>The most sophisticated restaurant tip management platform. POS → Instant calculations → AptPay → Staff bank accounts. Built for every restaurant from single locations to national groups.</p>
   <div class="hero-ctas">
-    <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Get TipFlow</a>
-    <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Book a Free Demo</a>
-    <a href="#demo" class="btn-outline" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">See TipFlow →</a>
+    <a href="https://calendly.com/mise" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Get Mise</a>
+    <a href="https://calendly.com/mise" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">Book a Free Demo</a>
+    <a href="#demo" class="btn-outline" style="font-size:0.95rem; padding:0.75rem 1.75rem; text-decoration:none;">See Mise →</a>
   </div>
-  <p style="margin-top:1.1rem; font-size:0.82rem; color:#4d9e8a; text-align:center;">No commitment. 30-minute call. We'll show you exactly how TipFlow works for your restaurant.</p>
+  <p style="margin-top:1.1rem; font-size:0.82rem; color:#4169E1; text-align:center;">No commitment. 30-minute call. We'll show you exactly how Mise works for your restaurant.</p>
   <div class="trust-badges">
     <span>🍁 CRA Compliant</span>
     <span>🔒 RPAA Registered</span>
@@ -2384,7 +2493,7 @@
 <!-- ── INTERACTIVE DEMO ── -->
 <section class="demo-section" id="demo">
   <div class="centered fade-up">
-    <h2 class="section-title">See TipFlow in action</h2>
+    <h2 class="section-title">See Mise in action</h2>
     <p class="section-sub">Tap through the app yourself. No signup required.</p>
   </div>
 
@@ -2404,10 +2513,10 @@
           <div class="ds ds-1 active" onclick="demoNav(1)" style="cursor:pointer;background:#09100e;">
             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;background:#09100e;">
               <div style="font-size:18px;margin-bottom:16px;">💸</div>
-              <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#00e5a0;text-transform:uppercase;margin-bottom:20px;">FOR LEADERS</div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#4169E1;text-transform:uppercase;margin-bottom:20px;">FOR LEADERS</div>
               <div style="font-size:13px;color:#e8f0eb;line-height:1.7;font-style:italic;margin-bottom:16px;">"A leader's job is not to do the work for others — it's to help others figure out how to do it themselves."</div>
-              <div style="font-size:11px;color:#00e5a0;margin-bottom:20px;">— Simon Sinek</div>
-              <div style="font-size:10px;color:#567065;margin-bottom:28px;">TipFlow is built for leaders who care about their team.</div>
+              <div style="font-size:11px;color:#4169E1;margin-bottom:20px;">— Simon Sinek</div>
+              <div style="font-size:10px;color:rgba(65,105,225,0.6);margin-bottom:28px;">Mise is built for leaders who care about their team.</div>
               <div style="font-size:10px;color:#9ab5a4;">Tap to begin →</div>
             </div>
           </div>
@@ -2415,7 +2524,7 @@
           <!-- SCREEN 2: Manager Login -->
           <div class="ds ds-2">
             <div class="ds-header-bar">
-              <span class="ds-app-title">💸 TipFlow</span>
+              <span class="ds-app-title">💸 Mise</span>
             </div>
             <div class="ds2-body">
               <p class="ds2-welcome">Manager Sign In</p>
@@ -2429,7 +2538,7 @@
               </div>
               <button class="ds-btn-teal" onclick="demoNav(1)">Sign In</button>
               <div class="ds2-faceid">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><rect x="19" y="1" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><rect x="1" y="19" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><rect x="19" y="19" width="8" height="8" rx="2" stroke="#00c8a0" stroke-width="1.8"/><circle cx="10" cy="14" r="1.5" fill="#00c8a0"/><circle cx="18" cy="14" r="1.5" fill="#00c8a0"/><path d="M10 19 Q14 22 18 19" stroke="#00c8a0" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="8" height="8" rx="2" stroke="#4169E1" stroke-width="1.8"/><rect x="19" y="1" width="8" height="8" rx="2" stroke="#4169E1" stroke-width="1.8"/><rect x="1" y="19" width="8" height="8" rx="2" stroke="#4169E1" stroke-width="1.8"/><rect x="19" y="19" width="8" height="8" rx="2" stroke="#4169E1" stroke-width="1.8"/><circle cx="10" cy="14" r="1.5" fill="#4169E1"/><circle cx="18" cy="14" r="1.5" fill="#4169E1"/><path d="M10 19 Q14 22 18 19" stroke="#4169E1" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
                 <span>Use Face ID</span>
               </div>
             </div>
@@ -2992,7 +3101,7 @@
       <div class="alert-tag">Industry Failure</div>
       <div class="pain-icon">⚠️</div>
       <h3>XTM collapsed — $18.75M lost</h3>
-      <p>In 2023, XTM's Wave platform failed, leaving thousands of Canadian hospitality workers unable to access their earnings. TipFlow routes through AptPay's regulated infrastructure — no single point of failure.</p>
+      <p>In 2023, XTM's Wave platform failed, leaving thousands of hospitality workers unable to access their earnings. Mise routes through AptPay's regulated infrastructure — no single point of failure.</p>
     </div>
   </div>
 </section>
@@ -3001,7 +3110,7 @@
 <section class="solution" id="solution">
   <div class="centered fade-up">
     <div class="section-label">The Solution</div>
-    <h2 class="section-title">TipFlow automates the entire tip lifecycle</h2>
+    <h2 class="section-title">Mise automates the entire tip lifecycle</h2>
     <p class="section-sub">From your POS to your staff's bank account in minutes — not days.</p>
   </div>
   <div class="flow-container">
@@ -3015,7 +3124,7 @@
     <div class="flow-step fade-up">
       <div class="flow-num">2</div>
       <div class="flow-icon">💸</div>
-      <h3>TipFlow</h3>
+      <h3>Mise</h3>
       <p>Our engine calculates each staff member's share based on hours, role weights, and your custom tip pool rules.</p>
     </div>
     <div class="flow-arrow">→</div>
@@ -3030,7 +3139,7 @@
       <div class="flow-num">4</div>
       <div class="flow-icon">🏦</div>
       <h3>Staff Banks</h3>
-      <p>Funds land in staff accounts via Interac e-Transfer, 24/7. Staff link their own bank once with Flinks — TipFlow never sees credentials.</p>
+      <p>Funds land in staff accounts via Interac e-Transfer, 24/7. Staff link their own bank once with Flinks — Mise never sees credentials.</p>
     </div>
   </div>
 </section>
@@ -3040,7 +3149,7 @@
   <div class="centered fade-up">
     <div class="section-label">Features</div>
     <h2 class="section-title">Everything your restaurant needs</h2>
-    <p class="section-sub">Built from the ground up for Canadian restaurant operators and their teams.</p>
+    <p class="section-sub">Built from the ground up for restaurant operators and their teams.</p>
   </div>
   <div class="features-grid">
     <div class="feature-card fade-up">
@@ -3051,7 +3160,7 @@
     <div class="feature-card fade-up">
       <div class="feature-icon">📷</div>
       <h3>Photo Scan</h3>
-      <p>Point your camera at any printed POS report. TipFlow reads it automatically.</p>
+      <p>Point your camera at any printed POS report. Mise reads it automatically.</p>
     </div>
     <div class="feature-card fade-up">
       <div class="feature-icon">⚡</div>
@@ -3091,7 +3200,7 @@
     <div class="feature-card fade-up">
       <div class="feature-icon">🔒</div>
       <h3>Bank-Level Security</h3>
-      <p>AES-256 encryption, RPAA registered, Canadian data residency.</p>
+      <p>AES-256 encryption, RPAA registered, domestic data residency.</p>
     </div>
     <div class="feature-card fade-up">
       <div class="feature-icon">👥</div>
@@ -3179,7 +3288,7 @@
 
   </div>
 
-  <p class="calc-tagline fade-up">Every percentage is configurable. Every restaurant is different. TipFlow adapts to you.</p>
+  <p class="calc-tagline fade-up">Every percentage is configurable. Every restaurant is different. Mise adapts to you.</p>
 </section>
 
 <!-- ── THREE TIER ── -->
@@ -3242,7 +3351,7 @@
   <div class="centered fade-up" style="max-width:700px;margin:0 auto 3rem;">
     <div class="section-label">STAFF MOTIVATION &amp; LEADERSHIP</div>
     <h2 class="section-title">The only tip app built for human performance</h2>
-    <p class="section-sub">TipFlow isn't just about managing tips — it's about elevating the people behind them.</p>
+    <p class="section-sub">Mise isn't just about managing tips — it's about elevating the people behind them.</p>
   </div>
 
   <!-- Two column layout -->
@@ -3251,7 +3360,7 @@
     <!-- LEFT: Staff -->
     <div class="hp-column">
       <h3>For Staff — Personal Growth, Not Competition</h3>
-      <p class="hp-intro">Most apps rank staff against each other. We don't. TipFlow's motivation system is built on positive psychology — the science of what actually makes people perform better and stay longer.</p>
+      <p class="hp-intro">Most apps rank staff against each other. We don't. Mise's motivation system is built on positive psychology — the science of what actually makes people perform better and stay longer.</p>
 
       <div class="hp-feature-row">
         <div class="hp-emoji">🌱</div>
@@ -3297,7 +3406,7 @@
     <!-- RIGHT: Managers -->
     <div class="hp-column">
       <h3>For Managers — Purposeful Leadership</h3>
-      <p class="hp-intro">TipFlow gives managers the tools to lead with intention, not just manage operations.</p>
+      <p class="hp-intro">Mise gives managers the tools to lead with intention, not just manage operations.</p>
 
       <div class="hp-feature-row">
         <div class="hp-emoji">👁️</div>
@@ -3353,7 +3462,7 @@
       <li>They recommend the restaurant — because they're proud to work there</li>
     </ul>
 
-    <p class="hp-upsell-subheading">TipFlow milestones directly reward upselling behaviour</p>
+    <p class="hp-upsell-subheading">Mise milestones directly reward upselling behaviour</p>
 
     <div class="hp-milestone-row">
       <div class="hp-milestone-card">
@@ -3379,8 +3488,8 @@
   <!-- Founder quote -->
   <div class="hp-founder-card fade-up">
     <span class="hp-quote-marks">"</span>
-    <p class="hp-founder-quote">We designed TipFlow's motivation system based on the neuroscience of human performance. When people feel psychologically safe, recognised for their personal growth and aligned with a sense of purpose — their nervous system is regulated, their presence is elevated, and their service becomes extraordinary. This isn't just good for staff. It's good for business.</p>
-    <p class="hp-founder-attr">— TipFlow, Built on the science of human performance</p>
+    <p class="hp-founder-quote">We designed Mise's motivation system based on the neuroscience of human performance. When people feel psychologically safe, recognised for their personal growth and aligned with a sense of purpose — their nervous system is regulated, their presence is elevated, and their service becomes extraordinary. This isn't just good for staff. It's good for business.</p>
+    <p class="hp-founder-attr">— Mise, Built on the science of human performance</p>
   </div>
 
 </section>
@@ -3389,8 +3498,8 @@
 <section class="cra section-pad" id="cra">
   <div class="centered fade-up" style="max-width:700px;margin:0 auto 3rem;">
     <div class="section-label">CRA COMPLIANCE</div>
-    <h2 class="section-title">Stop worrying about tip taxation. TipFlow has it covered.</h2>
-    <p class="section-sub">Most Canadian restaurants are getting tip classification wrong. TipFlow makes sure you're not one of them.</p>
+    <h2 class="section-title">Stop worrying about tip taxation. Mise has it covered.</h2>
+    <p class="section-sub">Most restaurants are getting tip classification wrong. Mise makes sure you're not one of them.</p>
   </div>
 
   <!-- Two tip type cards -->
@@ -3399,14 +3508,14 @@
     <div class="cra-tip-card direct">
       <h3>Direct Tips 💵</h3>
       <p class="cra-subtitle">Customer tips go straight to staff</p>
-      <p>No CPP or EI deductions required. Staff self-report on their T1 personal tax return. TipFlow automatically notifies staff of their CRA obligation at every payout.</p>
-      <span class="cra-tag">Most common in Canadian restaurants</span>
+      <p>No CPP or EI deductions required. Staff self-report on their T1 personal tax return. Mise automatically notifies staff of their CRA obligation at every payout.</p>
+      <span class="cra-tag">Most common in restaurants</span>
     </div>
 
     <div class="cra-tip-card controlled">
       <h3>Controlled Tips 🏦</h3>
       <p class="cra-subtitle">Tips pooled and distributed by management</p>
-      <p>Treated as employment income. CPP and EI deductions apply. TipFlow flags every controlled tip payout so your payroll provider knows exactly what to process.</p>
+      <p>Treated as employment income. CPP and EI deductions apply. Mise flags every controlled tip payout so your payroll provider knows exactly what to process.</p>
       <span class="cra-tag">Common in large restaurant groups</span>
     </div>
 
@@ -3455,11 +3564,11 @@
         <li>CRA compliant tip classification</li>
         <li>Staff motivation system</li>
         <li>Daily inspiration quotes</li>
-        <li>Canadian data residency</li>
+        <li>Domestic data residency</li>
         <li>Priority support</li>
       </ul>
       <p style="margin:0 0 1.25rem;font-size:0.8rem;color:var(--text-muted);text-align:left;">💳 Payment processing fees are passed through directly from AptPay at cost — we never mark them up. What AptPay charges is exactly what you pay.</p>
-      <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal-full" style="display:block;text-decoration:none;font-size:1.1rem;padding:1rem;">Get Pricing →</a>
+      <a href="https://calendly.com/mise" target="_blank" class="btn-teal-full" style="display:block;text-decoration:none;font-size:1.1rem;padding:1rem;">Get Pricing →</a>
     </div>
   </div>
 </section>
@@ -3468,11 +3577,11 @@
 <section class="about" id="about">
   <div class="about-inner">
     <div class="fade-up">
-      <div class="section-label">About TipFlow</div>
-      <h2>Built in Canada,<br>for Canadian restaurants</h2>
-      <p>TipFlow was born out of frustration watching hospitality workers wait days for money they'd already earned. We built the infrastructure layer that Canadian restaurants were missing.</p>
-      <p>We're RPAA registered with the Bank of Canada, your data never leaves Canadian soil (AWS ca-central-1), and we comply with PIPEDA, Quebec Law 25, and every CRA tip classification requirement.</p>
-      <p style="color: var(--teal); font-weight: 600; font-size: 0.9rem;">🍁 Proudly Canadian. Restaurant-first. Always.</p>
+      <div class="section-label">About Mise</div>
+      <h2>Built in Canada,<br>for restaurants</h2>
+      <p>Mise was born out of frustration watching hospitality workers wait days for money they'd already earned. We built the infrastructure layer that restaurants were missing.</p>
+      <p>We're RPAA registered with the Bank of Canada, your data never leaves Canada (AWS ca-central-1), and we comply with PIPEDA, Quebec Law 25, and every CRA tip classification requirement.</p>
+      <p style="color: var(--teal); font-weight: 600; font-size: 0.9rem;">🍁 Restaurant-first. Always.</p>
     </div>
     <div class="about-stats fade-up">
       <div class="stat-item">
@@ -3485,7 +3594,7 @@
       </div>
       <div class="stat-item">
         <div class="stat-num">100%</div>
-        <div class="stat-label">Canadian data residency — AWS ca-central-1, always</div>
+        <div class="stat-label">Data residency in Canada — AWS ca-central-1, always</div>
       </div>
       <div class="stat-item">
         <div class="stat-num">3 min</div>
@@ -3499,10 +3608,10 @@
 <section class="cta-strip">
   <div class="fade-up">
     <h2>Ready to end the cash scramble?</h2>
-    <p>Join Canadian restaurants running a faster, fairer, and fully automated tip operation.</p>
+    <p>Join restaurants running a faster, fairer, and fully automated tip operation.</p>
     <div class="cta-ctas">
-      <a href="https://calendly.com/tipflow" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Get TipFlow</a>
-      <a href="https://calendly.com/tipflow" target="_blank" class="btn-outline" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Book a Free Demo</a>
+      <a href="https://calendly.com/mise" target="_blank" class="btn-teal" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Get Mise</a>
+      <a href="https://calendly.com/mise" target="_blank" class="btn-outline" style="font-size:0.95rem; padding:0.78rem 1.8rem; text-decoration:none;">Book a Free Demo</a>
     </div>
   </div>
 </section>
@@ -3511,8 +3620,8 @@
 <footer>
   <div class="footer-inner">
     <div class="footer-brand">
-      <div class="logo">TipFlow 💸</div>
-      <p>TipFlow — Built in Canada 🍁</p>
+      <div class="logo">Mise</div>
+      <p>Everything in Its Place.</p>
     </div>
     <div class="footer-links">
       <div class="footer-col">
@@ -3548,7 +3657,7 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© 2026 TipFlow Inc. All rights reserved.</span>
+    <span>© 2026 Mise Inc. All rights reserved.</span>
     <div class="footer-compliance">
       <span>🍁 CRA Compliant</span>
       <span>🔒 RPAA Registered</span>
@@ -3583,7 +3692,7 @@
     if (idx >= totalScreens) idx = 0;
 
     const screens = document.querySelectorAll('.ds');
-    console.log('[TipFlow Demo] screen count:', screens.length, '→ navigating to index', idx);
+    console.log('[Mise Demo] screen count:', screens.length, '→ navigating to index', idx);
     screens.forEach((s, i) => {
       const isActive = i === idx;
       s.classList.toggle('active', isActive);
@@ -3676,7 +3785,7 @@
 
   // Initialize demo screens — enforce display state on load
   const allScreens = document.querySelectorAll('.ds');
-  console.log('[TipFlow Demo] total screens found on init:', allScreens.length);
+  console.log('[Mise Demo] total screens found on init:', allScreens.length);
   allScreens.forEach((s, i) => {
     s.style.setProperty('display', i === 0 ? 'flex' : 'none', 'important');
     s.style.setProperty('background', '#09100e', 'important');

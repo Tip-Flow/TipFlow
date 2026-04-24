@@ -14,8 +14,8 @@ import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
@@ -116,9 +116,9 @@ export default function ManagerHome() {
   }, []);
 
   const stats = [
-    { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: TEAL },
-    { label: 'Tips This Week', value: tipsThisWeek, icon: '📈', accent: TEAL },
-    { label: 'Staff Active', value: staffActive, icon: '👥', accent: TEAL },
+    { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: BLUE },
+    { label: 'Tips This Week', value: tipsThisWeek, icon: '📈', accent: BLUE },
+    { label: 'Staff Active', value: staffActive, icon: '👥', accent: BLUE },
     { label: 'Bank Not Linked', value: bankNotLinked, icon: '🏦', accent: '#ff6b6b' },
   ];
 
@@ -155,7 +155,7 @@ export default function ManagerHome() {
         {/* Stat Cards 2x2 Grid */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={TEAL} />
+            <ActivityIndicator size="large" color={BLUE} />
           </View>
         ) : (
         <View style={styles.grid}>
@@ -279,14 +279,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: TEAL,
+    borderLeftColor: BLUE,
     borderWidth: 1,
     borderColor: '#1f3028',
   },
   leadLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 2,
     marginBottom: 8,
   },
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   },
   leadAuthor: {
     fontSize: 12,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '500',
     marginTop: 6,
   },
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   cardValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -0.5,
   },
   cardLabel: {
@@ -370,8 +370,8 @@ const styles = StyleSheet.create({
   sectionBadge: {
     fontSize: 12,
     fontWeight: '600',
-    color: TEAL,
-    backgroundColor: TEAL_DIM,
+    color: BLUE,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   progressFill: {
     width: '79%',
     height: '100%',
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 10,
   },
   progressLabels: {
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   progressPct: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   progressTarget: {
     fontSize: 13,
@@ -490,6 +490,6 @@ const styles = StyleSheet.create({
   leaderTips: {
     fontSize: 15,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
 });

@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 
 const BG = '#09100e';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.18)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65, 105, 225, 0.18)';
 const MUTED = '#4a5e56';
 const CARD = '#162019';
 const BORDER = '#1e3028';
@@ -57,7 +57,7 @@ export default function ShiftGoalsSplash({ goals, onDismiss }: Props) {
       {/* Logo */}
       <View style={styles.logoRow}>
         <Text style={styles.logoEmoji}>💸</Text>
-        <Text style={styles.logoText}>TipFlow</Text>
+        <Text style={styles.logoText}>Mise</Text>
       </View>
 
       {/* Title block */}
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 18,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -0.3,
   },
   titleBlock: {
@@ -130,10 +130,10 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   titleLine: {
     height: 2,
     width: '100%',
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 1,
   },
   goalsList: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   goalType: {
     fontSize: 11,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   dismissBtn: {
     width: '100%',
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   dismissBtnText: {
     fontSize: 17,
     fontWeight: '800',
-    color: BG,
+    color: '#ffffff',
     letterSpacing: 0.2,
   },
 });

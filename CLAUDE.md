@@ -1,4 +1,4 @@
-# TipFlow — Claude Code Project Memory
+# Mise — Claude Code Project Memory
 
 Canadian restaurant tip management SaaS.
 POS → tip calculation → AptPay → staff bank accounts. Instant. No cash. No spreadsheets.
@@ -10,7 +10,7 @@ POS → tip calculation → AptPay → staff bank accounts. Instant. No cash. No
 - **Frontend:** React Native + Expo (TypeScript)
 - **Backend:** Supabase (region: `ca-central-1` — never change this)
 - **Payments:** AptPay (Interac e-Transfer for staff payouts, EFT for restaurant deposits)
-- **Bank linking:** Flinks open banking (staff link their own accounts — TipFlow never sees credentials)
+- **Bank linking:** Flinks open banking (staff link their own accounts — Mise never sees credentials)
 - **POS integrations:** Square REST API (OAuth), Lightspeed (partner program), CSV parser (any POS)
 - **OTA updates:** Expo EAS Update — fixes deploy without App Store review
 
@@ -29,7 +29,7 @@ npx supabase db push    # Apply migrations
 ## Project Structure
 
 ```
-tipflow/
+mise/
 ├── app/                    # Expo Router screens
 │   ├── (auth)/             # Login, onboarding
 │   ├── (manager)/          # Manager tab screens
@@ -139,7 +139,7 @@ Role percentages are configurable per location. Default:
 ## Bank Linking (Flinks)
 
 - Staff receive SMS/email invite → click link → Flinks iframe opens → staff log into their bank.
-- TipFlow stores only the Flinks token, never raw account numbers or credentials.
+- Mise stores only the Flinks token, never raw account numbers or credentials.
 - If `flinks_token` is null, fall back to cash payout and flag staff as "bank not linked".
 
 ---
@@ -196,7 +196,7 @@ Always surface CRA classification in payout confirmations and staff portal.
 
 - **Data residency:** Supabase region is `ca-central-1` (AWS Canada). Never change.
 - **PIPEDA:** Explicit consent on first launch. Right to erasure in profile settings.
-- **RPAA:** TipFlow is registered with Bank of Canada under Retail Payment Activities Act. Surface this trust signal in onboarding and settings.
+- **RPAA:** Mise is registered with Bank of Canada under Retail Payment Activities Act. Surface this trust signal in onboarding and settings.
 - **Quebec Law 25:** French language support required for Quebec locations.
 
 ---

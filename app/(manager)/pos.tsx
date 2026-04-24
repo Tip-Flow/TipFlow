@@ -24,8 +24,8 @@ import { parseOCRText, OCRParseResult } from '@/lib/ocrParser';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65, 105, 225, 0.15)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
@@ -141,12 +141,12 @@ export default function POSScreen() {
     if (!granted) {
       Alert.alert(
         'Camera Access Required',
-        'TipFlow needs camera access to photograph your POS reports. Please enable it in Settings.',
+        'Mise needs camera access to photograph your POS reports. Please enable it in Settings.',
         [
           {
             text: 'Open Settings',
             onPress: () => {
-              Alert.alert('Go to Settings', 'Settings → TipFlow → Camera → Allow');
+              Alert.alert('Go to Settings', 'Settings → Mise → Camera → Allow');
             },
           },
           { text: 'Cancel', style: 'cancel' },
@@ -299,11 +299,11 @@ export default function POSScreen() {
                   ]}>
                     <View style={[
                       styles.statusDot,
-                      { backgroundColor: loc.connected ? TEAL : '#ef4444' },
+                      { backgroundColor: loc.connected ? BLUE : '#ef4444' },
                     ]} />
                     <Text style={[
                       styles.statusText,
-                      { color: loc.connected ? TEAL : '#ef4444' },
+                      { color: loc.connected ? BLUE : '#ef4444' },
                     ]}>
                       {loc.connected ? 'Connected' : 'Not Connected'}
                     </Text>
@@ -317,7 +317,7 @@ export default function POSScreen() {
                 ]}>
                   <Text style={[
                     styles.posBadgeText,
-                    { color: isTeal ? TEAL : AMBER },
+                    { color: isTeal ? BLUE : AMBER },
                   ]}>
                     {loc.posType}
                   </Text>
@@ -352,7 +352,7 @@ export default function POSScreen() {
                   onPress={handleScanReport}>
                   <Text style={[
                     styles.scanBtnText,
-                    { color: isTeal ? TEAL : AMBER },
+                    { color: isTeal ? BLUE : AMBER },
                   ]}>
                     📷  Scan Report
                   </Text>
@@ -388,7 +388,7 @@ export default function POSScreen() {
               ]}>
                 <Text style={[
                   styles.integrationText,
-                  { color: pos.type === 'API' ? TEAL : AMBER },
+                  { color: pos.type === 'API' ? BLUE : AMBER },
                 ]}>
                   {pos.type}
                 </Text>
@@ -457,7 +457,7 @@ export default function POSScreen() {
           </Animated.Text>
           <Text style={styles.scanningTitle}>Scanning report…</Text>
           <Text style={styles.scanningSubtitle}>Reading text from your photo</Text>
-          <ActivityIndicator color={TEAL} size="large" style={{ marginTop: 24 }} />
+          <ActivityIndicator color={BLUE} size="large" style={{ marginTop: 24 }} />
         </View>
       </Modal>
 
@@ -591,7 +591,7 @@ export default function POSScreen() {
                     ]}>
                       <Text style={[
                         styles.confidenceText,
-                        { color: ocrResult.confidence >= 70 ? TEAL : AMBER },
+                        { color: ocrResult.confidence >= 70 ? BLUE : AMBER },
                       ]}>
                         {ocrResult.confidence}% confident
                       </Text>
@@ -830,13 +830,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   newCalcBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 9,
     alignSelf: 'flex-start',
   },
-  newCalcBtnText: { fontSize: 13, fontWeight: '700', color: '#09100e', letterSpacing: 0.1 },
+  newCalcBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
   title: { fontSize: 26, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, color: MUTED },
 
@@ -857,21 +857,21 @@ const styles = StyleSheet.create({
   locCity: { fontSize: 13, color: MUTED },
 
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  statusConnected: { backgroundColor: TEAL_DIM },
+  statusConnected: { backgroundColor: BLUE_DIM },
   statusDisconnected: { backgroundColor: 'rgba(239,68,68,0.12)' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 12, fontWeight: '600' },
 
   posBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  posBadgeTeal: { backgroundColor: TEAL_DIM },
+  posBadgeTeal: { backgroundColor: BLUE_DIM },
   posBadgeAmber: { backgroundColor: AMBER_DIM },
   posBadgeText: { fontSize: 13, fontWeight: '700' },
 
   actionBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  actionBtnTeal: { backgroundColor: TEAL },
+  actionBtnTeal: { backgroundColor: BLUE },
   actionBtnAmber: { backgroundColor: AMBER },
   actionBtnDisabled: { opacity: 0.6 },
-  actionBtnText: { fontSize: 15, fontWeight: '700', color: '#09100e', letterSpacing: 0.1 },
+  actionBtnText: { fontSize: 15, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
 
   // Scan Report button (outline style)
   scanBtn: {
@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
   },
-  scanBtnTeal: { borderColor: TEAL, backgroundColor: TEAL_DIM },
+  scanBtnTeal: { borderColor: BLUE, backgroundColor: BLUE_DIM },
   scanBtnAmber: { borderColor: AMBER, backgroundColor: AMBER_DIM },
   scanBtnText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.1 },
 
@@ -888,12 +888,12 @@ const styles = StyleSheet.create({
   shiftGoalsBtn: {
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: TEAL,
+    borderColor: BLUE,
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-  shiftGoalsBtnText: { fontSize: 15, fontWeight: '700', color: TEAL, letterSpacing: 0.2 },
+  shiftGoalsBtnText: { fontSize: 15, fontWeight: '700', color: BLUE, letterSpacing: 0.2 },
 
   // Supported POS card
   supportedCard: { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
   posRowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
   posName: { fontSize: 15, fontWeight: '600', color: WHITE },
   integrationBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  integrationAPI: { backgroundColor: TEAL_DIM },
+  integrationAPI: { backgroundColor: BLUE_DIM },
   integrationCSV: { backgroundColor: AMBER_DIM },
   integrationText: { fontSize: 12, fontWeight: '700' },
 
@@ -984,7 +984,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginTop: 4,
   },
-  confidenceHigh: { backgroundColor: TEAL_DIM },
+  confidenceHigh: { backgroundColor: BLUE_DIM },
   confidenceLow: { backgroundColor: AMBER_DIM },
   confidenceText: { fontSize: 12, fontWeight: '700' },
   confidenceWarning: { fontSize: 12, color: AMBER, fontWeight: '600' },
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
   totalItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   totalItemBorder: { borderTopWidth: 1, borderTopColor: BORDER },
   totalItemLabel: { fontSize: 15, fontWeight: '600', color: WHITE },
-  totalItemValue: { fontSize: 17, fontWeight: '800', color: TEAL },
+  totalItemValue: { fontSize: 17, fontWeight: '800', color: BLUE },
 
   // Table
   tableCard: { backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
   tableRow: { flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 13, alignItems: 'center' },
   tableCellName: { fontSize: 14, fontWeight: '700', color: WHITE },
   tableCellMuted: { fontSize: 13, color: MUTED, fontWeight: '500' },
-  tableCellTeal: { fontSize: 13, fontWeight: '700', color: TEAL },
+  tableCellTeal: { fontSize: 13, fontWeight: '700', color: BLUE },
   editIconCell: { fontSize: 13, textAlign: 'center' },
 
   // Column widths
@@ -1026,8 +1026,8 @@ const styles = StyleSheet.create({
 
   hint: { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 18 },
   hintAmber: { fontSize: 13, color: AMBER, textAlign: 'center', lineHeight: 18 },
-  useDataBtn: { backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
-  useDataBtnText: { fontSize: 17, fontWeight: '800', color: '#09100e', letterSpacing: 0.2 },
+  useDataBtn: { backgroundColor: BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
+  useDataBtnText: { fontSize: 17, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 },
   tableRowAmber: { backgroundColor: 'rgba(245,158,11,0.07)' },
   tableCellAmber: { color: AMBER, fontWeight: '700' },
   ocrActionRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
@@ -1041,8 +1041,8 @@ const styles = StyleSheet.create({
     backgroundColor: CARD,
   },
   rescanBtnText: { fontSize: 16, fontWeight: '700', color: MUTED, letterSpacing: 0.1 },
-  confirmBtn: { flex: 2, backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  confirmBtnText: { fontSize: 16, fontWeight: '800', color: '#09100e', letterSpacing: 0.1 },
+  confirmBtn: { flex: 2, backgroundColor: BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  confirmBtnText: { fontSize: 16, fontWeight: '800', color: '#ffffff', letterSpacing: 0.1 },
 
   // ── Edit row modal ───────────────────────────────────────────────────────
   editOverlay: {
@@ -1085,13 +1085,13 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
     backgroundColor: '#0e1a14',
   },
-  roleChipActive: { backgroundColor: TEAL_DIM, borderColor: TEAL },
+  roleChipActive: { backgroundColor: BLUE_DIM, borderColor: BLUE },
   roleChipText: { fontSize: 13, fontWeight: '600', color: MUTED },
-  roleChipTextActive: { color: TEAL },
+  roleChipTextActive: { color: BLUE },
 
   editNumericRow: { flexDirection: 'row', gap: 10 },
   editNumericField: { flex: 1, gap: 6 },
 
-  editSaveBtn: { backgroundColor: TEAL, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
-  editSaveBtnText: { fontSize: 16, fontWeight: '800', color: '#09100e', letterSpacing: 0.1 },
+  editSaveBtn: { backgroundColor: BLUE, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
+  editSaveBtnText: { fontSize: 16, fontWeight: '800', color: '#ffffff', letterSpacing: 0.1 },
 });

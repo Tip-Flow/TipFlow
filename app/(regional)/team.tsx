@@ -11,8 +11,8 @@ import {
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const AMBER = '#f59e0b';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
@@ -25,7 +25,7 @@ const levelStyle: Record<Level, { bg: string; text: string }> = {
   Silver: { bg: 'rgba(107,114,128,0.2)', text: '#9ca3af' },
   Gold: { bg: 'rgba(245,158,11,0.2)', text: AMBER },
   Platinum: { bg: 'rgba(139,92,246,0.2)', text: '#a78bfa' },
-  Elite: { bg: TEAL_DIM, text: TEAL },
+  Elite: { bg: BLUE_DIM, text: BLUE },
 };
 
 const teamData = [
@@ -180,12 +180,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: WHITE },
   countBadge: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 20,
   },
-  countText: { fontSize: 12, fontWeight: '700', color: TEAL },
+  countText: { fontSize: 12, fontWeight: '700', color: BLUE },
   searchWrap: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -214,9 +214,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
   },
-  chipActive: { backgroundColor: TEAL_DIM, borderColor: TEAL },
+  chipActive: { backgroundColor: BLUE_DIM, borderColor: BLUE },
   chipText: { fontSize: 13, fontWeight: '600', color: MUTED },
-  chipTextActive: { color: TEAL },
+  chipTextActive: { color: BLUE },
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: 20,
@@ -255,14 +255,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 16, fontWeight: '700', color: TEAL },
+  avatarText: { fontSize: 16, fontWeight: '700', color: BLUE },
   staffInfo: { gap: 2 },
   staffName: { fontSize: 15, fontWeight: '700', color: WHITE },
   staffRole: { fontSize: 12, color: MUTED },
   staffRight: { alignItems: 'flex-end', gap: 4 },
   levelBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   levelText: { fontSize: 11, fontWeight: '700' },
-  staffTips: { fontSize: 13, fontWeight: '600', color: TEAL },
+  staffTips: { fontSize: 13, fontWeight: '600', color: BLUE },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
   emptyText: { fontSize: 15, color: MUTED },
 });

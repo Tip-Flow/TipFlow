@@ -17,8 +17,8 @@ import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const MUTED = '#6b7a74';
@@ -260,7 +260,7 @@ export default function HousePool() {
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={TEAL} />
+          <ActivityIndicator size="large" color={BLUE} />
         </View>
       ) : (
         <ScrollView
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 14,
     fontWeight: '600',
-    color: TEAL,
+    color: BLUE,
   },
   headerTitles: {
     gap: 4,
@@ -583,13 +583,13 @@ const styles = StyleSheet.create({
   balanceLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 2,
   },
   balanceAmount: {
     fontSize: 48,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -1,
     lineHeight: 56,
   },
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   amountTeal: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   totalRow: {
     flexDirection: 'row',
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderTopWidth: 1,
     borderTopColor: BORDER,
   },
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 15,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
   },
 
   // Distribution
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   distAmount: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   distAmountPoints: {
     color: AMBER,
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
   distNote: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'rgba(0,229,160,0.06)',
+    backgroundColor: 'rgba(65, 105, 225, 0.06)',
     borderTopWidth: 1,
     borderTopColor: BORDER,
   },
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -781,13 +781,13 @@ const styles = StyleSheet.create({
   },
   poolBalanceLabel: {
     fontSize: 13,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '600',
   },
   poolBalanceAmount: {
     fontSize: 17,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
   },
   sheetSection: {
     fontSize: 12,
@@ -855,11 +855,11 @@ const styles = StyleSheet.create({
   finalTotalAmount: {
     fontSize: 18,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
   },
   actionBtn: {
     marginTop: 16,
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: BG,
+    color: '#ffffff',
   },
 
   // Success
@@ -883,16 +883,16 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderWidth: 2,
-    borderColor: TEAL,
+    borderColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   successCheck: {
     fontSize: 32,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '700',
   },
   successTitle: {

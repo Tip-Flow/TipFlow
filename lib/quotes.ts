@@ -226,7 +226,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STAFF_POOL: Quote[] = [...SERVICE, ...GRATITUDE, ...SUKHI];
 const MANAGER_POOL: Quote[] = [...LEADERSHIP, ...EXCELLENCE];
 
-const QUOTE_COUNTER_KEY = 'tipflow_quote_counter';
+const QUOTE_COUNTER_KEY = 'mise_quote_counter';
 
 export async function getDailyQuote(role: 'manager' | 'staff'): Promise<Quote> {
   const pool = role === 'manager' ? MANAGER_POOL : STAFF_POOL;

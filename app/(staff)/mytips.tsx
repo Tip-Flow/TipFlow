@@ -5,8 +5,8 @@ import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = '#00b880';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const MUTED = '#6b7a74';
 const LABEL = '#9db8ad';
 const BORDER = '#1e3028';
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   heroAmount: {
     fontSize: 52,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -2,
     lineHeight: 58,
   },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 13,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '600',
   },
   divider: {
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   instantText: {
     fontSize: 12,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '700',
   },
 
@@ -240,14 +240,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: TEAL,
+    borderLeftColor: BLUE,
     borderWidth: 1,
     borderColor: BORDER,
   },
   intentionLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 2,
     marginBottom: 8,
   },
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   intentionAuthor: {
     fontSize: 12,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '500',
     marginTop: 6,
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   cardLink: {
     fontSize: 14,
-    color: TEAL,
+    color: BLUE,
     fontWeight: '600',
   },
 
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   challengeIncentive: {
     fontSize: 12,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
     backgroundColor: '#0d2a1e',
     borderRadius: 10,
     paddingHorizontal: 8,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 3,
   },
   progressLabels: {
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   payoutStatus: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   payoutRef: {
     fontSize: 12,

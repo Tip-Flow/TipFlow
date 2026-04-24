@@ -13,8 +13,8 @@ import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const AMBER_BORDER = 'rgba(245,158,11,0.4)';
@@ -196,7 +196,7 @@ export default function PayoutsScreen() {
         {/* Loading state */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={TEAL} />
+            <ActivityIndicator size="large" color={BLUE} />
           </View>
         ) : pendingShifts.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 36,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -1,
   },
 
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   chip: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -445,12 +445,12 @@ const styles = StyleSheet.create({
   chipAmount: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
 
   // Pay Button
   payBtn: {
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   payBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#09100e',
+    color: '#ffffff',
     letterSpacing: 0.1,
   },
 
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   historyAmount: {
     fontSize: 16,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   sentBadge: {
     backgroundColor: GREEN_DIM,

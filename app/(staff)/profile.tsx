@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
+const BLUE = '#4169E1';
 const BORDER = '#1e3028';
 const MUTED = '#6b7a74';
 const LABEL = '#9db8ad';
@@ -162,14 +162,14 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     backgroundColor: '#0d2a1c',
     borderWidth: 2,
-    borderColor: TEAL,
+    borderColor: BLUE,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 26,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: 1,
   },
   avatarInfo: {
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -0.5,
   },
   statLabel: {
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   payoutMethod: {
     fontSize: 16,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   payoutDetails: {
     fontSize: 13,

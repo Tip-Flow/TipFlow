@@ -2,9 +2,9 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } fr
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
-const TEAL_BORDER = 'rgba(0,229,160,0.4)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65,105,225,0.15)';
+const BLUE_BORDER = 'rgba(65,105,225,0.4)';
 const AMBER = '#f59e0b';
 const AMBER_DIM = 'rgba(245,158,11,0.15)';
 const AMBER_BORDER = 'rgba(245,158,11,0.4)';
@@ -227,9 +227,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   addBtn: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   addBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
 
   // Info Card
@@ -245,14 +245,14 @@ const styles = StyleSheet.create({
     backgroundColor: CARD,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
     padding: 18,
     gap: 12,
   },
   infoTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: TEAL,
+    color: BLUE,
     letterSpacing: -0.2,
   },
   infoBody: {
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -278,19 +278,19 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: TEAL,
+    backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepNum: {
     fontSize: 10,
     fontWeight: '800',
-    color: BG,
+    color: '#ffffff',
   },
   stepLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: TEAL,
+    color: BLUE,
   },
 
   // List Card
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   countBadge: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 20,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 12,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
   listDivider: {
     height: 1,
@@ -418,9 +418,9 @@ const styles = StyleSheet.create({
 
   // Invite Button
   inviteBtn: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     borderWidth: 1,
-    borderColor: TEAL_BORDER,
+    borderColor: BLUE_BORDER,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -430,6 +430,6 @@ const styles = StyleSheet.create({
   inviteBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEAL,
+    color: BLUE,
   },
 });

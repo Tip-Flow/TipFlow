@@ -9,8 +9,8 @@ import {
 
 const BG = '#09100e';
 const CARD = '#162019';
-const TEAL = '#00e5a0';
-const TEAL_DIM = 'rgba(0,229,160,0.15)';
+const BLUE = '#4169E1';
+const BLUE_DIM = 'rgba(65, 105, 225, 0.15)';
 const AMBER = '#f59e0b';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
@@ -25,7 +25,7 @@ const statusColor: Record<Status, string> = {
 };
 
 const posColor: Record<string, string> = {
-  Square: TEAL,
+  Square: BLUE,
   Lightspeed: AMBER,
   CSV: '#a78bfa',
 };
@@ -86,7 +86,7 @@ export default function RegionalLocations() {
 
         {locations.map((loc) => {
           const unlinked = loc.staffCount - loc.bankLinked;
-          const posAccent = posColor[loc.pos] ?? TEAL;
+          const posAccent = posColor[loc.pos] ?? BLUE;
           return (
             <View key={loc.id} style={styles.locationCard}>
               {/* Card Header */}
@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: WHITE },
   countBadge: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 20,
   },
-  countText: { fontSize: 12, fontWeight: '700', color: TEAL },
+  countText: { fontSize: 12, fontWeight: '700', color: BLUE },
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: 20,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: 'center', gap: 3 },
   statDivider: { width: 1, backgroundColor: BORDER },
-  statValue: { fontSize: 16, fontWeight: '800', color: TEAL },
+  statValue: { fontSize: 16, fontWeight: '800', color: BLUE },
   statLabel: { fontSize: 11, color: MUTED, fontWeight: '500' },
   cardFooter: {
     flexDirection: 'row',
@@ -234,12 +234,12 @@ const styles = StyleSheet.create({
   },
   bankWarningText: { fontSize: 10, fontWeight: '600', color: '#f87171' },
   viewBtn: {
-    backgroundColor: TEAL_DIM,
+    backgroundColor: BLUE_DIM,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: TEAL,
+    borderColor: BLUE,
   },
-  viewBtnText: { fontSize: 13, fontWeight: '700', color: TEAL },
+  viewBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
 });
