@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,8 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
+import { useLocationId } from '@/hooks/useLocationId';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -174,9 +176,8 @@ function StaffGridCard({
 
 export default function StaffScreen() {
   const isDesktop = useIsDesktop();
+  const { locationId, locationName } = useLocationId();
   const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [locationId, setLocationId] = useState<string | null>(null);
-  const [locationName, setLocationName] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Add staff modal state
@@ -188,22 +189,12 @@ export default function StaffScreen() {
   const [saving, setSaving] = useState(false);
 
   const fetchStaff = useCallback(async () => {
+    if (!locationId) return;
     try {
-      const { data: loc } = await supabase
-        .from('locations')
-        .select('id, name')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (!loc) { setLoading(false); return; }
-      setLocationId(loc.id);
-      setLocationName(loc.name);
-
       const { data, error } = await supabase
         .from('staff_members')
         .select('id, name, role, email, bank_linked, payout_method')
-        .eq('location_id', loc.id)
+        .eq('location_id', locationId)
         .order('name');
 
       if (error) console.log('[Staff] fetch error:', error.message);
@@ -214,7 +205,7 @@ export default function StaffScreen() {
           name: m.name,
           role: m.role,
           email: m.email,
-          location: loc.name,
+          location: locationName,
           status: m.bank_linked ? 'linked' : 'unlinked',
           payoutMethod: m.payout_method,
         }))
@@ -224,9 +215,11 @@ export default function StaffScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locationId, locationName]);
 
+  useEffect(() => { fetchStaff(); }, [fetchStaff]);
   useFocusEffect(useCallback(() => { fetchStaff(); }, [fetchStaff]));
+  useWebFocus(fetchStaff);
 
   async function handleSendInvite(member: StaffMember) {
     if (!member.email) {

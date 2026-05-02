@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
@@ -96,6 +97,7 @@ export default function MyTipsScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useWebFocus(loadData);
 
   function payoutMethodLabel(method: string | null): string {
     if (method === 'etransfer') return '📱 Interac e-Transfer';

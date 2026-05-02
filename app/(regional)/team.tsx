@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -113,6 +114,7 @@ export default function RegionalTeam() {
   }, []);
 
   useFocusEffect(useCallback(() => { fetchTeam(); }, [fetchTeam]));
+  useWebFocus(fetchTeam);
 
   const filtered = groups
     .filter(g => selectedLocation === ALL || g.locationName === selectedLocation)

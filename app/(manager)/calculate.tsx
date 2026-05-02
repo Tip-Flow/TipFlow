@@ -15,6 +15,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useWebFocus } from '@/hooks/useWebFocus';
 import { supabase } from '@/lib/supabase';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
 import {
@@ -150,6 +151,7 @@ export default function CalculateScreen() {
         const { data: locData } = await supabase
           .from('locations')
           .select('id')
+          .order('created_at', { ascending: true })
           .limit(1)
           .single();
         if (!locData) return;
@@ -233,6 +235,7 @@ export default function CalculateScreen() {
       if (locationId) fetchActiveShifts(locationId);
     }, [locationId, fetchActiveShifts])
   );
+  useWebFocus(useCallback(() => { if (locationId) fetchActiveShifts(locationId); }, [locationId, fetchActiveShifts]));
 
   // ── Update helpers ────────────────────────────────────────────────────────
   function updateServer(

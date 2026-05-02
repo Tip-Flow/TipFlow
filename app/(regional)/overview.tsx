@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -100,6 +101,7 @@ export default function RegionalOverview() {
   }, []);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  useWebFocus(fetchData);
 
   async function handleApprove(request: PointsRequest) {
     setProcessingId(request.id);

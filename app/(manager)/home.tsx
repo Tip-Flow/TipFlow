@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getDailyQuote, Quote } from '../../lib/quotes';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -118,6 +119,7 @@ export default function ManagerHome() {
       fetchDashboardData();
     }, [fetchDashboardData])
   );
+  useWebFocus(fetchDashboardData);
 
   const stats = [
     { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: BLUE },

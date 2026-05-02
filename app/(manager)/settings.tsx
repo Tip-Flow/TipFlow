@@ -199,6 +199,7 @@ function TipOutTab() {
       const { data: loc } = await supabase
         .from('locations')
         .select('id')
+        .order('created_at', { ascending: true })
         .limit(1)
         .single();
 
@@ -394,6 +395,7 @@ function HousePoolTab() {
         const { data: loc } = await supabase
           .from('locations')
           .select('id, house_pool_balance, house_pool_pay_period')
+          .order('created_at', { ascending: true })
           .limit(1)
           .single();
 

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -88,6 +89,7 @@ export default function HousePool() {
       const { data: loc, error: locError } = await supabase
         .from('locations')
         .select('id, name, house_pool_balance, last_house_pool_payout_at')
+        .order('created_at', { ascending: true })
         .limit(1)
         .single();
 
@@ -131,6 +133,7 @@ export default function HousePool() {
       fetchData();
     }, [fetchData])
   );
+  useWebFocus(fetchData);
 
   function totalContributions(): number {
     return shifts.reduce((sum, s) => sum + (s.house_pool_contribution ?? 0), 0);

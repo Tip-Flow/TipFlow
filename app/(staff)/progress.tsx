@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG     = '#09100e';
 const CARD   = '#162019';
@@ -128,6 +129,7 @@ export default function ProgressScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useWebFocus(loadData);
 
   if (loading) {
     return (

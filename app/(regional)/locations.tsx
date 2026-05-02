@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -83,6 +84,7 @@ export default function RegionalLocations() {
   }, []);
 
   useFocusEffect(useCallback(() => { fetchLocations(); }, [fetchLocations]));
+  useWebFocus(fetchLocations);
 
   return (
     <SafeAreaView style={styles.safe}>

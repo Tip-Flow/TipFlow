@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -154,6 +155,7 @@ export default function PayoutsScreen() {
       fetchData();
     }, [fetchData])
   );
+  useWebFocus(fetchData);
 
   async function handlePayout(shift: PendingShift) {
     setPayingShiftId(shift.id);

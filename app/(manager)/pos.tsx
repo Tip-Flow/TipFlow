@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,8 @@ import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { parseCSV, CSVParseResult, CSVStaffRow } from '@/lib/csvParser';
 import { parseOCRText, OCRParseResult } from '@/lib/ocrParser';
 import { supabase } from '../../lib/supabase';
+import { useLocationId } from '@/hooks/useLocationId';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -86,7 +88,7 @@ export default function POSScreen() {
   const router = useRouter();
 
   // Pull Tonight's Report flow
-  const [locationId, setLocationId] = useState<string | null>(null);
+  const { locationId, refetchLocation } = useLocationId();
   const [pullingReport, setPullingReport] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportShift, setReportShift] = useState<ReportShift | null>(null);
@@ -128,26 +130,16 @@ export default function POSScreen() {
     }
   }, [scanning]);
 
-  // Resolve location once on mount so Pull Report has it ready
-  useEffect(() => {
-    supabase
-      .from('locations')
-      .select('id')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .single()
-      .then(({ data }) => { if (data) setLocationId(data.id); });
-  }, []);
-
   // ── Pull Tonight's Report ─────────────────────────────────────────────────
 
-  async function handlePullReport() {
+  const handlePullReport = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     setPullingReport(true);
     try {
-      // Resolve location (may already be set from mount effect)
+      // Use hook-cached value; if not ready yet, do one direct fetch
       let locId = locationId;
       if (!locId) {
+        await refetchLocation();
         const { data: loc } = await supabase
           .from('locations')
           .select('id')
@@ -155,7 +147,6 @@ export default function POSScreen() {
           .limit(1)
           .single();
         locId = loc?.id ?? null;
-        if (locId) setLocationId(locId);
       }
 
       if (!locId) {
@@ -218,7 +209,7 @@ export default function POSScreen() {
     } finally {
       setPullingReport(false);
     }
-  }
+  }, [locationId, refetchLocation, router]);
 
   // ── CSV upload ────────────────────────────────────────────────────────────
 

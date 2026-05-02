@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 // Demo — replace with real auth'd staff ID
 const MY_STAFF_ID = 'staff-1';
@@ -209,6 +210,7 @@ export default function GoalsScreen() {
       loadGoals();
     }, [loadGoals])
   );
+  useWebFocus(loadGoals);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
