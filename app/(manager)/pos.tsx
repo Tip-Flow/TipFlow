@@ -920,7 +920,7 @@ export default function POSScreen() {
                   onPress={() => {
                     setReportModalVisible(false);
                     router.push('/(manager)/calculate');
-                  }}
+                  }}>
                   <Text style={styles.useDataBtnText}>
                     {reportShift.status === 'pending' ? 'Go to Calculate →' : 'View in Calculate →'}
                   </Text>
