@@ -999,13 +999,15 @@ export default function CalculateScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* KeyboardAvoidingView: only apply padding behavior on iOS — on web/Android
+          the 'height' behavior can add a blocking div layer over content */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}>
 
           {/* Header */}
@@ -1022,10 +1024,10 @@ export default function CalculateScreen() {
           </View>
 
           {isDesktop ? (
-            <View style={styles.desktopPanes}>
-              <View style={styles.desktopFormPane}>{formPanel}</View>
+            <View style={[styles.desktopPanes, { pointerEvents: 'box-none' }]}>
+              <View style={[styles.desktopFormPane, { pointerEvents: 'box-none' }]}>{formPanel}</View>
               {resultsPanel && (
-                <View style={styles.desktopResultsPane}>{resultsPanel}</View>
+                <View style={[styles.desktopResultsPane, { pointerEvents: 'box-none' }]}>{resultsPanel}</View>
               )}
             </View>
           ) : (
@@ -1037,6 +1039,30 @@ export default function CalculateScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* TEST: fixed red button outside the ScrollView/KAV chain to confirm
+          the button itself works when free of the container hierarchy.
+          If this fires but the in-scroll button doesn't, the issue is
+          confirmed to be the container chain, not the Pressable itself. */}
+      {Platform.OS === 'web' && (
+        <Pressable
+          onPress={handleCalculate}
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            left: 24,
+            right: 24,
+            backgroundColor: '#e11d48',
+            paddingVertical: 16,
+            borderRadius: 14,
+            alignItems: 'center',
+            zIndex: 9999,
+          }}>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>
+            TEST — Calculate (outside scroll)
+          </Text>
+        </Pressable>
+      )}
 
       {/* ── New Shift Modal ─────────────────────────────────────────────────── */}
       <Modal
