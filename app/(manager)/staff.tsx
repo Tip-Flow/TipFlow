@@ -30,6 +30,9 @@ const GREEN_BORDER = 'rgba(34,197,94,0.4)';
 const RED = '#ef4444';
 const RED_DIM = 'rgba(239,68,68,0.15)';
 const RED_BORDER = 'rgba(239,68,68,0.4)';
+const AMBER = '#f59e0b';
+const AMBER_DIM = 'rgba(245,158,11,0.15)';
+const AMBER_BORDER = 'rgba(245,158,11,0.35)';
 const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
@@ -53,6 +56,7 @@ interface StaffMember {
   location: string;
   status: BankStatus;
   payoutMethod: string | null;
+  inviteSentAt: string | null;
 }
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#14b8a6', '#f97316', '#22c55e'];
@@ -88,6 +92,14 @@ function StatusBadge({ status }: { status: BankStatus }) {
   );
 }
 
+function InviteBadge() {
+  return (
+    <View style={[styles.badge, { backgroundColor: AMBER_DIM, borderColor: AMBER_BORDER }]}>
+      <Text style={[styles.badgeText, { color: AMBER }]}>✉ Invited</Text>
+    </View>
+  );
+}
+
 function StaffCard({
   member,
   isLast,
@@ -98,6 +110,9 @@ function StaffCard({
   onSendInvite: (m: StaffMember) => void;
 }) {
   const color = avatarColor(member.id);
+  const showResend = !!member.inviteSentAt && member.status === 'unlinked';
+  const showInvite = !member.inviteSentAt && member.status === 'unlinked';
+
   return (
     <View style={[styles.staffRow, !isLast && styles.staffRowBorder]}>
       <View style={[styles.initCircle, { backgroundColor: color + '33' }]}>
@@ -106,9 +121,15 @@ function StaffCard({
       <View style={styles.staffInfo}>
         <View style={styles.staffTopRow}>
           <Text style={styles.staffName}>{member.name}</Text>
-          <StatusBadge status={member.status} />
+          <View style={styles.badgeRow}>
+            {member.inviteSentAt && member.status === 'unlinked' && <InviteBadge />}
+            <StatusBadge status={member.status} />
+          </View>
         </View>
         <Text style={styles.staffMeta}>{member.role} · {member.location}</Text>
+        {member.email ? (
+          <Text style={styles.staffEmail}>{member.email}</Text>
+        ) : null}
         <View style={styles.tagRow}>
           {member.status === 'linked' ? (
             <View style={styles.tag}>
@@ -116,15 +137,18 @@ function StaffCard({
             </View>
           ) : (
             <View style={styles.tag}>
-              <Text style={styles.tagText}>Not linked</Text>
+              <Text style={styles.tagText}>Bank not linked</Text>
             </View>
           )}
         </View>
-        {member.status === 'unlinked' && (
-          <Pressable
-            style={styles.inviteBtn}
-            onPress={() => onSendInvite(member)}>
-            <Text style={styles.inviteBtnText}>Send Bank Link Invite →</Text>
+        {showInvite && (
+          <Pressable style={styles.inviteBtn} onPress={() => onSendInvite(member)}>
+            <Text style={styles.inviteBtnText}>Send Account Invite →</Text>
+          </Pressable>
+        )}
+        {showResend && (
+          <Pressable style={styles.resendBtn} onPress={() => onSendInvite(member)}>
+            <Text style={styles.resendBtnText}>Resend Invite →</Text>
           </Pressable>
         )}
       </View>
@@ -140,6 +164,9 @@ function StaffGridCard({
   onSendInvite: (m: StaffMember) => void;
 }) {
   const color = avatarColor(member.id);
+  const showResend = !!member.inviteSentAt && member.status === 'unlinked';
+  const showInvite = !member.inviteSentAt && member.status === 'unlinked';
+
   return (
     <View style={styles.gridCard}>
       <View style={styles.gridCardTop}>
@@ -150,22 +177,32 @@ function StaffGridCard({
       </View>
       <Text style={styles.gridName}>{member.name}</Text>
       <Text style={styles.gridMeta}>{member.role} · {member.location}</Text>
+      {member.email ? (
+        <Text style={styles.gridEmail}>{member.email}</Text>
+      ) : null}
       <View style={styles.tagRow}>
         {member.status === 'linked' ? (
           <View style={styles.tag}>
             <Text style={styles.tagText}>🏦 {payoutMethodLabel(member.payoutMethod)}</Text>
           </View>
+        ) : member.inviteSentAt ? (
+          <View style={[styles.tag, { backgroundColor: AMBER_DIM, borderColor: AMBER_BORDER }]}>
+            <Text style={[styles.tagText, { color: AMBER }]}>✉ Invite sent</Text>
+          </View>
         ) : (
           <View style={styles.tag}>
-            <Text style={styles.tagText}>Not linked</Text>
+            <Text style={styles.tagText}>Bank not linked</Text>
           </View>
         )}
       </View>
-      {member.status === 'unlinked' && (
-        <Pressable
-          style={styles.inviteBtn}
-          onPress={() => onSendInvite(member)}>
+      {showInvite && (
+        <Pressable style={styles.inviteBtn} onPress={() => onSendInvite(member)}>
           <Text style={styles.inviteBtnText}>Send Invite →</Text>
+        </Pressable>
+      )}
+      {showResend && (
+        <Pressable style={styles.resendBtn} onPress={() => onSendInvite(member)}>
+          <Text style={styles.resendBtnText}>Resend Invite →</Text>
         </Pressable>
       )}
     </View>
@@ -177,6 +214,7 @@ export default function StaffScreen() {
   const { locationId, locationName } = useLocationId();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
 
   // Add staff modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -191,7 +229,7 @@ export default function StaffScreen() {
     try {
       const { data, error } = await supabase
         .from('staff_members')
-        .select('id, name, role, email, bank_linked, payout_method')
+        .select('id, name, role, email, bank_linked, payout_method, invite_sent_at')
         .eq('location_id', locationId)
         .order('name');
 
@@ -206,6 +244,7 @@ export default function StaffScreen() {
           location: locationName,
           status: m.bank_linked ? 'linked' : 'unlinked',
           payoutMethod: m.payout_method,
+          inviteSentAt: m.invite_sent_at ?? null,
         }))
       );
     } catch (err) {
@@ -219,24 +258,53 @@ export default function StaffScreen() {
   useFocusEffect(useCallback(() => { fetchStaff(); }, [fetchStaff]));
   useWebFocus(fetchStaff);
 
+  async function callInviteFunction(member: { id: string; name: string; role: string; email: string; }) {
+    const { data, error } = await supabase.functions.invoke('send-staff-invite', {
+      body: {
+        email: member.email,
+        name: member.name,
+        role: member.role,
+        location_id: locationId,
+        staff_member_id: member.id,
+      },
+    });
+    console.log('[Staff] invite result — data:', JSON.stringify(data), '| error:', error?.message ?? null);
+    return error;
+  }
+
   async function handleSendInvite(member: StaffMember) {
     if (!member.email) {
       Alert.alert('No email', 'This staff member has no email address on file.');
       return;
     }
+    const isResend = !!member.inviteSentAt;
+    const actionLabel = isResend ? 'Resend' : 'Send';
+
     Alert.alert(
-      'Send Bank Link Invite',
-      `Send a Flinks bank link invite to ${member.name} at ${member.email}?`,
+      `${actionLabel} Account Invite`,
+      `${actionLabel} a Mise account invite to ${member.name} at ${member.email}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Send Invite',
+          text: `${actionLabel} Invite`,
           onPress: async () => {
-            await supabase
-              .from('staff_members')
-              .update({ invite_sent_at: new Date().toISOString() })
-              .eq('id', member.id);
-            Alert.alert('Invite Sent', `Bank link invite sent to ${member.email}`);
+            setSendingInviteId(member.id);
+            try {
+              const err = await callInviteFunction({
+                id: member.id,
+                name: member.name,
+                role: member.role,
+                email: member.email!,
+              });
+              if (err) {
+                Alert.alert('Invite failed', err.message);
+              } else {
+                await fetchStaff();
+                Alert.alert('Invite sent!', `${member.name} will receive an email at ${member.email} to set up their Mise account.`);
+              }
+            } finally {
+              setSendingInviteId(null);
+            }
           },
         },
       ]
@@ -265,30 +333,48 @@ export default function StaffScreen() {
 
     setSaving(true);
     try {
-      const { data: inserted, error } = await supabase
+      // 1. Insert the staff_members row
+      const { data: inserted, error: insertError } = await supabase
         .from('staff_members')
         .insert({
-          location_id:     locationId,
-          name:            `${first} ${last}`,
-          role:            selectedRole,
-          email:           mail,
-          bank_linked:     false,
-          payout_method:   'cash',
-          invite_sent_at:  new Date().toISOString(),
+          location_id:   locationId,
+          name:          `${first} ${last}`,
+          role:          selectedRole,
+          email:         mail,
+          bank_linked:   false,
+          payout_method: 'cash',
         })
         .select('id')
         .single();
 
-      if (error) {
-        console.log('[Staff] insert error:', error.message, error.details);
-        Alert.alert('Error', error.message);
+      if (insertError) {
+        console.log('[Staff] insert error:', insertError.message, insertError.details);
+        Alert.alert('Error', insertError.message);
         return;
       }
 
       console.log('[Staff] inserted staff member:', inserted.id);
       resetModal();
       await fetchStaff();
-      Alert.alert('Staff member added', `${first} ${last} has been added and an invite has been marked as sent.`);
+
+      // 2. Send the Supabase auth invite email (non-blocking — failure is shown but doesn't undo the insert)
+      const inviteErr = await callInviteFunction({
+        id: inserted.id,
+        name: `${first} ${last}`,
+        role: selectedRole,
+        email: mail,
+      });
+
+      if (inviteErr) {
+        console.log('[Staff] invite email failed (non-fatal):', inviteErr.message);
+        Alert.alert(
+          'Staff added',
+          `${first} ${last} was added, but the invite email failed: ${inviteErr.message}\n\nYou can resend from the staff list.`
+        );
+      } else {
+        Alert.alert('Invite sent!', `${first} ${last} has been added and will receive an email at ${mail} to set up their Mise account.`);
+        await fetchStaff(); // refresh to show invite badge
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log('[Staff] handleAddStaff exception:', msg);
@@ -315,12 +401,12 @@ export default function StaffScreen() {
 
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>How bank linking works</Text>
+          <Text style={styles.infoTitle}>How staff onboarding works</Text>
           <Text style={styles.infoBody}>
-            Staff link their own bank accounts — Add staff → they receive a secure SMS invite → link via Flinks open banking → tips route automatically
+            Add staff → they receive an email invite → create their Mise account → link their bank via Flinks → tips route automatically
           </Text>
           <View style={styles.infoSteps}>
-            {['Add staff', 'SMS invite sent', 'Staff links via Flinks', 'Tips auto-routed'].map((step, i) => (
+            {['Add staff', 'Email invite sent', 'Staff signs up', 'Tips auto-routed'].map((step, i) => (
               <View key={step} style={styles.infoStep}>
                 <View style={styles.stepDot}>
                   <Text style={styles.stepNum}>{i + 1}</Text>
@@ -352,7 +438,11 @@ export default function StaffScreen() {
         ) : isDesktop ? (
           <View style={styles.cardGrid}>
             {staff.map(member => (
-              <StaffGridCard key={member.id} member={member} onSendInvite={handleSendInvite} />
+              <StaffGridCard
+                key={member.id}
+                member={member}
+                onSendInvite={handleSendInvite}
+              />
             ))}
           </View>
         ) : (
@@ -379,12 +469,12 @@ export default function StaffScreen() {
         onRequestClose={resetModal}>
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Pressable style={styles.modalBackdrop} onPress={resetModal} />
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Add Staff Member</Text>
-            <Text style={styles.modalSubtitle}>They'll receive a bank link invite automatically.</Text>
+            <Text style={styles.modalSubtitle}>They'll receive an email to create their Mise account.</Text>
 
             {/* Name row */}
             <View style={styles.nameRow}>
@@ -445,12 +535,18 @@ export default function StaffScreen() {
               returnKeyType="done"
             />
 
+            <View style={styles.inviteNote}>
+              <Text style={styles.inviteNoteText}>
+                ✉ An account invite will be emailed automatically after saving.
+              </Text>
+            </View>
+
             {/* Actions */}
             <Pressable
               style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
               onPress={handleAddStaff}
               disabled={saving}>
-              <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add Staff Member'}</Text>
+              <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add & Send Invite'}</Text>
             </Pressable>
 
             <Pressable style={styles.cancelBtn} onPress={resetModal}>
@@ -498,6 +594,7 @@ const styles = StyleSheet.create({
   },
   gridName: { fontSize: 16, fontWeight: '800', color: WHITE, letterSpacing: -0.2 },
   gridMeta: { fontSize: 12, color: MUTED },
+  gridEmail: { fontSize: 11, color: MUTED },
 
   header: {
     flexDirection: 'row',
@@ -604,6 +701,9 @@ const styles = StyleSheet.create({
   },
   staffName: { fontSize: 15, fontWeight: '700', color: WHITE, flex: 1 },
   staffMeta: { fontSize: 12, color: MUTED },
+  staffEmail: { fontSize: 11, color: MUTED },
+
+  badgeRow: { flexDirection: 'row', gap: 4, alignItems: 'center', flexShrink: 0 },
 
   tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 },
   tag: {
@@ -630,6 +730,28 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   inviteBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
+
+  resendBtn: {
+    backgroundColor: AMBER_DIM,
+    borderWidth: 1,
+    borderColor: AMBER_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  resendBtnText: { fontSize: 13, fontWeight: '700', color: AMBER },
+
+  inviteNote: {
+    backgroundColor: BLUE_DIM,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: BLUE_BORDER,
+  },
+  inviteNoteText: { fontSize: 12, color: BLUE, lineHeight: 17 },
 
   // Modal
   modalOverlay: {
