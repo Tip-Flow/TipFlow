@@ -6,11 +6,11 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -133,6 +133,7 @@ export default function POSScreen() {
   // ── Pull Tonight's Report ─────────────────────────────────────────────────
 
   const handlePullReport = useCallback(async () => {
+    console.log("Pull Tonight's Report tapped");
     const today = new Date().toISOString().split('T')[0];
     console.log('[POS] handlePullReport triggered — locationId from hook:', locationId, '| today:', today);
     setPullingReport(true);
@@ -390,12 +391,11 @@ export default function POSScreen() {
               <Text style={styles.title}>POS Import</Text>
               <Text style={styles.subtitle}>Pull tonight's tip data</Text>
             </View>
-            <TouchableOpacity
+            <Pressable
               style={styles.newCalcBtn}
               onPress={() => router.push('/(manager)/calculate')}
-              activeOpacity={0.8}>
               <Text style={styles.newCalcBtnText}>+ New Calculation</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -443,13 +443,12 @@ export default function POSScreen() {
                 </View>
 
                 {/* Primary action button */}
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.actionBtn,
                     isTeal ? styles.actionBtnTeal : styles.actionBtnAmber,
                     ((loading && isCSV) || (pullingReport && !isCSV)) && styles.actionBtnDisabled,
                   ]}
-                  activeOpacity={0.8}
                   disabled={(loading && isCSV) || (pullingReport && !isCSV)}
                   onPress={isCSV ? handleUploadCSV : handlePullReport}>
                   {(loading && isCSV) || (pullingReport && !isCSV) ? (
@@ -459,15 +458,14 @@ export default function POSScreen() {
                       {loc.connected ? "Pull Tonight's Report" : 'Upload CSV'}
                     </Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
 
                 {/* Scan Report button */}
-                <TouchableOpacity
+                <Pressable
                   style={[
                     styles.scanBtn,
                     isTeal ? styles.scanBtnTeal : styles.scanBtnAmber,
                   ]}
-                  activeOpacity={0.8}
                   onPress={handleScanReport}>
                   <Text style={[
                     styles.scanBtnText,
@@ -475,19 +473,18 @@ export default function POSScreen() {
                   ]}>
                     📷  Scan Report
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             );
           })}
         </View>
 
         {/* Shift Goals CTA */}
-        <TouchableOpacity
+        <Pressable
           style={styles.shiftGoalsBtn}
-          activeOpacity={0.8}
           onPress={() => router.push('/(manager)/shiftgoals')}>
           <Text style={styles.shiftGoalsBtnText}>🎯  Set tonight's shift goals →</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Supported POS Systems */}
         <View style={styles.supportedCard}>
@@ -524,9 +521,8 @@ export default function POSScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setScanSheetVisible(false)}>
-        <TouchableOpacity
+        <Pressable
           style={styles.sheetOverlay}
-          activeOpacity={1}
           onPress={() => setScanSheetVisible(false)}>
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>Import POS Report</Text>
@@ -534,38 +530,35 @@ export default function POSScreen() {
               Point your camera at a printed report, or choose a screenshot.
             </Text>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.sheetOption}
-              activeOpacity={0.8}
               onPress={handleTakePhoto}>
               <Text style={styles.sheetOptionIcon}>📷</Text>
               <View style={styles.sheetOptionText}>
                 <Text style={styles.sheetOptionTitle}>Take Photo</Text>
                 <Text style={styles.sheetOptionSub}>Photograph a printed report</Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
 
             <View style={styles.sheetDivider} />
 
-            <TouchableOpacity
+            <Pressable
               style={styles.sheetOption}
-              activeOpacity={0.8}
               onPress={handleChooseLibrary}>
               <Text style={styles.sheetOptionIcon}>🖼️</Text>
               <View style={styles.sheetOptionText}>
                 <Text style={styles.sheetOptionTitle}>Choose from Library</Text>
                 <Text style={styles.sheetOptionSub}>Select a screenshot of a report</Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.sheetCancel}
-              activeOpacity={0.7}
               onPress={() => setScanSheetVisible(false)}>
               <Text style={styles.sheetCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Modal>
 
       {/* ── Scanning overlay ───────────────────────────────────────────────── */}
@@ -601,12 +594,11 @@ export default function POSScreen() {
                       {preview.rows.length} staff member{preview.rows.length !== 1 ? 's' : ''} detected
                     </Text>
                   </View>
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.closeBtn}
                     onPress={() => setPreviewVisible(false)}
-                    activeOpacity={0.7}>
                     <Text style={styles.closeBtnText}>✕</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
 
                 {preview.errors.length > 0 && (
@@ -669,12 +661,11 @@ export default function POSScreen() {
                 </Text>
 
                 {preview.rows.length > 0 && (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.useDataBtn}
                     onPress={handleUseCSVData}
-                    activeOpacity={0.8}>
                     <Text style={styles.useDataBtnText}>Use This Data</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
               </>
             )}
@@ -719,12 +710,11 @@ export default function POSScreen() {
                       )}
                     </View>
                   </View>
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.closeBtn}
                     onPress={() => setOcrPreviewVisible(false)}
-                    activeOpacity={0.7}>
                     <Text style={styles.closeBtnText}>✕</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
 
                 {/* Parsing errors */}
@@ -773,9 +763,8 @@ export default function POSScreen() {
                       return (
                         <View key={index}>
                           {index > 0 && <View style={styles.tableRowDivider} />}
-                          <TouchableOpacity
+                          <Pressable
                             style={[styles.tableRow, lowConf && styles.tableRowAmber]}
-                            activeOpacity={0.7}
                             onPress={() => openEditModal(index)}>
                             <Text style={[styles.tableCellName, styles.colName]} numberOfLines={1}>
                               {row.name}
@@ -798,7 +787,7 @@ export default function POSScreen() {
                               {row.tips > 0 ? `$${centsToDisplay(row.tips)}` : '?'}
                             </Text>
                             <Text style={[styles.editIconCell, styles.colEdit]}>✏️</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         </View>
                       );
                     })}
@@ -812,19 +801,17 @@ export default function POSScreen() {
                 )}
 
                 <View style={styles.ocrActionRow}>
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.rescanBtn}
                     onPress={handleRescan}
-                    activeOpacity={0.8}>
                     <Text style={styles.rescanBtnText}>Rescan</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                   {ocrResult.rows.length > 0 && (
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.confirmBtn}
                       onPress={handleUseOCRData}
-                      activeOpacity={0.8}>
                       <Text style={styles.confirmBtnText}>Confirm & Import</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               </>
@@ -869,12 +856,11 @@ export default function POSScreen() {
                       </Text>
                     </View>
                   </View>
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.closeBtn}
                     onPress={() => setReportModalVisible(false)}
-                    activeOpacity={0.7}>
                     <Text style={styles.closeBtnText}>✕</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
 
                 {/* Totals */}
@@ -929,17 +915,16 @@ export default function POSScreen() {
                   </View>
                 )}
 
-                <TouchableOpacity
+                <Pressable
                   style={styles.useDataBtn}
                   onPress={() => {
                     setReportModalVisible(false);
                     router.push('/(manager)/calculate');
                   }}
-                  activeOpacity={0.8}>
                   <Text style={styles.useDataBtnText}>
                     {reportShift.status === 'pending' ? 'Go to Calculate →' : 'View in Calculate →'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </>
             )}
           </ScrollView>
@@ -958,12 +943,11 @@ export default function POSScreen() {
           <View style={styles.editSheet}>
             <View style={styles.editSheetHeader}>
               <Text style={styles.editSheetTitle}>Edit Row</Text>
-              <TouchableOpacity
+              <Pressable
                 style={styles.closeBtn}
                 onPress={() => setEditModalVisible(false)}
-                activeOpacity={0.7}>
                 <Text style={styles.closeBtnText}>✕</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {/* Name */}
@@ -980,13 +964,12 @@ export default function POSScreen() {
             <Text style={styles.editLabel}>Role</Text>
             <View style={styles.roleChips}>
               {ROLES.map((r) => (
-                <TouchableOpacity
+                <Pressable
                   key={r}
                   style={[
                     styles.roleChip,
                     editingRow?.role === r && styles.roleChipActive,
                   ]}
-                  activeOpacity={0.7}
                   onPress={() => setEditingRow((row) => row ? { ...row, role: r } : row)}>
                   <Text style={[
                     styles.roleChipText,
@@ -994,7 +977,7 @@ export default function POSScreen() {
                   ]}>
                     {r}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
 
@@ -1035,12 +1018,11 @@ export default function POSScreen() {
               </View>
             </View>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.editSaveBtn}
               onPress={handleSaveEdit}
-              activeOpacity={0.8}>
               <Text style={styles.editSaveBtnText}>Save Changes</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </Modal>
