@@ -393,7 +393,7 @@ export default function POSScreen() {
             </View>
             <Pressable
               style={styles.newCalcBtn}
-              onPress={() => router.push('/(manager)/calculate')}
+              onPress={() => router.push('/(manager)/calculate')}>
               <Text style={styles.newCalcBtnText}>+ New Calculation</Text>
             </Pressable>
           </View>
@@ -596,7 +596,7 @@ export default function POSScreen() {
                   </View>
                   <Pressable
                     style={styles.closeBtn}
-                    onPress={() => setPreviewVisible(false)}
+                    onPress={() => setPreviewVisible(false)}>
                     <Text style={styles.closeBtnText}>✕</Text>
                   </Pressable>
                 </View>
@@ -663,7 +663,7 @@ export default function POSScreen() {
                 {preview.rows.length > 0 && (
                   <Pressable
                     style={styles.useDataBtn}
-                    onPress={handleUseCSVData}
+                    onPress={handleUseCSVData}>
                     <Text style={styles.useDataBtnText}>Use This Data</Text>
                   </Pressable>
                 )}
@@ -712,7 +712,7 @@ export default function POSScreen() {
                   </View>
                   <Pressable
                     style={styles.closeBtn}
-                    onPress={() => setOcrPreviewVisible(false)}
+                    onPress={() => setOcrPreviewVisible(false)}>
                     <Text style={styles.closeBtnText}>✕</Text>
                   </Pressable>
                 </View>
@@ -803,13 +803,13 @@ export default function POSScreen() {
                 <View style={styles.ocrActionRow}>
                   <Pressable
                     style={styles.rescanBtn}
-                    onPress={handleRescan}
+                    onPress={handleRescan}>
                     <Text style={styles.rescanBtnText}>Rescan</Text>
                   </Pressable>
                   {ocrResult.rows.length > 0 && (
                     <Pressable
                       style={styles.confirmBtn}
-                      onPress={handleUseOCRData}
+                      onPress={handleUseOCRData}>
                       <Text style={styles.confirmBtnText}>Confirm & Import</Text>
                     </Pressable>
                   )}
@@ -858,7 +858,7 @@ export default function POSScreen() {
                   </View>
                   <Pressable
                     style={styles.closeBtn}
-                    onPress={() => setReportModalVisible(false)}
+                    onPress={() => setReportModalVisible(false)}>
                     <Text style={styles.closeBtnText}>✕</Text>
                   </Pressable>
                 </View>
@@ -945,7 +945,7 @@ export default function POSScreen() {
               <Text style={styles.editSheetTitle}>Edit Row</Text>
               <Pressable
                 style={styles.closeBtn}
-                onPress={() => setEditModalVisible(false)}
+                onPress={() => setEditModalVisible(false)}>
                 <Text style={styles.closeBtnText}>✕</Text>
               </Pressable>
             </View>
@@ -1020,7 +1020,7 @@ export default function POSScreen() {
 
             <Pressable
               style={styles.editSaveBtn}
-              onPress={handleSaveEdit}
+              onPress={handleSaveEdit}>
               <Text style={styles.editSaveBtnText}>Save Changes</Text>
             </Pressable>
           </View>
