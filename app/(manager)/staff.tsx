@@ -2,9 +2,13 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   SafeAreaView,
@@ -29,6 +33,15 @@ const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
 
 type BankStatus = 'linked' | 'unlinked';
+type Role = 'server' | 'bartender' | 'runner' | 'kitchen' | 'support';
+
+const ROLES: { value: Role; label: string; icon: string }[] = [
+  { value: 'server',    label: 'Server',     icon: '🍽️' },
+  { value: 'bartender', label: 'Bartender',  icon: '🍸' },
+  { value: 'runner',    label: 'Runner',     icon: '🏃' },
+  { value: 'kitchen',   label: 'Kitchen',    icon: '👨‍🍳' },
+  { value: 'support',   label: 'Support',    icon: '🤝' },
+];
 
 interface StaffMember {
   id: string;
@@ -162,18 +175,29 @@ function StaffGridCard({
 export default function StaffScreen() {
   const isDesktop = useIsDesktop();
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [locationId, setLocationId] = useState<string | null>(null);
   const [locationName, setLocationName] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Add staff modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [email, setEmail] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const fetchStaff = useCallback(async () => {
     try {
       const { data: loc } = await supabase
         .from('locations')
         .select('id, name')
+        .order('created_at', { ascending: true })
         .limit(1)
         .single();
 
       if (!loc) { setLoading(false); return; }
+      setLocationId(loc.id);
       setLocationName(loc.name);
 
       const { data, error } = await supabase
@@ -228,6 +252,61 @@ export default function StaffScreen() {
     );
   }
 
+  function resetModal() {
+    setFirstName('');
+    setLastName('');
+    setSelectedRole(null);
+    setEmail('');
+    setSaving(false);
+    setModalVisible(false);
+  }
+
+  async function handleAddStaff() {
+    const first = firstName.trim();
+    const last  = lastName.trim();
+    const mail  = email.trim().toLowerCase();
+
+    if (!first) { Alert.alert('Required', 'Enter a first name.'); return; }
+    if (!last)  { Alert.alert('Required', 'Enter a last name.');  return; }
+    if (!selectedRole) { Alert.alert('Required', 'Select a role.'); return; }
+    if (!mail || !mail.includes('@')) { Alert.alert('Required', 'Enter a valid email address.'); return; }
+    if (!locationId) { Alert.alert('Error', 'No location found. Please try again.'); return; }
+
+    setSaving(true);
+    try {
+      const { data: inserted, error } = await supabase
+        .from('staff_members')
+        .insert({
+          location_id:     locationId,
+          name:            `${first} ${last}`,
+          role:            selectedRole,
+          email:           mail,
+          bank_linked:     false,
+          payout_method:   'cash',
+          invite_sent_at:  new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.log('[Staff] insert error:', error.message, error.details);
+        Alert.alert('Error', error.message);
+        return;
+      }
+
+      console.log('[Staff] inserted staff member:', inserted.id);
+      resetModal();
+      await fetchStaff();
+      Alert.alert('Staff member added', `${first} ${last} has been added and an invite has been marked as sent.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log('[Staff] handleAddStaff exception:', msg);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -238,7 +317,7 @@ export default function StaffScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Staff</Text>
-          <TouchableOpacity style={styles.addBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={() => setModalVisible(true)}>
             <Text style={styles.addBtnText}>+ Add</Text>
           </TouchableOpacity>
         </View>
@@ -300,6 +379,97 @@ export default function StaffScreen() {
         )}
 
       </ScrollView>
+
+      {/* Add Staff Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={resetModal}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={resetModal} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Add Staff Member</Text>
+            <Text style={styles.modalSubtitle}>They'll receive a bank link invite automatically.</Text>
+
+            {/* Name row */}
+            <View style={styles.nameRow}>
+              <View style={styles.nameHalf}>
+                <Text style={styles.inputLabel}>First name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Alex"
+                  placeholderTextColor={MUTED}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={styles.nameHalf}>
+                <Text style={styles.inputLabel}>Last name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Dubois"
+                  placeholderTextColor={MUTED}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            {/* Role selector */}
+            <Text style={styles.inputLabel}>Role</Text>
+            <View style={styles.roleGrid}>
+              {ROLES.map(({ value, label, icon }) => {
+                const selected = selectedRole === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.roleChip, selected && styles.roleChipSelected]}
+                    onPress={() => setSelectedRole(value)}
+                    activeOpacity={0.8}>
+                    <Text style={styles.roleIcon}>{icon}</Text>
+                    <Text style={[styles.roleLabel, selected && styles.roleLabelSelected]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Email */}
+            <Text style={styles.inputLabel}>Email address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="alex@restaurant.com"
+              placeholderTextColor={MUTED}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+            />
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              onPress={handleAddStaff}
+              activeOpacity={0.8}
+              disabled={saving}>
+              <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add Staff Member'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={resetModal} activeOpacity={0.7}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -471,4 +641,85 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   inviteBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalSheet: {
+    backgroundColor: '#0f1e16',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderColor: BORDER,
+    gap: 12,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: BORDER,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: WHITE, letterSpacing: -0.4 },
+  modalSubtitle: { fontSize: 13, color: MUTED, marginTop: -4 },
+
+  nameRow: { flexDirection: 'row', gap: 12 },
+  nameHalf: { flex: 1, gap: 6 },
+
+  inputLabel: { fontSize: 12, fontWeight: '700', color: MUTED, letterSpacing: 0.5, textTransform: 'uppercase' },
+  input: {
+    backgroundColor: '#0d1a14',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: WHITE,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  roleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0d1a14',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  roleChipSelected: {
+    backgroundColor: BLUE_DIM,
+    borderColor: BLUE_BORDER,
+  },
+  roleIcon: { fontSize: 16 },
+  roleLabel: { fontSize: 13, fontWeight: '700', color: MUTED },
+  roleLabelSelected: { color: BLUE },
+
+  saveBtn: {
+    backgroundColor: BLUE,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  saveBtnDisabled: { opacity: 0.5 },
+  saveBtnText: { fontSize: 15, fontWeight: '800', color: '#ffffff', letterSpacing: 0.3 },
+
+  cancelBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelBtnText: { fontSize: 14, fontWeight: '600', color: MUTED },
 });
