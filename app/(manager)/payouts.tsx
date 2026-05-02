@@ -5,7 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -240,9 +240,8 @@ export default function PayoutsScreen() {
                 )}
               </View>
               <Text style={styles.tableTotalAmount}>{formatCents(shift.total_tips)}</Text>
-              <TouchableOpacity
+              <Pressable
                 style={[styles.tablePayBtn, payingShiftId === shift.id && styles.payBtnDisabled, { width: 148 }]}
-                activeOpacity={0.8}
                 disabled={payingShiftId === shift.id}
                 onPress={() => handlePayout(shift)}>
                 {payingShiftId === shift.id ? (
@@ -250,7 +249,7 @@ export default function PayoutsScreen() {
                 ) : (
                   <Text style={styles.payBtnText}>Pay via AptPay</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           ))}
         </View>
@@ -282,9 +281,8 @@ export default function PayoutsScreen() {
                 ))}
               </View>
             )}
-            <TouchableOpacity
+            <Pressable
               style={[styles.payBtn, payingShiftId === shift.id && styles.payBtnDisabled]}
-              activeOpacity={0.8}
               disabled={payingShiftId === shift.id}
               onPress={() => handlePayout(shift)}>
               {payingShiftId === shift.id ? (
@@ -292,7 +290,7 @@ export default function PayoutsScreen() {
               ) : (
                 <Text style={styles.payBtnText}>Pay via AptPay</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ))
       )}

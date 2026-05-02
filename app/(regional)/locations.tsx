@@ -4,7 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -175,9 +175,9 @@ export default function RegionalLocations() {
                         )}
                       </View>
                     </View>
-                    <TouchableOpacity style={styles.viewBtn} activeOpacity={0.8}>
+                    <Pressable style={styles.viewBtn}>
                       <Text style={styles.viewBtnText}>View Details</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </View>
               );

@@ -10,7 +10,7 @@ import {
   Switch,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -395,6 +395,9 @@ export default function CalculateScreen() {
 
   // ── Calculate ─────────────────────────────────────────────────────────────
   function handleCalculate() {
+    console.log("Calculate tapped");
+    console.log('[Calculate] shiftName:', JSON.stringify(shiftName), '| servers:', servers.length, '| support:', supportStaff.length);
+    console.log('[Calculate] server data:', JSON.stringify(servers.map(s => ({ name: s.name, included: s.included, sales: s.sales, tips: s.tipsEarned, hours: s.hoursWorked }))));
     if (!shiftName.trim()) {
       Alert.alert('Missing info', 'Please enter a shift name.');
       return;
@@ -683,12 +686,11 @@ export default function CalculateScreen() {
                       {formatDate(shift.date)} · {shift.staffCount} staff
                     </Text>
                   </View>
-                  <TouchableOpacity
+                  <Pressable
                     style={[
                       styles.loadBtn,
                       activeShiftId === shift.id && styles.loadBtnActive,
                     ]}
-                    activeOpacity={0.8}
                     onPress={() => handleLoadShift(shift)}>
                     <Text style={[
                       styles.loadBtnText,
@@ -696,7 +698,7 @@ export default function CalculateScreen() {
                     ]}>
                       {activeShiftId === shift.id ? '✓ Loaded' : 'Load →'}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
             ))
@@ -876,9 +878,9 @@ export default function CalculateScreen() {
       )}
 
       {/* Calculate Button */}
-      <TouchableOpacity style={styles.calcBtn} onPress={handleCalculate} activeOpacity={0.8}>
+      <Pressable style={styles.calcBtn} onPress={handleCalculate}>
         <Text style={styles.calcBtnText}>Calculate</Text>
-      </TouchableOpacity>
+      </Pressable>
     </>
   );
 
@@ -982,17 +984,16 @@ export default function CalculateScreen() {
         </View>
       )}
 
-      <TouchableOpacity
+      <Pressable
         style={[styles.payoutBtn, saving && styles.payoutBtnDisabled]}
         onPress={handleSaveAndPayout}
-        activeOpacity={0.8}
         disabled={saving}>
         {saving ? (
           <ActivityIndicator color="#09100e" />
         ) : (
           <Text style={styles.payoutBtnText}>Save & Pay Out</Text>
         )}
-      </TouchableOpacity>
+      </Pressable>
     </View>
   ) : null;
 
@@ -1011,12 +1012,11 @@ export default function CalculateScreen() {
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <Text style={styles.title}>Calculate Tips</Text>
-              <TouchableOpacity
+              <Pressable
                 style={styles.newShiftBtn}
-                onPress={openNewShiftModal}
-                activeOpacity={0.8}>
+                onPress={openNewShiftModal}>
                 <Text style={styles.newShiftBtnText}>+ New Shift</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
             <Text style={styles.subtitle}>Enter each server's sales and tips earned</Text>
           </View>
@@ -1057,12 +1057,11 @@ export default function CalculateScreen() {
               {/* Modal header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>New Shift</Text>
-                <TouchableOpacity
+                <Pressable
                   style={styles.closeBtn}
-                  onPress={() => setModalVisible(false)}
-                  activeOpacity={0.7}>
+                  onPress={() => setModalVisible(false)}>
                   <Text style={styles.closeBtnText}>✕</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
               <Text style={styles.modalSubtitle}>
                 Set up tonight's shift and pre-load sales before calculating tips
@@ -1114,9 +1113,8 @@ export default function CalculateScreen() {
                     return (
                       <View key={s.id}>
                         {index > 0 && <View style={styles.modalDivider} />}
-                        <TouchableOpacity
+                        <Pressable
                           style={[styles.staffSelectRow, isSelected && styles.staffSelectRowActive]}
-                          activeOpacity={0.7}
                           onPress={() => toggleStaffSelection(s.id)}>
                           {/* Checkbox */}
                           <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
@@ -1130,7 +1128,7 @@ export default function CalculateScreen() {
                               {ROLE_LABELS[s.role] ?? s.role}
                             </Text>
                           </View>
-                        </TouchableOpacity>
+                        </Pressable>
 
                         {/* Sales input for servers when selected */}
                         {isServer && isSelected && (
@@ -1153,17 +1151,16 @@ export default function CalculateScreen() {
               </View>
 
               {/* Save */}
-              <TouchableOpacity
+              <Pressable
                 style={[styles.modalSaveBtn, creatingShift && styles.payoutBtnDisabled]}
                 onPress={handleCreateShift}
-                activeOpacity={0.8}
                 disabled={creatingShift}>
                 {creatingShift ? (
                   <ActivityIndicator color={BG} />
                 ) : (
                   <Text style={styles.modalSaveBtnText}>Create Shift</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
             </ScrollView>
           </KeyboardAvoidingView>

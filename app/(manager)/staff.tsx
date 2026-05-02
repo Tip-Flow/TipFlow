@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -121,12 +121,11 @@ function StaffCard({
           )}
         </View>
         {member.status === 'unlinked' && (
-          <TouchableOpacity
+          <Pressable
             style={styles.inviteBtn}
-            activeOpacity={0.8}
             onPress={() => onSendInvite(member)}>
             <Text style={styles.inviteBtnText}>Send Bank Link Invite →</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>
@@ -163,12 +162,11 @@ function StaffGridCard({
         )}
       </View>
       {member.status === 'unlinked' && (
-        <TouchableOpacity
+        <Pressable
           style={styles.inviteBtn}
-          activeOpacity={0.8}
           onPress={() => onSendInvite(member)}>
           <Text style={styles.inviteBtnText}>Send Invite →</Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );
@@ -310,9 +308,9 @@ export default function StaffScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Staff</Text>
-          <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={() => setModalVisible(true)}>
+          <Pressable style={styles.addBtn} onPress={() => setModalVisible(true)}>
             <Text style={styles.addBtnText}>+ Add</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Info Card */}
@@ -382,7 +380,7 @@ export default function StaffScreen() {
         <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={resetModal} />
+          <Pressable style={styles.modalBackdrop} onPress={resetModal} />
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Add Staff Member</Text>
@@ -422,14 +420,13 @@ export default function StaffScreen() {
               {ROLES.map(({ value, label, icon }) => {
                 const selected = selectedRole === value;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={value}
                     style={[styles.roleChip, selected && styles.roleChipSelected]}
-                    onPress={() => setSelectedRole(value)}
-                    activeOpacity={0.8}>
+                    onPress={() => setSelectedRole(value)}>
                     <Text style={styles.roleIcon}>{icon}</Text>
                     <Text style={[styles.roleLabel, selected && styles.roleLabelSelected]}>{label}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -449,17 +446,16 @@ export default function StaffScreen() {
             />
 
             {/* Actions */}
-            <TouchableOpacity
+            <Pressable
               style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
               onPress={handleAddStaff}
-              activeOpacity={0.8}
               disabled={saving}>
               <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add Staff Member'}</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={resetModal} activeOpacity={0.7}>
+            <Pressable style={styles.cancelBtn} onPress={resetModal}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </Modal>

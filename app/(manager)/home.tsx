@@ -4,7 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -161,10 +161,9 @@ export default function ManagerHome() {
   );
 
   const housePool = (
-    <TouchableOpacity
+    <Pressable
       style={styles.housePoolCard}
-      onPress={() => router.push('/(manager)/housepool')}
-      activeOpacity={0.85}>
+      onPress={() => router.push('/(manager)/housepool')}>
       <View style={styles.housePoolLeft}>
         <Text style={styles.housePoolIcon}>🏦</Text>
         <View style={styles.housePoolInfo}>
@@ -178,7 +177,7 @@ export default function ManagerHome() {
         </Text>
         <Text style={styles.housePoolArrow}>›</Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const leaderboardPanel = (
@@ -209,9 +208,9 @@ export default function ManagerHome() {
       {/* Header row with sign out */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Dashboard</Text>
-        <TouchableOpacity onPress={handleSignOut} style={styles.signOutBtn} activeOpacity={0.7}>
+        <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
           <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <ScrollView

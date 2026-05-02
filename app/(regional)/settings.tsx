@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -213,29 +213,27 @@ export default function RegionalSettings() {
             <Text style={styles.sectionTitle}>Pay Period</Text>
             <View style={styles.payPeriodRow}>
               {PAY_PERIODS.map(option => (
-                <TouchableOpacity
+                <Pressable
                   key={option}
                   style={[styles.periodChip, payPeriod === option && styles.periodChipActive]}
-                  onPress={() => setPayPeriod(option)}
-                  activeOpacity={0.8}>
+                  onPress={() => setPayPeriod(option)}>
                   <Text style={[styles.periodText, payPeriod === option && styles.periodTextActive]}>
                     {option}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
 
           {/* Save */}
-          <TouchableOpacity
+          <Pressable
             style={[styles.saveBtn, saved && styles.saveBtnDone, saving && { opacity: 0.6 }]}
             onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.85}>
+            disabled={saving}>
             {saving
               ? <ActivityIndicator color="#ffffff" />
               : <Text style={styles.saveBtnText}>{saved ? '✓ Saved' : 'Save Defaults'}</Text>}
-          </TouchableOpacity>
+          </Pressable>
 
         </ScrollView>
       )}

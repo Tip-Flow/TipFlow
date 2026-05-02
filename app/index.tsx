@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
   StatusBar,
@@ -179,9 +179,8 @@ export default function LoginScreen() {
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity
+            <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
-              activeOpacity={0.8}
               onPress={handleSignIn}
               disabled={loading}>
               {loading ? (
@@ -189,7 +188,7 @@ export default function LoginScreen() {
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -197,16 +196,15 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity
+            <Pressable
               style={[styles.regionalButton, loading && styles.buttonDisabled]}
-              activeOpacity={0.8}
               onPress={() => {
                 setEmail('regional@canteen.ca');
                 setPassword('password');
               }}
               disabled={loading}>
               <Text style={styles.regionalButtonText}>Sign in as Regional Manager</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
         </ScrollView>

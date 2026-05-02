@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -252,9 +252,9 @@ export default function HousePool() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerTitles}>
           <Text style={styles.headerTitle}>House Pool</Text>
           <Text style={styles.headerSub}>
@@ -284,13 +284,12 @@ export default function HousePool() {
               <Text style={styles.nextPayoutLabel}>Next scheduled payout</Text>
               <Text style={styles.nextPayoutDate}>{nextPayoutDate(lastPayoutDate)}</Text>
             </View>
-            <TouchableOpacity
+            <Pressable
               style={[styles.payNowBtn, balance === 0 && styles.payNowBtnDisabled]}
               onPress={openPayoutFlow}
-              disabled={balance === 0}
-              activeOpacity={0.8}>
+              disabled={balance === 0}>
               <Text style={styles.payNowText}>Pay Out Now</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Pay Period Summary */}
@@ -392,11 +391,11 @@ export default function HousePool() {
                 <>
                   <View style={styles.sheetHeader}>
                     <Text style={styles.sheetTitle}>Pay Out House Pool</Text>
-                    <TouchableOpacity
+                    <Pressable
                       onPress={() => setShowPayout(false)}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                       <Text style={styles.closeBtn}>✕</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
 
                   <View style={styles.poolBalanceRow}>
@@ -461,20 +460,19 @@ export default function HousePool() {
                     )}
                   </ScrollView>
 
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.actionBtn, !allHoursFilled && styles.actionBtnDisabled]}
                     onPress={handleReviewPayout}
-                    disabled={!allHoursFilled}
-                    activeOpacity={0.8}>
+                    disabled={!allHoursFilled}>
                     <Text style={styles.actionBtnText}>Review Payout →</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </>
               ) : (
                 <>
                   <View style={styles.sheetHeader}>
-                    <TouchableOpacity onPress={() => setPayoutStep('hours')}>
+                    <Pressable onPress={() => setPayoutStep('hours')}>
                       <Text style={styles.backText}>← Back</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                     <Text style={styles.sheetTitle}>Final Breakdown</Text>
                     <View style={{ width: 56 }} />
                   </View>
@@ -505,17 +503,16 @@ export default function HousePool() {
                     </View>
                   </ScrollView>
 
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.actionBtn, saving && styles.actionBtnDisabled]}
                     onPress={handleConfirmPayout}
-                    disabled={saving}
-                    activeOpacity={0.8}>
+                    disabled={saving}>
                     {saving ? (
                       <ActivityIndicator color={BG} />
                     ) : (
                       <Text style={styles.actionBtnText}>Confirm & Pay</Text>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 </>
               )}
 

@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -75,22 +75,20 @@ function TabSwitcher({
 }) {
   return (
     <View style={ts.wrapper}>
-      <TouchableOpacity
+      <Pressable
         style={[ts.tab, active === 'tipout' && ts.tabActive]}
-        onPress={() => onChange('tipout')}
-        activeOpacity={0.8}>
+        onPress={() => onChange('tipout')}>
         <Text style={[ts.label, active === 'tipout' && ts.labelActive]}>
           Tip Out Rules
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+      </Pressable>
+      <Pressable
         style={[ts.tab, active === 'house' && ts.tabActive]}
-        onPress={() => onChange('house')}
-        activeOpacity={0.8}>
+        onPress={() => onChange('house')}>
         <Text style={[ts.label, active === 'house' && ts.labelActive]}>
           House Pool
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }
@@ -116,18 +114,16 @@ const ts = StyleSheet.create({
 function PayoutToggle({ value, onChange }: { value: PayoutType; onChange: (v: PayoutType) => void }) {
   return (
     <View style={pt.wrapper}>
-      <TouchableOpacity
+      <Pressable
         style={[pt.pill, value === 'direct' && pt.pillActive]}
-        onPress={() => onChange('direct')}
-        activeOpacity={0.8}>
+        onPress={() => onChange('direct')}>
         <Text style={[pt.text, value === 'direct' && pt.textActive]}>Direct</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+      </Pressable>
+      <Pressable
         style={[pt.pill, value === 'house_pool' && pt.pillHouse]}
-        onPress={() => onChange('house_pool')}
-        activeOpacity={0.8}>
+        onPress={() => onChange('house_pool')}>
         <Text style={[pt.text, value === 'house_pool' && pt.textActive]}>House Pool</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }
@@ -154,18 +150,16 @@ const pt = StyleSheet.create({
 function DistributionToggle({ value, onChange }: { value: DistributionType; onChange: (v: DistributionType) => void }) {
   return (
     <View style={dt.wrapper}>
-      <TouchableOpacity
+      <Pressable
         style={[dt.pill, value === 'equal' && dt.pillActive]}
-        onPress={() => onChange('equal')}
-        activeOpacity={0.8}>
+        onPress={() => onChange('equal')}>
         <Text style={[dt.text, value === 'equal' && dt.textActive]}>Equal</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+      </Pressable>
+      <Pressable
         style={[dt.pill, value === 'hours' && dt.pillActive]}
-        onPress={() => onChange('hours')}
-        activeOpacity={0.8}>
+        onPress={() => onChange('hours')}>
         <Text style={[dt.text, value === 'hours' && dt.textActive]}>Hours-based</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }
@@ -335,16 +329,16 @@ function TipOutTab() {
               <Text style={s.pctSymbol}>%</Text>
             </View>
             <PayoutToggle value={rule.payoutType} onChange={v => updateRule(rule.id, { payoutType: v })} />
-            <TouchableOpacity style={s.deleteBtn} onPress={() => deleteRule(rule.id)} activeOpacity={0.7}>
+            <Pressable style={s.deleteBtn} onPress={() => deleteRule(rule.id)}>
               <Text style={s.deleteText}>✕</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ))}
       </View>
 
-      <TouchableOpacity style={s.addBtn} onPress={addRule} activeOpacity={0.8}>
+      <Pressable style={s.addBtn} onPress={addRule}>
         <Text style={s.addBtnText}>+ Add Rule</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <View style={s.summaryCard}>
         <View style={s.summaryRow}>
@@ -361,15 +355,14 @@ function TipOutTab() {
         </View>
       </View>
 
-      <TouchableOpacity
+      <Pressable
         style={[s.saveBtn, saving && { opacity: 0.6 }]}
         onPress={handleSave}
-        disabled={saving}
-        activeOpacity={0.8}>
+        disabled={saving}>
         {saving
           ? <ActivityIndicator color="#ffffff" />
           : <Text style={s.saveBtnText}>Save Rules</Text>}
-      </TouchableOpacity>
+      </Pressable>
     </>
   );
 }
@@ -444,15 +437,14 @@ function HousePoolTab() {
         <Text style={s.periodLabel}>Pay period:</Text>
         <View style={s.periodPills}>
           {PAY_PERIODS.map(p => (
-            <TouchableOpacity
+            <Pressable
               key={p.key}
               style={[s.periodPill, payPeriod === p.key && s.periodPillActive]}
-              onPress={() => setPayPeriod(p.key)}
-              activeOpacity={0.8}>
+              onPress={() => setPayPeriod(p.key)}>
               <Text style={[s.periodPillText, payPeriod === p.key && s.periodPillTextActive]}>
                 {p.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       </View>
@@ -461,12 +453,11 @@ function HousePoolTab() {
         <Text style={s.balanceTitle}>Current Balance</Text>
         <Text style={s.balanceAmount}>${(balance / 100).toFixed(2)}</Text>
         <Text style={s.balanceNext}>Next payout: {nextPayoutDate(payPeriod)}</Text>
-        <TouchableOpacity
+        <Pressable
           style={s.payNowBtn}
-          onPress={() => router.push('/(manager)/housepool')}
-          activeOpacity={0.8}>
+          onPress={() => router.push('/(manager)/housepool')}>
           <Text style={s.payNowText}>Pay Out Now</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {staff.length > 0 && (

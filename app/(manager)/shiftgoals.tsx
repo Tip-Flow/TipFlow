@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -402,17 +402,16 @@ export default function ShiftGoalsScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTop}>
-              <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+              <Pressable style={styles.backBtn} onPress={() => router.back()}>
                 <Text style={styles.backChevron}>‹</Text>
                 <Text style={styles.backLabel}>POS</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={[styles.refreshBtn, refreshing && styles.refreshBtnDisabled]}
                 onPress={handleManualRefresh}
-                activeOpacity={0.7}
                 disabled={refreshing}>
                 <Text style={styles.refreshBtnText}>{refreshing ? 'Refreshing…' : 'Refresh'}</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
             <Text style={styles.title}>Shift Goals</Text>
             <Text style={styles.subtitle}>Set tonight's goals</Text>
@@ -457,12 +456,11 @@ export default function ShiftGoalsScreen() {
                         </View>
                       ) : null}
                     </View>
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.deleteBtn}
-                      onPress={() => handleDeleteGoal(goal.id)}
-                      activeOpacity={0.7}>
+                      onPress={() => handleDeleteGoal(goal.id)}>
                       <Text style={styles.deleteBtnText}>✕</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 );
               })
@@ -487,15 +485,14 @@ export default function ShiftGoalsScreen() {
               {GOAL_TYPES.map(({ type, icon, label, sub }) => {
                 const selected = newType === type;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={type}
                     style={[styles.chip, selected && styles.chipSelected]}
-                    onPress={() => setNewType(type)}
-                    activeOpacity={0.8}>
+                    onPress={() => setNewType(type)}>
                     <Text style={styles.chipIcon}>{icon}</Text>
                     <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{label}</Text>
                     <Text style={[styles.chipSub, selected && styles.chipSubSelected]}>{sub}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -512,13 +509,12 @@ export default function ShiftGoalsScreen() {
               />
             )}
 
-            <TouchableOpacity
+            <Pressable
               style={[styles.addBtn, saving && styles.addBtnDisabled]}
               onPress={handleAddGoal}
-              activeOpacity={0.8}
               disabled={saving}>
               <Text style={styles.addBtnText}>{saving ? 'Saving…' : 'Add Goal'}</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Mark Winner Section — visible when shift is complete */}
@@ -531,12 +527,11 @@ export default function ShiftGoalsScreen() {
                 .map((goal) => (
                   <View key={goal.id} style={styles.winnerRow}>
                     <Text style={styles.winnerRowTitle}>{goal.title}</Text>
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.markWinnerBtn}
-                      onPress={() => openWinnerPicker(goal)}
-                      activeOpacity={0.8}>
+                      onPress={() => openWinnerPicker(goal)}>
                       <Text style={styles.markWinnerText}>Mark Winner</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 ))}
             </View>
@@ -551,9 +546,8 @@ export default function ShiftGoalsScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => setPickerVisible(false)}>
-        <TouchableOpacity
+        <Pressable
           style={styles.pickerOverlay}
-          activeOpacity={1}
           onPress={() => setPickerVisible(false)}>
           <View style={styles.pickerSheet}>
             <Text style={styles.pickerTitle}>Who won?</Text>
@@ -562,11 +556,10 @@ export default function ShiftGoalsScreen() {
             )}
             <View style={styles.pickerDivider} />
             {staff.map((s) => (
-              <TouchableOpacity
+              <Pressable
                 key={s.id}
                 style={styles.pickerRow}
-                onPress={() => handleSelectWinner(s.id)}
-                activeOpacity={0.8}>
+                onPress={() => handleSelectWinner(s.id)}>
                 <View style={styles.pickerAvatar}>
                   <Text style={styles.pickerAvatarText}>
                     {s.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
@@ -576,16 +569,15 @@ export default function ShiftGoalsScreen() {
                   <Text style={styles.pickerName}>{s.name}</Text>
                   <Text style={styles.pickerRole}>{s.role}</Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             ))}
-            <TouchableOpacity
+            <Pressable
               style={styles.pickerCancel}
-              onPress={() => setPickerVisible(false)}
-              activeOpacity={0.7}>
+              onPress={() => setPickerVisible(false)}>
               <Text style={styles.pickerCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );

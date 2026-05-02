@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -208,9 +208,9 @@ export default function RewardsScreen() {
         <View style={styles.card}>
           <View style={styles.shiftGoalsHeader}>
             <Text style={styles.cardTitle}>Tonight's Shift Goals</Text>
-            <TouchableOpacity style={styles.createGoalBtn} onPress={openModal} activeOpacity={0.8}>
+            <Pressable style={styles.createGoalBtn} onPress={openModal}>
               <Text style={styles.createGoalBtnText}>+ Create</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.divider} />
@@ -273,9 +273,9 @@ export default function RewardsScreen() {
                 <Text style={styles.incentiveMilestone}>{item.milestone}</Text>
                 <Text style={styles.incentiveDate}>{item.date}</Text>
               </View>
-              <TouchableOpacity style={styles.deliverBtn} activeOpacity={0.8}>
+              <Pressable style={styles.deliverBtn}>
                 <Text style={styles.deliverBtnText}>Mark as Delivered</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           ))}
         </View>
@@ -370,12 +370,11 @@ export default function RewardsScreen() {
             {/* Modal header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Create Shift Goal</Text>
-              <TouchableOpacity
+              <Pressable
                 style={styles.closeBtn}
-                onPress={() => setModalVisible(false)}
-                activeOpacity={0.7}>
+                onPress={() => setModalVisible(false)}>
                 <Text style={styles.closeBtnText}>✕</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <Text style={styles.modalSubtitle}>
@@ -386,16 +385,15 @@ export default function RewardsScreen() {
             <Text style={styles.fieldLabel}>Goal Type</Text>
             <View style={styles.typeChips}>
               {GOAL_TYPES.map((g) => (
-                <TouchableOpacity
+                <Pressable
                   key={g.key}
                   style={[styles.typeChip, goalType === g.key && styles.typeChipActive]}
-                  activeOpacity={0.7}
                   onPress={() => setGoalType(g.key)}>
                   <Text style={styles.typeChipIcon}>{g.icon}</Text>
                   <Text style={[styles.typeChipText, goalType === g.key && styles.typeChipTextActive]}>
                     {g.label}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
 
@@ -426,17 +424,16 @@ export default function RewardsScreen() {
             )}
 
             {/* Save */}
-            <TouchableOpacity
+            <Pressable
               style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
               onPress={handleSave}
-              activeOpacity={0.8}
               disabled={saving}>
               {saving ? (
                 <ActivityIndicator color={BG} />
               ) : (
                 <Text style={styles.saveBtnText}>Set Goal for Tonight</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
           </View>
         </KeyboardAvoidingView>

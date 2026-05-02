@@ -4,7 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 
@@ -91,9 +91,9 @@ export default function ShiftGoalsSplash({ goals, onDismiss }: Props) {
       </ScrollView>
 
       {/* Dismiss button */}
-      <TouchableOpacity style={styles.dismissBtn} activeOpacity={0.85} onPress={onDismiss}>
+      <Pressable style={styles.dismissBtn} onPress={onDismiss}>
         <Text style={styles.dismissBtnText}>Let's go! 🚀</Text>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 }

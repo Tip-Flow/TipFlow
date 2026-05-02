@@ -5,7 +5,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -157,15 +157,14 @@ export default function RegionalTeam() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}>
         {locationOptions.map(loc => (
-          <TouchableOpacity
+          <Pressable
             key={loc}
             style={[styles.chip, selectedLocation === loc && styles.chipActive]}
-            onPress={() => setSelectedLocation(loc)}
-            activeOpacity={0.8}>
+            onPress={() => setSelectedLocation(loc)}>
             <Text style={[styles.chipText, selectedLocation === loc && styles.chipTextActive]}>
               {loc}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </ScrollView>
 

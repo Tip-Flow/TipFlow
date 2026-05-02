@@ -4,7 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -173,9 +173,9 @@ export default function RegionalOverview() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Regional</Text>
-        <TouchableOpacity onPress={handleSignOut} style={styles.signOutBtn} activeOpacity={0.7}>
+        <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
           <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {loading ? (
@@ -243,18 +243,16 @@ export default function RegionalOverview() {
                           <ActivityIndicator size="small" color={BLUE} />
                         ) : (
                           <>
-                            <TouchableOpacity
+                            <Pressable
                               style={styles.approveBtn}
-                              activeOpacity={0.8}
                               onPress={() => handleApprove(req)}>
                               <Text style={styles.approveBtnText}>Approve</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
+                            </Pressable>
+                            <Pressable
                               style={styles.rejectBtn}
-                              activeOpacity={0.8}
                               onPress={() => handleReject(req)}>
                               <Text style={styles.rejectBtnText}>Reject</Text>
-                            </TouchableOpacity>
+                            </Pressable>
                           </>
                         )}
                       </View>

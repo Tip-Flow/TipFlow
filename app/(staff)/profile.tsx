@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -87,27 +87,26 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           {SETTINGS.map((item, i) => (
             <View key={item.label}>
-              <TouchableOpacity style={styles.settingsRow} activeOpacity={0.7}>
+              <Pressable style={styles.settingsRow}>
                 <Text style={styles.settingsLabel}>
                   {item.icon} {item.label}
                 </Text>
                 <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
+              </Pressable>
               {i < SETTINGS.length - 1 && <View style={styles.rowSep} />}
             </View>
           ))}
         </View>
 
         {/* Sign Out */}
-        <TouchableOpacity
+        <Pressable
           style={styles.signOutBtn}
-          activeOpacity={0.8}
           onPress={async () => {
             await supabase.auth.signOut();
             router.replace('/');
           }}>
           <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        </Pressable>
 
       </ScrollView>
     </SafeAreaView>
