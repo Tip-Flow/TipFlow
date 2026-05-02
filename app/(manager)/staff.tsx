@@ -258,7 +258,9 @@ export default function StaffScreen() {
   useFocusEffect(useCallback(() => { fetchStaff(); }, [fetchStaff]));
   useWebFocus(fetchStaff);
 
-  async function callInviteFunction(member: { id: string; name: string; role: string; email: string; }) {
+  async function callInviteFunction(
+    member: { id: string; name: string; role: string; email: string },
+  ): Promise<{ error: Error | null; note: string | null }> {
     const { data, error } = await supabase.functions.invoke('send-staff-invite', {
       body: {
         email: member.email,
@@ -268,8 +270,21 @@ export default function StaffScreen() {
         staff_member_id: member.id,
       },
     });
-    console.log('[Staff] invite result — data:', JSON.stringify(data), '| error:', error?.message ?? null);
-    return error;
+
+    if (error) {
+      // FunctionsHttpError.message is just "non-2xx status code" — unwrap the JSON body
+      let message = error.message;
+      try {
+        const body = await (error as any).context?.json?.();
+        if (body?.error) message = body.error;
+      } catch {}
+      console.log('[Staff] invite error:', message);
+      return { error: new Error(message), note: null };
+    }
+
+    const note: string | null = data?.note ?? null;
+    console.log('[Staff] invite result — user_id:', data?.user_id ?? 'existing', '| note:', note);
+    return { error: null, note };
   }
 
   async function handleSendInvite(member: StaffMember) {
@@ -290,16 +305,18 @@ export default function StaffScreen() {
           onPress: async () => {
             setSendingInviteId(member.id);
             try {
-              const err = await callInviteFunction({
+              const { error: invErr, note } = await callInviteFunction({
                 id: member.id,
                 name: member.name,
                 role: member.role,
                 email: member.email!,
               });
-              if (err) {
-                Alert.alert('Invite failed', err.message);
+              await fetchStaff();
+              if (invErr) {
+                Alert.alert('Invite failed', invErr.message);
+              } else if (note) {
+                Alert.alert('Already registered', `${note}\n\nThe Invited badge has been applied.`);
               } else {
-                await fetchStaff();
                 Alert.alert('Invite sent!', `${member.name} will receive an email at ${member.email} to set up their Mise account.`);
               }
             } finally {
@@ -358,22 +375,29 @@ export default function StaffScreen() {
       await fetchStaff();
 
       // 2. Send the Supabase auth invite email (non-blocking — failure is shown but doesn't undo the insert)
-      const inviteErr = await callInviteFunction({
+      const { error: inviteErr, note } = await callInviteFunction({
         id: inserted.id,
         name: `${first} ${last}`,
         role: selectedRole,
         email: mail,
       });
 
+      await fetchStaff(); // refresh to show invite badge regardless of outcome
+
       if (inviteErr) {
         console.log('[Staff] invite email failed (non-fatal):', inviteErr.message);
         Alert.alert(
           'Staff added',
-          `${first} ${last} was added, but the invite email failed: ${inviteErr.message}\n\nYou can resend from the staff list.`
+          `${first} ${last} was added, but the invite failed: ${inviteErr.message}\n\nYou can resend from the staff list.`
+        );
+      } else if (note) {
+        // Already registered — no invite email sent but record is saved
+        Alert.alert(
+          'Staff added',
+          `${first} ${last} has been added.\n\n${note}\n\nThey can log in to Mise directly.`
         );
       } else {
-        Alert.alert('Invite sent!', `${first} ${last} has been added and will receive an email at ${mail} to set up their Mise account.`);
-        await fetchStaff(); // refresh to show invite badge
+        Alert.alert('Invite sent! ✉', `${first} ${last} has been added and will receive an email at ${mail} to create their Mise account.`);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
