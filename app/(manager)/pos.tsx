@@ -134,29 +134,38 @@ export default function POSScreen() {
 
   const handlePullReport = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
+    console.log('[POS] handlePullReport triggered — locationId from hook:', locationId, '| today:', today);
     setPullingReport(true);
     try {
+      // Log auth session state before querying
+      const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+      console.log('[POS] auth session:', session?.user?.email ?? 'none', '| sessionErr:', sessionErr?.message ?? null);
+
       // Use hook-cached value; if not ready yet, do one direct fetch
       let locId = locationId;
       if (!locId) {
+        console.log('[POS] locationId is null — triggering refetch');
         await refetchLocation();
-        const { data: loc } = await supabase
+        const { data: loc, error: locErr } = await supabase
           .from('locations')
           .select('id')
           .order('created_at', { ascending: true })
           .limit(1)
           .single();
+        console.log('[POS] direct location fetch — data:', loc, '| error:', locErr?.message ?? null, '| code:', locErr?.code ?? null);
         locId = loc?.id ?? null;
       }
+
+      console.log('[POS] resolved locId:', locId);
 
       if (!locId) {
         Alert.alert('No Location', 'No location found. Please set up your location first.');
         return;
       }
 
-      console.log('[POS] pulling report for location:', locId, 'date:', today);
+      console.log('[POS] querying shifts for location:', locId, 'date:', today);
 
-      const { data: shift, error: shiftErr } = await supabase
+      const { data: shift, error: shiftErr, status: shiftStatus } = await supabase
         .from('shifts')
         .select('id, name, date, total_tips, total_sales, status')
         .eq('location_id', locId)
@@ -165,7 +174,9 @@ export default function POSScreen() {
         .limit(1)
         .maybeSingle();
 
-      if (shiftErr) console.log('[POS] shift fetch error:', shiftErr.message);
+      console.log('[POS] shift query — status:', shiftStatus, '| data:', JSON.stringify(shift), '| error:', shiftErr?.message ?? null, '| code:', shiftErr?.code ?? null);
+
+      if (shiftErr) console.log('[POS] shift fetch error detail:', shiftErr);
 
       if (!shift) {
         Alert.alert(
