@@ -433,7 +433,6 @@ export default function CalculateScreen() {
       }));
 
       const newSummary = calculateShiftSummary(serverInputs, DEFAULT_TIP_OUT_RULES);
-      setSummary(newSummary);
 
       const activeSupport = supportStaff.filter(
         (s) => s.included && parseFloat(s.hoursWorked) > 0,
@@ -445,8 +444,13 @@ export default function CalculateScreen() {
         points_per_hour: 1,
         hours_worked: parseFloat(s.hoursWorked),
       }));
+      const newPoolAllocations = calculateHousePool(newSummary.totalHousePool, poolRoles);
 
-      setHousePoolAllocations(calculateHousePool(newSummary.totalHousePool, poolRoles));
+      console.log('[Calculate] results summary:', JSON.stringify(newSummary));
+      console.log('[Calculate] housePool allocations:', JSON.stringify(newPoolAllocations));
+
+      setSummary(newSummary);
+      setHousePoolAllocations(newPoolAllocations);
     } catch (err: unknown) {
       Alert.alert('Calculation error', err instanceof Error ? err.message : String(err));
     }
@@ -1023,46 +1027,11 @@ export default function CalculateScreen() {
             <Text style={styles.subtitle}>Enter each server's sales and tips earned</Text>
           </View>
 
-          {isDesktop ? (
-            <View style={[styles.desktopPanes, { pointerEvents: 'box-none' }]}>
-              <View style={[styles.desktopFormPane, { pointerEvents: 'box-none' }]}>{formPanel}</View>
-              {resultsPanel && (
-                <View style={[styles.desktopResultsPane, { pointerEvents: 'box-none' }]}>{resultsPanel}</View>
-              )}
-            </View>
-          ) : (
-            <>
-              {formPanel}
-              {resultsPanel}
-            </>
-          )}
+          {formPanel}
+          {resultsPanel}
 
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* TEST: fixed red button outside the ScrollView/KAV chain to confirm
-          the button itself works when free of the container hierarchy.
-          If this fires but the in-scroll button doesn't, the issue is
-          confirmed to be the container chain, not the Pressable itself. */}
-      {Platform.OS === 'web' && (
-        <Pressable
-          onPress={handleCalculate}
-          style={{
-            position: 'absolute',
-            bottom: 24,
-            left: 24,
-            right: 24,
-            backgroundColor: '#e11d48',
-            paddingVertical: 16,
-            borderRadius: 14,
-            alignItems: 'center',
-            zIndex: 9999,
-          }}>
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>
-            TEST — Calculate (outside scroll)
-          </Text>
-        </Pressable>
-      )}
 
       {/* ── New Shift Modal ─────────────────────────────────────────────────── */}
       <Modal
