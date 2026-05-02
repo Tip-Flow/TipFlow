@@ -84,6 +84,7 @@ export default function MyTipsScreen() {
   const [unpaidCents, setUnpaidCents] = useState(0);
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('history');
 
   // EFT modal state
@@ -96,17 +97,31 @@ export default function MyTipsScreen() {
   }, []);
 
   const loadData = useCallback(async () => {
+    setLoadError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      console.log('[MyTips] auth user:', user?.email ?? 'none', '| authErr:', authErr?.message ?? null);
       if (!user) { setLoading(false); return; }
 
-      const { data: member } = await supabase
+      const { data: member, error: memberErr } = await supabase
         .from('staff_members')
         .select('id, name, payout_method, bank_linked, location_id, locations(name, id)')
         .eq('email', user.email ?? '')
         .maybeSingle();
 
-      if (!member) { setLoading(false); return; }
+      console.log('[MyTips] staff_members query — email:', user.email, '| data:', JSON.stringify(member), '| error:', memberErr?.message ?? null, '| code:', memberErr?.code ?? null);
+
+      if (!member) {
+        const msg = memberErr
+          ? `DB error: ${memberErr.message} (${memberErr.code})`
+          : `No staff record found for ${user.email}. Ask your manager to add you.`;
+        console.log('[MyTips] member lookup failed —', msg);
+        setLoadError(msg);
+        setLoading(false);
+        return;
+      }
+
+      console.log('[MyTips] resolved member id:', member.id, '| name:', member.name);
 
       const [paidRes, unpaidRes, requestsRes] = await Promise.all([
         supabase
@@ -118,7 +133,7 @@ export default function MyTipsScreen() {
           .limit(20),
         supabase
           .from('tip_allocations')
-          .select('calculated_amount')
+          .select('id, calculated_amount, paid_at, shift_id')
           .eq('staff_id', member.id)
           .is('paid_at', null),
         supabase
@@ -129,9 +144,14 @@ export default function MyTipsScreen() {
           .limit(10),
       ]);
 
+      console.log('[MyTips] paidRes — count:', paidRes.data?.length ?? 'null', '| error:', paidRes.error?.message ?? null, '| status:', paidRes.status);
+      console.log('[MyTips] unpaidRes — data:', JSON.stringify(unpaidRes.data), '| error:', unpaidRes.error?.message ?? null, '| status:', unpaidRes.status);
+      console.log('[MyTips] requestsRes — count:', requestsRes.data?.length ?? 'null', '| error:', requestsRes.error?.message ?? null, '| status:', requestsRes.status);
+
       const allocs = paidRes.data ?? [];
       const totalCents = allocs.reduce((sum, a) => sum + (a.calculated_amount ?? 0), 0);
       const unpaid = (unpaidRes.data ?? []).reduce((sum, a) => sum + (a.calculated_amount ?? 0), 0);
+      console.log('[MyTips] totalCents:', totalCents, '| unpaidCents:', unpaid);
 
       const loc = member.locations as any;
       setHero({
@@ -168,7 +188,9 @@ export default function MyTipsScreen() {
         }))
       );
     } catch (err) {
-      console.log('[MyTips] load error:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log('[MyTips] load exception:', msg);
+      setLoadError(msg);
     } finally {
       setLoading(false);
     }
@@ -429,7 +451,7 @@ export default function MyTipsScreen() {
         ) : (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              Could not load your tip data. Please check your connection and try again.
+              {loadError ?? 'Could not load your tip data. Please check your connection and try again.'}
             </Text>
           </View>
         )}
