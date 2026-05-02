@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,9 +8,10 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getDailyQuote, Quote } from '../../lib/quotes';
+import { useIsDesktop } from '@/hooks/use-is-desktop';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -36,6 +37,7 @@ const leaderboard = [
 
 export default function ManagerHome() {
   const router = useRouter();
+  const isDesktop = useIsDesktop();
   const [locationName, setLocationName] = useState(FALLBACK_STATS.locationName);
   const [tipsThisWeek, setTipsThisWeek] = useState(FALLBACK_STATS.tipsThisWeek);
   const [staffActive, setStaffActive] = useState(FALLBACK_STATS.staffActive);
@@ -53,67 +55,69 @@ export default function ManagerHome() {
     router.replace('/');
   }
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const [locationRes, staffRes, shiftsRes, bankRes] = await Promise.all([
-          supabase.from('locations').select('name, house_pool_balance').limit(1),
-          supabase.from('staff_members').select('id'),
-          supabase.from('shifts').select('total_tips'),
-          supabase.from('staff_members').select('id').eq('bank_linked', false),
-        ]);
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const [locationRes, staffRes, shiftsRes, bankRes] = await Promise.all([
+        supabase.from('locations').select('name, house_pool_balance').limit(1),
+        supabase.from('staff_members').select('id'),
+        supabase.from('shifts').select('total_tips'),
+        supabase.from('staff_members').select('id').eq('bank_linked', false),
+      ]);
 
-        console.log('[fetchDashboardData] locationRes:', {
-          data: locationRes.data,
-          count: locationRes.count,
-          error: locationRes.error,
-        });
-        console.log('[fetchDashboardData] staffRes:', {
-          data: staffRes.data,
-          count: staffRes.count,
-          error: staffRes.error,
-        });
-        console.log('[fetchDashboardData] shiftsRes:', {
-          data: shiftsRes.data,
-          count: shiftsRes.count,
-          error: shiftsRes.error,
-        });
-        console.log('[fetchDashboardData] bankRes:', {
-          data: bankRes.data,
-          count: bankRes.count,
-          error: bankRes.error,
-        });
+      console.log('[fetchDashboardData] locationRes:', {
+        data: locationRes.data,
+        count: locationRes.count,
+        error: locationRes.error,
+      });
+      console.log('[fetchDashboardData] staffRes:', {
+        data: staffRes.data,
+        count: staffRes.count,
+        error: staffRes.error,
+      });
+      console.log('[fetchDashboardData] shiftsRes:', {
+        data: shiftsRes.data,
+        count: shiftsRes.count,
+        error: shiftsRes.error,
+      });
+      console.log('[fetchDashboardData] bankRes:', {
+        data: bankRes.data,
+        count: bankRes.count,
+        error: bankRes.error,
+      });
 
-        if (locationRes.data && locationRes.data[0]) {
-          setLocationName(locationRes.data[0].name);
-          setHousePoolBalance(locationRes.data[0].house_pool_balance ?? 0);
-        }
-
-        if (staffRes.data) {
-          setStaffActive(String(staffRes.data.length));
-        }
-
-        if (shiftsRes.data) {
-          const totalCents = shiftsRes.data.reduce(
-            (sum, shift) => sum + (shift.total_tips ?? 0),
-            0
-          );
-          const dollars = Math.round(totalCents / 100);
-          setTipsThisWeek('$' + dollars.toLocaleString('en-CA'));
-        }
-
-        if (bankRes.data) {
-          setBankNotLinked(String(bankRes.data.length));
-        }
-      } catch {
-        // Keep fallback values already set in state
-      } finally {
-        setLoading(false);
+      if (locationRes.data && locationRes.data[0]) {
+        setLocationName(locationRes.data[0].name);
+        setHousePoolBalance(locationRes.data[0].house_pool_balance ?? 0);
       }
-    }
 
-    fetchDashboardData();
+      if (staffRes.data) {
+        setStaffActive(String(staffRes.data.length));
+      }
+
+      if (shiftsRes.data) {
+        const totalCents = shiftsRes.data.reduce(
+          (sum, shift) => sum + (shift.total_tips ?? 0),
+          0
+        );
+        const dollars = Math.round(totalCents / 100);
+        setTipsThisWeek('$' + dollars.toLocaleString('en-CA'));
+      }
+
+      if (bankRes.data) {
+        setBankNotLinked(String(bankRes.data.length));
+      }
+    } catch {
+      // Keep fallback values already set in state
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [fetchDashboardData])
+  );
 
   const stats = [
     { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: BLUE },
@@ -121,6 +125,82 @@ export default function ManagerHome() {
     { label: 'Staff Active', value: staffActive, icon: '👥', accent: BLUE },
     { label: 'Bank Not Linked', value: bankNotLinked, icon: '🏦', accent: '#ff6b6b' },
   ];
+
+  const kpiGrid = loading ? (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={BLUE} />
+    </View>
+  ) : (
+    <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+      {stats.map((stat) => (
+        <View key={stat.label} style={[styles.card, isDesktop && styles.cardDesktop]}>
+          <Text style={styles.cardIcon}>{stat.icon}</Text>
+          <Text style={[styles.cardValue, { color: stat.accent }]}>{stat.value}</Text>
+          <Text style={styles.cardLabel}>{stat.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  const teamGoal = (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Weekly Team Goal</Text>
+        <Text style={styles.sectionBadge}>2 days left</Text>
+      </View>
+      <View style={styles.progressTrack}>
+        <View style={styles.progressFill} />
+      </View>
+      <View style={styles.progressLabels}>
+        <Text style={styles.progressPct}>79%</Text>
+        <Text style={styles.progressTarget}>Goal: $10,000</Text>
+      </View>
+    </View>
+  );
+
+  const housePool = (
+    <TouchableOpacity
+      style={styles.housePoolCard}
+      onPress={() => router.push('/(manager)/housepool')}
+      activeOpacity={0.85}>
+      <View style={styles.housePoolLeft}>
+        <Text style={styles.housePoolIcon}>🏦</Text>
+        <View style={styles.housePoolInfo}>
+          <Text style={styles.housePoolTitle}>House Pool</Text>
+          <Text style={styles.housePoolSub}>Support staff tip pool</Text>
+        </View>
+      </View>
+      <View style={styles.housePoolRight}>
+        <Text style={styles.housePoolBalance}>
+          {'$' + (housePoolBalance / 100).toFixed(2)}
+        </Text>
+        <Text style={styles.housePoolArrow}>›</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const leaderboardPanel = (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Top Performers</Text>
+      <View style={styles.leaderboardCard}>
+        {leaderboard.map((entry, index) => (
+          <View
+            key={entry.rank}
+            style={[
+              styles.leaderRow,
+              index < leaderboard.length - 1 && styles.leaderRowBorder,
+            ]}>
+            <Text style={styles.medal}>{entry.medal}</Text>
+            <View style={styles.leaderInfo}>
+              <Text style={styles.leaderName}>{entry.name}</Text>
+              <Text style={styles.leaderRank}>#{entry.rank} this week</Text>
+            </View>
+            <Text style={styles.leaderTips}>{entry.tips}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -134,7 +214,7 @@ export default function ManagerHome() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
         showsVerticalScrollIndicator={false}>
 
         {/* Lead Card */}
@@ -152,79 +232,28 @@ export default function ManagerHome() {
           {loading ? 'Loading...' : locationName}
         </Text>
 
-        {/* Stat Cards 2x2 Grid */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={BLUE} />
+        {/* KPI cards */}
+        {kpiGrid}
+
+        {isDesktop ? (
+          /* Desktop: two-column layout for remaining content */
+          <View style={styles.desktopColumns}>
+            <View style={styles.desktopCol}>
+              {teamGoal}
+              {housePool}
+            </View>
+            <View style={styles.desktopCol}>
+              {leaderboardPanel}
+            </View>
           </View>
         ) : (
-        <View style={styles.grid}>
-          {stats.map((stat) => (
-            <View key={stat.label} style={styles.card}>
-              <Text style={styles.cardIcon}>{stat.icon}</Text>
-              <Text style={[styles.cardValue, { color: stat.accent }]}>{stat.value}</Text>
-              <Text style={styles.cardLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
+          /* Mobile: stacked */
+          <>
+            {teamGoal}
+            {housePool}
+            {leaderboardPanel}
+          </>
         )}
-
-        {/* Team Goal Progress */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Weekly Team Goal</Text>
-            <Text style={styles.sectionBadge}>2 days left</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
-          </View>
-          <View style={styles.progressLabels}>
-            <Text style={styles.progressPct}>79%</Text>
-            <Text style={styles.progressTarget}>Goal: $10,000</Text>
-          </View>
-        </View>
-
-        {/* House Pool Card */}
-        <TouchableOpacity
-          style={styles.housePoolCard}
-          onPress={() => router.push('/(manager)/housepool')}
-          activeOpacity={0.85}>
-          <View style={styles.housePoolLeft}>
-            <Text style={styles.housePoolIcon}>🏦</Text>
-            <View style={styles.housePoolInfo}>
-              <Text style={styles.housePoolTitle}>House Pool</Text>
-              <Text style={styles.housePoolSub}>Support staff tip pool</Text>
-            </View>
-          </View>
-          <View style={styles.housePoolRight}>
-            <Text style={styles.housePoolBalance}>
-              {'$' + (housePoolBalance / 100).toFixed(2)}
-            </Text>
-            <Text style={styles.housePoolArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Leaderboard Preview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Performers</Text>
-          <View style={styles.leaderboardCard}>
-            {leaderboard.map((entry, index) => (
-              <View
-                key={entry.rank}
-                style={[
-                  styles.leaderRow,
-                  index < leaderboard.length - 1 && styles.leaderRowBorder,
-                ]}>
-                <Text style={styles.medal}>{entry.medal}</Text>
-                <View style={styles.leaderInfo}>
-                  <Text style={styles.leaderName}>{entry.name}</Text>
-                  <Text style={styles.leaderRank}>#{entry.rank} this week</Text>
-                </View>
-                <Text style={styles.leaderTips}>{entry.tips}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -323,11 +352,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // Desktop content
+  contentDesktop: {
+    maxWidth: 1100,
+    alignSelf: 'stretch',
+  },
+  desktopColumns: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  desktopCol: {
+    flex: 1,
+    gap: 24,
+  },
+
   // Grid
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  gridDesktop: {
+    flexWrap: 'nowrap',
   },
   card: {
     backgroundColor: CARD,
@@ -337,6 +383,10 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     borderColor: '#1f3028',
+  },
+  cardDesktop: {
+    flex: 1,
+    width: undefined,
   },
   cardIcon: {
     fontSize: 22,

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
 // Demo — replace with real auth'd staff ID
@@ -184,32 +185,30 @@ export default function GoalsScreen() {
   const earnedCount = MILESTONES.filter((m) => m.earned).length;
   const [shiftGoals, setShiftGoals] = useState<ShiftGoal[]>([]);
 
-  useEffect(() => {
-    async function loadGoals() {
-      // Log what we're querying so we can verify the date
-      console.log('[GoalsScreen] Fetching shift goals for date:', TODAY_DATE);
+  const loadGoals = useCallback(async () => {
+    console.log('[GoalsScreen] Fetching shift goals for date:', TODAY_DATE);
 
-      // Fetch all shifts for today, then pull their goals via join.
-      // This avoids relying on a hardcoded shift_id that may not match the
-      // shift the manager actually created.
-      const { data, error } = await supabase
-        .from('shifts')
-        .select('id, shift_goals(id, title, goal_type, target_item, winner_staff_id)')
-        .eq('date', TODAY_DATE);
+    const { data, error } = await supabase
+      .from('shifts')
+      .select('id, shift_goals(id, title, goal_type, target_item, winner_staff_id)')
+      .eq('date', TODAY_DATE);
 
-      // Log the raw response so we can see exactly what Supabase returns
-      console.log('[GoalsScreen] raw Supabase response:', JSON.stringify(data));
-      if (error) {
-        console.log('[GoalsScreen] Supabase error:', error.message);
-      }
-
-      const goals = data?.flatMap((shift) => (shift.shift_goals as ShiftGoal[]) ?? []) ?? [];
-      console.log('[GoalsScreen] resolved shift_ids used:', data?.map((s) => s.id));
-      console.log('[GoalsScreen] goals found:', goals.length);
-      setShiftGoals(goals);
+    console.log('[GoalsScreen] raw Supabase response:', JSON.stringify(data));
+    if (error) {
+      console.log('[GoalsScreen] Supabase error:', error.message);
     }
-    loadGoals();
+
+    const goals = data?.flatMap((shift) => (shift.shift_goals as ShiftGoal[]) ?? []) ?? [];
+    console.log('[GoalsScreen] resolved shift_ids used:', data?.map((s) => s.id));
+    console.log('[GoalsScreen] goals found:', goals.length);
+    setShiftGoals(goals);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadGoals();
+    }, [loadGoals])
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

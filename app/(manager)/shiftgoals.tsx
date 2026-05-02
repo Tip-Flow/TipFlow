@@ -307,11 +307,13 @@ export default function ShiftGoalsScreen() {
         text: 'Remove',
         style: 'destructive',
         onPress: async () => {
+          const snapshot = goals.find((g) => g.id === goalId);
           setGoals((prev) => prev.filter((g) => g.id !== goalId));
           try {
-            await supabase.from('shift_goals').delete().eq('id', goalId);
+            const { error } = await supabase.from('shift_goals').delete().eq('id', goalId);
+            if (error) throw error;
           } catch {
-            // Offline — already removed from local state
+            if (snapshot) setGoals((prev) => [...prev, snapshot]);
           }
         },
       },
@@ -329,23 +331,25 @@ export default function ShiftGoalsScreen() {
     if (!winnerPickerGoal) return;
     setPickerVisible(false);
 
-    const updatedGoal = { ...winnerPickerGoal, winner_staff_id: staffId };
-    setGoals((prev) => prev.map((g) => (g.id === winnerPickerGoal.id ? updatedGoal : g)));
+    const originalGoal = winnerPickerGoal;
+    const updatedGoal = { ...originalGoal, winner_staff_id: staffId };
+    setGoals((prev) => prev.map((g) => (g.id === originalGoal.id ? updatedGoal : g)));
 
     try {
-      await supabase
+      const { error } = await supabase
         .from('shift_goals')
         .update({ winner_staff_id: staffId })
-        .eq('id', winnerPickerGoal.id);
-    } catch {
-      // Offline — local state already updated
-    }
+        .eq('id', originalGoal.id);
+      if (error) throw error;
 
-    const winner = staff.find((s) => s.id === staffId);
-    Alert.alert(
-      '🎉 Winner marked!',
-      `${winner?.name ?? 'Staff member'} has been notified about their incentive.`
-    );
+      const winner = staff.find((s) => s.id === staffId);
+      Alert.alert(
+        '🎉 Winner marked!',
+        `${winner?.name ?? 'Staff member'} has been notified about their incentive.`
+      );
+    } catch {
+      setGoals((prev) => prev.map((g) => (g.id === originalGoal.id ? originalGoal : g)));
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

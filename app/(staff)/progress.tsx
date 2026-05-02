@@ -1,5 +1,8 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 const BG     = '#09100e';
 const CARD   = '#162019';
@@ -9,17 +12,16 @@ const MUTED  = '#6b7a74';
 const LABEL  = '#9db8ad';
 const BORDER = '#1e3028';
 
-// Level thresholds based on personal tip average
 const LEVELS = [
-  { name: 'Bronze Server', icon: '🥉', min: 0,  max: 15, color: '#cd7f32', nextName: 'Silver Server' },
-  { name: 'Silver Server', icon: '🥈', min: 15, max: 18, color: '#b0bec5', nextName: 'Gold Server'   },
-  { name: 'Gold Server',   icon: '⭐', min: 18, max: 21, color: '#f5c542', nextName: 'Platinum'      },
-  { name: 'Platinum',      icon: '💎', min: 21, max: 24, color: '#7ec8e3', nextName: 'Elite'         },
-  { name: 'Elite',         icon: '🏆', min: 24, max: 100, color: '#4169E1', nextName: null            },
+  { name: 'Bronze Server', icon: '🥉', min: 0,   max: 15,  color: '#cd7f32', nextName: 'Silver Server' },
+  { name: 'Silver Server', icon: '🥈', min: 15,  max: 18,  color: '#b0bec5', nextName: 'Gold Server'   },
+  { name: 'Gold Server',   icon: '⭐', min: 18,  max: 21,  color: '#f5c542', nextName: 'Platinum'      },
+  { name: 'Platinum',      icon: '💎', min: 21,  max: 24,  color: '#7ec8e3', nextName: 'Elite'         },
+  { name: 'Elite',         icon: '🏆', min: 24,  max: 100, color: '#4169E1', nextName: null            },
 ];
 
 function getLevel(avg: number) {
-  return LEVELS.find((l) => avg >= l.min && avg < l.max) ?? LEVELS[LEVELS.length - 1];
+  return LEVELS.find(l => avg >= l.min && avg < l.max) ?? LEVELS[LEVELS.length - 1];
 }
 
 function getLevelProgress(avg: number) {
@@ -28,27 +30,136 @@ function getLevelProgress(avg: number) {
   return (avg - level.min) / (level.max - level.min);
 }
 
-// Sample personal data
-const MY_AVG         = 22.4;
-const PERSONAL_BEST  = 26.1;
-const STREAK         = 3;    // shifts in a row above personal average
-const WEEKLY_GOAL    = 20;   // personal % target
-const WEEKLY_CURRENT = 22.4; // current week average
+type ShiftPoint = {
+  label: string;
+  pct: number;
+};
 
-const RECENT_SHIFTS = [
-  { label: 'Mar 9',  pct: 19.2 },
-  { label: 'Mar 11', pct: 21.8 },
-  { label: 'Mar 13', pct: 24.0 },
-  { label: 'Mar 15', pct: 22.4 },
-  { label: 'Mar 17', pct: 23.1 },
-];
+type ProgressData = {
+  avg: number;
+  personalBest: number;
+  streak: number;
+  weeklyAvg: number;
+  weeklyGoal: number;
+  recentShifts: ShiftPoint[];
+};
 
 const CHART_MAX = 28;
+const WEEKLY_GOAL = 20;
 
 export default function ProgressScreen() {
-  const level         = getLevel(MY_AVG);
-  const levelProgress = getLevelProgress(MY_AVG);
-  const weeklyProgress = Math.min(WEEKLY_CURRENT / WEEKLY_GOAL, 1);
+  const [data, setData] = useState<ProgressData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
+      const { data: member } = await supabase
+        .from('staff_members')
+        .select('id')
+        .eq('email', user.email ?? '')
+        .maybeSingle();
+
+      if (!member) { setLoading(false); return; }
+
+      const { data: allocations } = await supabase
+        .from('tip_allocations')
+        .select('id, calculated_amount, paid_at, shifts(name, date, total_tips, total_sales)')
+        .eq('staff_id', member.id)
+        .order('paid_at', { ascending: false })
+        .limit(30);
+
+      if (!allocations || allocations.length === 0) { setLoading(false); return; }
+
+      // tip % = this staff's tips / shift's total_tips * 100
+      // This gives their share of the total tip pool as a percentage
+      const points: { pct: number; label: string; date: string }[] = allocations
+        .filter(a => {
+          const shift = a.shifts as any;
+          return shift && shift.total_tips > 0;
+        })
+        .map(a => {
+          const shift = a.shifts as any;
+          const pct = ((a.calculated_amount ?? 0) / shift.total_tips) * 100;
+          const d = new Date(shift.date);
+          const label = d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+          return { pct: parseFloat(pct.toFixed(1)), label, date: shift.date };
+        });
+
+      if (points.length === 0) { setLoading(false); return; }
+
+      const avg = points.reduce((sum, p) => sum + p.pct, 0) / points.length;
+      const personalBest = Math.max(...points.map(p => p.pct));
+
+      // Streak: consecutive recent shifts above personal average (most recent first)
+      let streak = 0;
+      for (const p of points) {
+        if (p.pct >= avg) streak++;
+        else break;
+      }
+
+      // Weekly average: shifts in the current week
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekPoints = points.filter(p => p.date >= weekStartStr);
+      const weeklyAvg = weekPoints.length > 0
+        ? weekPoints.reduce((sum, p) => sum + p.pct, 0) / weekPoints.length
+        : 0;
+
+      // Last 5 shifts for chart (chronological order)
+      const recentShifts = points.slice(0, 5).reverse();
+
+      setData({
+        avg: parseFloat(avg.toFixed(1)),
+        personalBest: parseFloat(personalBest.toFixed(1)),
+        streak,
+        weeklyAvg: parseFloat(weeklyAvg.toFixed(1)),
+        weeklyGoal: WEEKLY_GOAL,
+        recentShifts,
+      });
+    } catch (err) {
+      console.log('[Progress] load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={BLUE} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!data) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <View style={styles.headerBlock}>
+            <Text style={styles.screenTitle}>📈 My Progress</Text>
+            <Text style={styles.screenSub}>Your personal journey — every shift counts.</Text>
+          </View>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              No shift data yet. Your progress will appear here once you've been paid for at least one shift.
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  const level = getLevel(data.avg);
+  const levelProgress = getLevelProgress(data.avg);
+  const weeklyProgress = Math.min(data.weeklyAvg / data.weeklyGoal, 1);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -57,7 +168,6 @@ export default function ProgressScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <View style={styles.headerBlock}>
           <Text style={styles.screenTitle}>📈 My Progress</Text>
           <Text style={styles.screenSub}>Your personal journey — every shift counts.</Text>
@@ -73,7 +183,7 @@ export default function ProgressScreen() {
               </Text>
             </View>
             <View style={styles.avgPill}>
-              <Text style={styles.avgPillText}>{MY_AVG}% avg</Text>
+              <Text style={styles.avgPillText}>{data.avg}% avg</Text>
             </View>
           </View>
 
@@ -88,7 +198,7 @@ export default function ProgressScreen() {
 
           {level.nextName ? (
             <Text style={styles.levelNextText}>
-              {(level.max - MY_AVG).toFixed(1)}% more to reach{' '}
+              {(level.max - data.avg).toFixed(1)}% more to reach{' '}
               <Text style={{ color: level.color }}>{level.nextName}</Text>. Keep going!
             </Text>
           ) : (
@@ -102,12 +212,12 @@ export default function ProgressScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>🏅</Text>
-            <Text style={styles.statValue}>{PERSONAL_BEST}%</Text>
+            <Text style={styles.statValue}>{data.personalBest}%</Text>
             <Text style={styles.statLabel}>Personal Best</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>🔥</Text>
-            <Text style={styles.statValue}>{STREAK} shifts</Text>
+            <Text style={styles.statValue}>{data.streak} shift{data.streak !== 1 ? 's' : ''}</Text>
             <Text style={styles.statLabel}>Above your avg</Text>
           </View>
         </View>
@@ -116,7 +226,7 @@ export default function ProgressScreen() {
         <View style={styles.card}>
           <View style={styles.goalRow}>
             <Text style={styles.cardTitle}>Weekly Personal Goal</Text>
-            <Text style={styles.goalTarget}>{WEEKLY_GOAL}% target</Text>
+            <Text style={styles.goalTarget}>{data.weeklyGoal}% target</Text>
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${weeklyProgress * 100}%` as any }]} />
@@ -124,49 +234,50 @@ export default function ProgressScreen() {
           <Text style={styles.goalMeta}>
             {weeklyProgress >= 1
               ? '🎉 You crushed your goal this week!'
-              : `You're at ${WEEKLY_CURRENT}% — ${(WEEKLY_GOAL - WEEKLY_CURRENT).toFixed(1)}% away from your goal. Almost there!`}
+              : `You're at ${data.weeklyAvg}% — ${(data.weeklyGoal - data.weeklyAvg).toFixed(1)}% away from your goal.`}
           </Text>
         </View>
 
         {/* Recent Shifts Chart */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Recent Shifts</Text>
-          <Text style={styles.chartSub}>Your last 5 shifts — keep that trend up!</Text>
+        {data.recentShifts.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Recent Shifts</Text>
+            <Text style={styles.chartSub}>Your last {data.recentShifts.length} shifts — keep that trend up!</Text>
 
-          <View style={styles.chartArea}>
-            {RECENT_SHIFTS.map((s) => {
-              const barHeight = Math.max((s.pct / CHART_MAX) * 100, 8);
-              const isAboveAvg = s.pct >= MY_AVG;
-              return (
-                <View key={s.label} style={styles.barCol}>
-                  <Text style={styles.barPct}>{s.pct}%</Text>
-                  <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          height: `${barHeight}%` as any,
-                          backgroundColor: isAboveAvg ? BLUE : '#2a4a3a',
-                        },
-                      ]}
-                    />
+            <View style={styles.chartArea}>
+              {data.recentShifts.map(s => {
+                const barHeight = Math.max((s.pct / CHART_MAX) * 100, 8);
+                const isAboveAvg = s.pct >= data.avg;
+                return (
+                  <View key={s.label} style={styles.barCol}>
+                    <Text style={styles.barPct}>{s.pct}%</Text>
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            height: `${barHeight}%` as any,
+                            backgroundColor: isAboveAvg ? BLUE : '#2a4a3a',
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barLabel}>{s.label}</Text>
                   </View>
-                  <Text style={styles.barLabel}>{s.label}</Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
 
-          <View style={styles.chartLegend}>
-            <View style={styles.legendDot} />
-            <Text style={styles.legendText}>Above your average ({MY_AVG}%)</Text>
+            <View style={styles.chartLegend}>
+              <View style={styles.legendDot} />
+              <Text style={styles.legendText}>Above your average ({data.avg}%)</Text>
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Encouragement footer */}
         <View style={styles.encourageBar}>
           <Text style={styles.encourageText}>
-            💪 You're in the top tier of your personal performance. Every shift is an opportunity to set a new best.
+            💪 Every shift is an opportunity to set a new best. Keep going!
           </Text>
         </View>
 
@@ -176,39 +287,24 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    gap: 12,
-  },
+  safe: { flex: 1, backgroundColor: BG },
+  scroll: { flex: 1, backgroundColor: BG },
+  content: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  // Header
-  headerBlock: {
-    marginTop: 8,
-    marginBottom: 4,
-    gap: 4,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.5,
-  },
-  screenSub: {
-    fontSize: 14,
-    color: MUTED,
-    fontWeight: '500',
-  },
+  headerBlock: { marginTop: 8, marginBottom: 4, gap: 4 },
+  screenTitle: { fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  screenSub: { fontSize: 14, color: MUTED, fontWeight: '500' },
 
-  // Level card
+  emptyCard: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  emptyText: { fontSize: 14, color: MUTED, lineHeight: 20, textAlign: 'center' },
+
   levelCard: {
     backgroundColor: CARD,
     borderRadius: 16,
@@ -217,11 +313,7 @@ const styles = StyleSheet.create({
     borderColor: BLUE,
     gap: 12,
   },
-  levelTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  levelTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   levelLabel: {
     fontSize: 12,
     color: LABEL,
@@ -230,11 +322,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  levelName: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
+  levelName: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   avgPill: {
     backgroundColor: '#0d2a1e',
     borderRadius: 20,
@@ -243,33 +331,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1a5c3a',
   },
-  avgPillText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: BLUE,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: '#1e3028',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: BLUE,
-    borderRadius: 4,
-  },
-  levelNextText: {
-    fontSize: 13,
-    color: LABEL,
-    lineHeight: 18,
-  },
+  avgPillText: { fontSize: 14, fontWeight: '700', color: BLUE },
+  progressTrack: { height: 8, backgroundColor: '#1e3028', borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: BLUE, borderRadius: 4 },
+  levelNextText: { fontSize: 13, color: LABEL, lineHeight: 18 },
 
-  // Stats row
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  statsRow: { flexDirection: 'row', gap: 12 },
   statCard: {
     flex: 1,
     backgroundColor: CARD,
@@ -280,78 +347,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  statIcon: {
-    fontSize: 28,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#e8f5ef',
-    letterSpacing: -0.3,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: MUTED,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  statIcon: { fontSize: 28 },
+  statValue: { fontSize: 20, fontWeight: '800', color: '#e8f5ef', letterSpacing: -0.3 },
+  statLabel: { fontSize: 12, color: MUTED, fontWeight: '500', textAlign: 'center' },
 
-  // Generic card
-  card: {
-    backgroundColor: CARD,
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: BORDER,
-    gap: 10,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
+  card: { backgroundColor: CARD, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: BORDER, gap: 10 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
-  // Weekly goal
-  goalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  goalTarget: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: GOLD,
-  },
-  goalMeta: {
-    fontSize: 13,
-    color: LABEL,
-    lineHeight: 18,
-  },
+  goalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  goalTarget: { fontSize: 14, fontWeight: '700', color: GOLD },
+  goalMeta: { fontSize: 13, color: LABEL, lineHeight: 18 },
 
-  // Chart
-  chartSub: {
-    fontSize: 13,
-    color: MUTED,
-    marginTop: -4,
-  },
-  chartArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 120,
-    gap: 8,
-    marginTop: 8,
-  },
-  barCol: {
-    flex: 1,
-    alignItems: 'center',
-    height: '100%',
-    gap: 4,
-  },
-  barPct: {
-    fontSize: 10,
-    color: LABEL,
-    fontWeight: '600',
-  },
+  chartSub: { fontSize: 13, color: MUTED, marginTop: -4 },
+  chartArea: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 8, marginTop: 8 },
+  barCol: { flex: 1, alignItems: 'center', height: '100%', gap: 4 },
+  barPct: { fontSize: 10, color: LABEL, fontWeight: '600' },
   barTrack: {
     flex: 1,
     width: '100%',
@@ -360,33 +370,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
-  barFill: {
-    width: '100%',
-    borderRadius: 4,
-  },
-  barLabel: {
-    fontSize: 10,
-    color: MUTED,
-    fontWeight: '500',
-  },
-  chartLegend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: BLUE,
-  },
-  legendText: {
-    fontSize: 12,
-    color: MUTED,
-  },
+  barFill: { width: '100%', borderRadius: 4 },
+  barLabel: { fontSize: 10, color: MUTED, fontWeight: '500' },
+  chartLegend: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: BLUE },
+  legendText: { fontSize: 12, color: MUTED },
 
-  // Encouragement
   encourageBar: {
     backgroundColor: '#0d2a1e',
     borderRadius: 12,
@@ -394,10 +383,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1a4a2e',
   },
-  encourageText: {
-    fontSize: 13,
-    color: '#5fba8a',
-    fontWeight: '500',
-    lineHeight: 20,
-  },
+  encourageText: { fontSize: 13, color: '#5fba8a', fontWeight: '500', lineHeight: 20 },
 });

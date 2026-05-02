@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +9,8 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -21,57 +24,106 @@ const BORDER = '#1f3028';
 type Level = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Elite';
 
 const levelStyle: Record<Level, { bg: string; text: string }> = {
-  Bronze: { bg: 'rgba(180,83,9,0.2)', text: '#d97706' },
-  Silver: { bg: 'rgba(107,114,128,0.2)', text: '#9ca3af' },
-  Gold: { bg: 'rgba(245,158,11,0.2)', text: AMBER },
-  Platinum: { bg: 'rgba(139,92,246,0.2)', text: '#a78bfa' },
-  Elite: { bg: BLUE_DIM, text: BLUE },
+  Bronze:   { bg: 'rgba(180,83,9,0.2)',    text: '#d97706' },
+  Silver:   { bg: 'rgba(107,114,128,0.2)', text: '#9ca3af' },
+  Gold:     { bg: 'rgba(245,158,11,0.2)',  text: AMBER     },
+  Platinum: { bg: 'rgba(139,92,246,0.2)',  text: '#a78bfa' },
+  Elite:    { bg: BLUE_DIM,               text: BLUE      },
 };
 
-const teamData = [
-  {
-    location: 'Ossington',
-    staff: [
-      { name: 'Priya S.', role: 'Server', level: 'Gold' as Level, tips: '$1,840' },
-      { name: 'Marcus T.', role: 'Bartender', level: 'Silver' as Level, tips: '$1,610' },
-      { name: 'Lena K.', role: 'Server', level: 'Platinum' as Level, tips: '$1,290' },
-      { name: 'Devon A.', role: 'Runner', level: 'Bronze' as Level, tips: '$720' },
-    ],
-  },
-  {
-    location: 'Kensington',
-    staff: [
-      { name: 'Sam R.', role: 'Server', level: 'Elite' as Level, tips: '$2,140' },
-      { name: 'Tara M.', role: 'Bartender', level: 'Gold' as Level, tips: '$1,520' },
-      { name: 'Chris J.', role: 'Server', level: 'Silver' as Level, tips: '$1,180' },
-    ],
-  },
-  {
-    location: 'Distillery',
-    staff: [
-      { name: 'Anika P.', role: 'Server', level: 'Gold' as Level, tips: '$1,640' },
-      { name: 'Jordan B.', role: 'Bartender', level: 'Silver' as Level, tips: '$1,340' },
-      { name: 'Felix O.', role: 'Host', level: 'Bronze' as Level, tips: '$480' },
-    ],
-  },
-];
+function getTierFromEarnings(cents: number): Level {
+  if (cents >= 500000) return 'Elite';
+  if (cents >= 300000) return 'Platinum';
+  if (cents >= 150000) return 'Gold';
+  if (cents >= 50000)  return 'Silver';
+  return 'Bronze';
+}
+
+type StaffRow = {
+  id: string;
+  name: string;
+  role: string;
+  locationId: string;
+  locationName: string;
+  totalEarnedCents: number;
+};
+
+type LocationGroup = {
+  locationId: string;
+  locationName: string;
+  staff: StaffRow[];
+};
 
 const ALL = 'All Locations';
-const locationOptions = [ALL, 'Ossington', 'Kensington', 'Distillery'];
 
 export default function RegionalTeam() {
+  const [groups, setGroups] = useState<LocationGroup[]>([]);
+  const [locationOptions, setLocationOptions] = useState<string[]>([ALL]);
   const [selectedLocation, setSelectedLocation] = useState(ALL);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filtered = teamData
-    .filter((g) => selectedLocation === ALL || g.location === selectedLocation)
-    .map((g) => ({
+  const fetchTeam = useCallback(async () => {
+    try {
+      const [staffRes, locsRes, allocRes] = await Promise.all([
+        supabase.from('staff_members').select('id, name, role, location_id'),
+        supabase.from('locations').select('id, name'),
+        supabase.from('tip_allocations').select('staff_id, calculated_amount').not('paid_at', 'is', null),
+      ]);
+
+      const staff = staffRes.data ?? [];
+      const locs = locsRes.data ?? [];
+      const allocs = allocRes.data ?? [];
+
+      // Sum earnings per staff member
+      const earningsByStaff: Record<string, number> = {};
+      for (const alloc of allocs) {
+        earningsByStaff[alloc.staff_id] = (earningsByStaff[alloc.staff_id] ?? 0) + (alloc.calculated_amount ?? 0);
+      }
+
+      const locMap = Object.fromEntries(locs.map(l => [l.id, l.name]));
+
+      const rows: StaffRow[] = staff.map(s => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        locationId: s.location_id,
+        locationName: locMap[s.location_id] ?? 'Unknown',
+        totalEarnedCents: earningsByStaff[s.id] ?? 0,
+      }));
+
+      // Group by location
+      const locNames = [...new Set(locs.map(l => l.name))].sort();
+      setLocationOptions([ALL, ...locNames]);
+
+      const grouped: LocationGroup[] = locs.map(loc => ({
+        locationId: loc.id,
+        locationName: loc.name,
+        staff: rows
+          .filter(r => r.locationId === loc.id)
+          .sort((a, b) => b.totalEarnedCents - a.totalEarnedCents),
+      })).filter(g => g.staff.length > 0);
+
+      setGroups(grouped);
+    } catch (err) {
+      console.log('[Team] fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { fetchTeam(); }, [fetchTeam]));
+
+  const filtered = groups
+    .filter(g => selectedLocation === ALL || g.locationName === selectedLocation)
+    .map(g => ({
       ...g,
-      staff: g.staff.filter((s) =>
-        s.name.toLowerCase().includes(search.toLowerCase())
+      staff: g.staff.filter(s =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.role.toLowerCase().includes(search.toLowerCase())
       ),
     }))
-    .filter((g) => g.staff.length > 0);
+    .filter(g => g.staff.length > 0);
 
   const totalVisible = filtered.reduce((sum, g) => sum + g.staff.length, 0);
 
@@ -88,7 +140,7 @@ export default function RegionalTeam() {
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by name..."
+          placeholder="Search by name or role..."
           placeholderTextColor="#4a5e56"
           value={search}
           onChangeText={setSearch}
@@ -102,7 +154,7 @@ export default function RegionalTeam() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}>
-        {locationOptions.map((loc) => (
+        {locationOptions.map(loc => (
           <TouchableOpacity
             key={loc}
             style={[styles.chip, selectedLocation === loc && styles.chipActive]}
@@ -115,55 +167,61 @@ export default function RegionalTeam() {
         ))}
       </ScrollView>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={BLUE} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}>
 
-        {filtered.map((group) => (
-          <View key={group.location} style={styles.locationGroup}>
-            <Text style={styles.locationLabel}>{group.location}</Text>
-            <View style={styles.staffCard}>
-              {group.staff.map((member, index) => {
-                const badge = levelStyle[member.level];
-                return (
-                  <View
-                    key={member.name}
-                    style={[
-                      styles.staffRow,
-                      index < group.staff.length - 1 && styles.rowBorder,
-                    ]}>
-                    <View style={styles.staffLeft}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{member.name[0]}</Text>
+          {filtered.map(group => (
+            <View key={group.locationId} style={styles.locationGroup}>
+              <Text style={styles.locationLabel}>{group.locationName}</Text>
+              <View style={styles.staffCard}>
+                {group.staff.map((member, index) => {
+                  const level = getTierFromEarnings(member.totalEarnedCents);
+                  const badge = levelStyle[level];
+                  return (
+                    <View
+                      key={member.id}
+                      style={[styles.staffRow, index < group.staff.length - 1 && styles.rowBorder]}>
+                      <View style={styles.staffLeft}>
+                        <View style={styles.avatar}>
+                          <Text style={styles.avatarText}>{member.name[0]}</Text>
+                        </View>
+                        <View style={styles.staffInfo}>
+                          <Text style={styles.staffName}>{member.name}</Text>
+                          <Text style={styles.staffRole}>{member.role}</Text>
+                        </View>
                       </View>
-                      <View style={styles.staffInfo}>
-                        <Text style={styles.staffName}>{member.name}</Text>
-                        <Text style={styles.staffRole}>{member.role}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.staffRight}>
-                      <View style={[styles.levelBadge, { backgroundColor: badge.bg }]}>
-                        <Text style={[styles.levelText, { color: badge.text }]}>
-                          {member.level}
+                      <View style={styles.staffRight}>
+                        <View style={[styles.levelBadge, { backgroundColor: badge.bg }]}>
+                          <Text style={[styles.levelText, { color: badge.text }]}>{level}</Text>
+                        </View>
+                        <Text style={styles.staffTips}>
+                          ${(member.totalEarnedCents / 100).toLocaleString('en-CA', { maximumFractionDigits: 0 })}
                         </Text>
                       </View>
-                      <Text style={styles.staffTips}>{member.tips}</Text>
                     </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
 
-        {filtered.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No staff found</Text>
-          </View>
-        )}
+          {filtered.length === 0 && !loading && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                {search ? 'No staff found matching your search.' : 'No staff members yet.'}
+              </Text>
+            </View>
+          )}
 
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -186,11 +244,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   countText: { fontSize: 12, fontWeight: '700', color: BLUE },
-  searchWrap: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
+  searchWrap: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   searchInput: {
     backgroundColor: CARD,
     borderWidth: 1,
@@ -201,11 +255,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: WHITE,
   },
-  filterRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 8,
-  },
+  filterRow: { paddingHorizontal: 20, paddingVertical: 10, gap: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -217,12 +267,9 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: BLUE_DIM, borderColor: BLUE },
   chipText: { fontSize: 13, fontWeight: '600', color: MUTED },
   chipTextActive: { color: BLUE },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    gap: 20,
-  },
+  content: { paddingHorizontal: 20, paddingBottom: 32, gap: 20 },
   locationGroup: { gap: 10 },
   locationLabel: {
     fontSize: 13,
@@ -264,5 +311,5 @@ const styles = StyleSheet.create({
   levelText: { fontSize: 11, fontWeight: '700' },
   staffTips: { fontSize: 13, fontWeight: '600', color: BLUE },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { fontSize: 15, color: MUTED },
+  emptyText: { fontSize: 15, color: MUTED, textAlign: 'center' },
 });

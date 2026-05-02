@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 import { getDailyQuote, Quote } from '../../lib/quotes';
 
 const BG = '#09100e';
@@ -11,12 +13,96 @@ const MUTED = '#6b7a74';
 const LABEL = '#9db8ad';
 const BORDER = '#1e3028';
 
+type Payout = {
+  id: string;
+  amount: number;
+  paidAt: string;
+  shiftName: string;
+  aptpayRef: string | null;
+};
+
+type HeroData = {
+  staffName: string;
+  locationName: string;
+  totalCents: number;
+  shiftCount: number;
+  payoutMethod: string | null;
+};
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-CA', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function MyTipsScreen() {
   const [staffQuote, setStaffQuote] = useState<Quote | null>(null);
+  const [hero, setHero] = useState<HeroData | null>(null);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getDailyQuote('staff').then(setStaffQuote);
   }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
+      const { data: member } = await supabase
+        .from('staff_members')
+        .select('id, name, payout_method, location_id, locations(name)')
+        .eq('email', user.email ?? '')
+        .maybeSingle();
+
+      if (!member) { setLoading(false); return; }
+
+      const { data: allocations } = await supabase
+        .from('tip_allocations')
+        .select('id, calculated_amount, paid_at, aptpay_ref, shifts(name, date)')
+        .eq('staff_id', member.id)
+        .not('paid_at', 'is', null)
+        .order('paid_at', { ascending: false })
+        .limit(20);
+
+      const allocs = allocations ?? [];
+      const totalCents = allocs.reduce((sum, a) => sum + (a.calculated_amount ?? 0), 0);
+
+      setHero({
+        staffName: member.name,
+        locationName: (member.locations as any)?.name ?? 'Your Location',
+        totalCents,
+        shiftCount: allocs.length,
+        payoutMethod: member.payout_method,
+      });
+
+      setPayouts(
+        allocs.map(a => ({
+          id: a.id,
+          amount: a.calculated_amount ?? 0,
+          paidAt: a.paid_at ?? '',
+          shiftName: (a.shifts as any)?.name ?? 'Shift',
+          aptpayRef: a.aptpay_ref,
+        }))
+      );
+    } catch (err) {
+      console.log('[MyTips] load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  function payoutMethodLabel(method: string | null): string {
+    if (method === 'etransfer') return '📱 Interac e-Transfer';
+    if (method === 'eft') return '🏦 EFT';
+    if (method === 'cash') return '💵 Cash';
+    return '📱 Interac e-Transfer';
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -25,7 +111,6 @@ export default function MyTipsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <Text style={styles.screenTitle}>My Tips</Text>
 
         {/* Daily Intention Card */}
@@ -37,121 +122,85 @@ export default function MyTipsScreen() {
           ) : null}
         </View>
 
-        {/* Hero Card */}
-        <View style={styles.heroCard}>
-          <Text style={styles.heroSubtitle}>Alex Dubois · Ossington</Text>
-          <Text style={styles.heroAmount}>$4,820</Text>
-          <Text style={styles.heroMeta}>CAD earned · 12 shifts paid</Text>
-
-          <View style={styles.badgeRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Gold Server ⭐</Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Personal Best: 26.1% 🏅</Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>🔥 3 shift streak</Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={BLUE} />
           </View>
+        ) : hero ? (
+          <>
+            {/* Hero Card */}
+            <View style={styles.heroCard}>
+              <Text style={styles.heroSubtitle}>
+                {hero.staffName} · {hero.locationName}
+              </Text>
+              <Text style={styles.heroAmount}>
+                ${(hero.totalCents / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+              <Text style={styles.heroMeta}>
+                CAD earned · {hero.shiftCount} shift{hero.shiftCount !== 1 ? 's' : ''} paid
+              </Text>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
 
-          <View style={styles.payoutRow}>
-            <Text style={styles.payoutLabel}>📱 Interac e-Transfer</Text>
-            <View style={styles.instantBadge}>
-              <Text style={styles.instantText}>Instant · 24/7</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Milestones Preview */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Active Milestones</Text>
-            <Text style={styles.cardLink}>See all</Text>
-          </View>
-
-          {/* Milestone 1 */}
-          <View style={styles.challenge}>
-            <View style={styles.challengeTop}>
-              <Text style={styles.challengeName}>💪 5 Shift Streak</Text>
-              <Text style={styles.challengeIncentive}>Incentive</Text>
-            </View>
-            <Text style={styles.challengeDesc}>5 shifts in a row above your personal average</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: '60%' }]} />
-            </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressMuted}>3 / 5 shifts</Text>
-              <Text style={styles.progressMuted}>60%</Text>
-            </View>
-          </View>
-
-          <View style={styles.challengeSep} />
-
-          {/* Milestone 2 */}
-          <View style={styles.challenge}>
-            <View style={styles.challengeTop}>
-              <Text style={styles.challengeName}>🎯 Hit Weekly Goal</Text>
-              <Text style={styles.challengeIncentive}>Incentive</Text>
-            </View>
-            <Text style={styles.challengeDesc}>Reach your personal weekly tip % target</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: '100%' }]} />
-            </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressMuted}>Goal hit this week!</Text>
-              <Text style={styles.progressMuted}>100%</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Recent Payouts */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Recent Payouts</Text>
-          </View>
-
-          {PAYOUTS.map((p, i) => (
-            <View key={p.ref} style={[styles.payoutItem, i < PAYOUTS.length - 1 && styles.payoutItemBorder]}>
-              <View style={styles.payoutLeft}>
-                <Text style={styles.payoutAmount}>{p.amount}</Text>
-                <Text style={styles.payoutDate}>{p.date}</Text>
-              </View>
-              <View style={styles.payoutRight}>
-                <Text style={styles.payoutStatus}>Paid</Text>
-                <Text style={styles.payoutRef}>AptPay · {p.ref}</Text>
+              <View style={styles.payoutRow}>
+                <Text style={styles.payoutLabel}>{payoutMethodLabel(hero.payoutMethod)}</Text>
+                <View style={styles.instantBadge}>
+                  <Text style={styles.instantText}>Instant · 24/7</Text>
+                </View>
               </View>
             </View>
-          ))}
-        </View>
+
+            {/* Recent Payouts */}
+            {payouts.length > 0 && (
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Recent Payouts</Text>
+                </View>
+
+                {payouts.slice(0, 10).map((p, i) => (
+                  <View
+                    key={p.id}
+                    style={[styles.payoutItem, i < Math.min(payouts.length, 10) - 1 && styles.payoutItemBorder]}>
+                    <View style={styles.payoutLeft}>
+                      <Text style={styles.payoutAmount}>
+                        ${(p.amount / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                      <Text style={styles.payoutDate}>
+                        {formatDate(p.paidAt)} · {p.shiftName}
+                      </Text>
+                    </View>
+                    <View style={styles.payoutRight}>
+                      <Text style={styles.payoutStatus}>Paid</Text>
+                      {p.aptpayRef ? (
+                        <Text style={styles.payoutRef}>AptPay · {p.aptpayRef}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {payouts.length === 0 && (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No payouts yet. Your earnings will appear here once your manager processes your first shift.</Text>
+              </View>
+            )}
+          </>
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Could not load your tip data. Please check your connection and try again.</Text>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const PAYOUTS = [
-  { amount: '$612.00', date: 'Mar 15, 2026 · Sat shift', ref: 'AP-88214' },
-  { amount: '$540.50', date: 'Mar 8, 2026 · Sat shift',  ref: 'AP-87102' },
-  { amount: '$498.00', date: 'Mar 1, 2026 · Sat shift',  ref: 'AP-85990' },
-];
-
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    gap: 12,
-  },
+  safe: { flex: 1, backgroundColor: BG },
+  scroll: { flex: 1, backgroundColor: BG },
+  content: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
   screenTitle: {
     fontSize: 28,
     fontWeight: '800',
@@ -161,7 +210,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
 
-  // Hero card
+  loadingWrap: { height: 200, alignItems: 'center', justifyContent: 'center' },
+
+  emptyCard: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  emptyText: { fontSize: 14, color: MUTED, lineHeight: 20, textAlign: 'center' },
+
   heroCard: {
     backgroundColor: '#0d1f17',
     borderRadius: 16,
@@ -169,12 +228,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
   },
-  heroSubtitle: {
-    fontSize: 14,
-    color: LABEL,
-    fontWeight: '500',
-    marginBottom: 6,
-  },
+  heroSubtitle: { fontSize: 14, color: LABEL, fontWeight: '500', marginBottom: 6 },
   heroAmount: {
     fontSize: 52,
     fontWeight: '800',
@@ -182,43 +236,14 @@ const styles = StyleSheet.create({
     letterSpacing: -2,
     lineHeight: 58,
   },
-  heroMeta: {
-    fontSize: 14,
-    color: MUTED,
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  badge: {
-    backgroundColor: '#1a3028',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  badgeText: {
-    fontSize: 13,
-    color: BLUE,
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: BORDER,
-    marginVertical: 16,
-  },
+  heroMeta: { fontSize: 14, color: MUTED, marginTop: 4, marginBottom: 16 },
+  divider: { height: 1, backgroundColor: BORDER, marginVertical: 16 },
   payoutRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  payoutLabel: {
-    fontSize: 15,
-    color: '#d0e8df',
-    fontWeight: '500',
-  },
+  payoutLabel: { fontSize: 15, color: '#d0e8df', fontWeight: '500' },
   instantBadge: {
     backgroundColor: '#0d3324',
     borderRadius: 20,
@@ -227,13 +252,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1a5c3a',
   },
-  instantText: {
-    fontSize: 12,
-    color: BLUE,
-    fontWeight: '700',
-  },
+  instantText: { fontSize: 12, color: BLUE, fontWeight: '700' },
 
-  // Intention card
   intentionCard: {
     backgroundColor: '#162019',
     borderRadius: 12,
@@ -251,36 +271,9 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 8,
   },
-  intentionText: {
-    fontSize: 14,
-    color: '#e8f5ef',
-    lineHeight: 21,
-    fontWeight: '400',
-  },
-  intentionAuthor: {
-    fontSize: 12,
-    color: BLUE,
-    fontWeight: '500',
-    marginTop: 6,
-  },
+  intentionText: { fontSize: 14, color: '#e8f5ef', lineHeight: 21, fontWeight: '400' },
+  intentionAuthor: { fontSize: 12, color: BLUE, fontWeight: '500', marginTop: 6 },
 
-  // Info bar
-  infoBar: {
-    backgroundColor: '#0d2a1c',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#1a4a2e',
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#5fba8a',
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-
-  // Generic card
   card: {
     backgroundColor: CARD,
     borderRadius: 16,
@@ -294,107 +287,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  cardLink: {
-    fontSize: 14,
-    color: BLUE,
-    fontWeight: '600',
-  },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
-  // Challenges
-  challenge: {
-    gap: 6,
-  },
-  challengeTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  challengeName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#e8f5ef',
-  },
-  challengeIncentive: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BLUE,
-    backgroundColor: '#0d2a1e',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: '#1a5c3a',
-    overflow: 'hidden',
-  },
-  challengeDesc: {
-    fontSize: 13,
-    color: MUTED,
-  },
-  progressTrack: {
-    height: 6,
-    backgroundColor: '#1e3028',
-    borderRadius: 3,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: BLUE_DIM,
-    borderRadius: 3,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressMuted: {
-    fontSize: 12,
-    color: MUTED,
-  },
-  challengeSep: {
-    height: 1,
-    backgroundColor: BORDER,
-    marginVertical: 14,
-  },
-
-  // Payouts
   payoutItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
   },
-  payoutItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  payoutLeft: {
-    gap: 3,
-  },
-  payoutRight: {
-    alignItems: 'flex-end',
-    gap: 3,
-  },
-  payoutAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#e8f5ef',
-  },
-  payoutDate: {
-    fontSize: 13,
-    color: MUTED,
-  },
-  payoutStatus: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: BLUE,
-  },
-  payoutRef: {
-    fontSize: 12,
-    color: MUTED,
-  },
+  payoutItemBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
+  payoutLeft: { gap: 3 },
+  payoutRight: { alignItems: 'flex-end', gap: 3 },
+  payoutAmount: { fontSize: 18, fontWeight: '700', color: '#e8f5ef' },
+  payoutDate: { fontSize: 13, color: MUTED },
+  payoutStatus: { fontSize: 13, fontWeight: '700', color: BLUE },
+  payoutRef: { fontSize: 12, color: MUTED },
 });

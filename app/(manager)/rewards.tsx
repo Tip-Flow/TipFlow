@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
 const BG = '#09100e';
@@ -119,9 +120,11 @@ export default function RewardsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchTodaysGoals();
-  }, [fetchTodaysGoals]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchTodaysGoals();
+    }, [fetchTodaysGoals])
+  );
 
   function openModal() {
     setGoalType('top_sales');

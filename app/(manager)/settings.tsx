@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,8 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 const BG      = '#09100e';
 const CARD    = '#162019';
@@ -46,13 +49,6 @@ function uid() { return String(nextId++); }
 const DEFAULT_RULES: TipOutRule[] = [
   { id: '1', roleName: 'Bar',           percentage: '1.5', payoutType: 'direct'     },
   { id: '2', roleName: 'House Support', percentage: '5.0', payoutType: 'house_pool' },
-];
-
-const DEFAULT_STAFF: HousePoolStaff[] = [
-  { id: 'a', name: 'Marcus Chen',   role: 'Kitchen', distributionType: 'hours' },
-  { id: 'b', name: 'Priya Sharma',  role: 'Runner',  distributionType: 'hours' },
-  { id: 'c', name: 'James Wilson',  role: 'Host',    distributionType: 'equal' },
-  { id: 'd', name: 'Aisha Okafor',  role: 'Kitchen', distributionType: 'equal' },
 ];
 
 function nextPayoutDate(period: PayPeriod): string {
@@ -109,51 +105,28 @@ const ts = StyleSheet.create({
     padding: 4,
     marginBottom: 24,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 9,
-    alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: BLUE,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: MUTED,
-  },
-  labelActive: {
-    color: '#ffffff',
-  },
+  tab: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
+  tabActive: { backgroundColor: BLUE },
+  label: { fontSize: 14, fontWeight: '700', color: MUTED },
+  labelActive: { color: '#ffffff' },
 });
 
 // ─── Payout Type Toggle ───────────────────────────────────────────────────────
 
-function PayoutToggle({
-  value,
-  onChange,
-}: {
-  value: PayoutType;
-  onChange: (v: PayoutType) => void;
-}) {
+function PayoutToggle({ value, onChange }: { value: PayoutType; onChange: (v: PayoutType) => void }) {
   return (
     <View style={pt.wrapper}>
       <TouchableOpacity
         style={[pt.pill, value === 'direct' && pt.pillActive]}
         onPress={() => onChange('direct')}
         activeOpacity={0.8}>
-        <Text style={[pt.text, value === 'direct' && pt.textActive]}>
-          Direct
-        </Text>
+        <Text style={[pt.text, value === 'direct' && pt.textActive]}>Direct</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[pt.pill, value === 'house_pool' && pt.pillHouse]}
         onPress={() => onChange('house_pool')}
         activeOpacity={0.8}>
-        <Text style={[pt.text, value === 'house_pool' && pt.textActive]}>
-          House Pool
-        </Text>
+        <Text style={[pt.text, value === 'house_pool' && pt.textActive]}>House Pool</Text>
       </TouchableOpacity>
     </View>
   );
@@ -169,36 +142,16 @@ const pt = StyleSheet.create({
     padding: 3,
     gap: 2,
   },
-  pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  pillActive: {
-    backgroundColor: BLUE,
-  },
-  pillHouse: {
-    backgroundColor: AMBER,
-  },
-  text: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: MUTED,
-  },
-  textActive: {
-    color: '#ffffff',
-  },
+  pill: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 },
+  pillActive: { backgroundColor: BLUE },
+  pillHouse: { backgroundColor: AMBER },
+  text: { fontSize: 11, fontWeight: '700', color: MUTED },
+  textActive: { color: '#ffffff' },
 });
 
 // ─── Distribution Type Toggle ─────────────────────────────────────────────────
 
-function DistributionToggle({
-  value,
-  onChange,
-}: {
-  value: DistributionType;
-  onChange: (v: DistributionType) => void;
-}) {
+function DistributionToggle({ value, onChange }: { value: DistributionType; onChange: (v: DistributionType) => void }) {
   return (
     <View style={dt.wrapper}>
       <TouchableOpacity
@@ -227,42 +180,69 @@ const dt = StyleSheet.create({
     padding: 3,
     gap: 2,
   },
-  pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  pillActive: {
-    backgroundColor: BLUE,
-  },
-  text: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: MUTED,
-  },
-  textActive: {
-    color: '#ffffff',
-  },
+  pill: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 },
+  pillActive: { backgroundColor: BLUE },
+  text: { fontSize: 11, fontWeight: '700', color: MUTED },
+  textActive: { color: '#ffffff' },
 });
 
 // ─── Tab 1: Tip Out Rules ─────────────────────────────────────────────────────
 
 function TipOutTab() {
-  const [rules, setRules] = useState<TipOutRule[]>(DEFAULT_RULES);
+  const [rules, setRules] = useState<TipOutRule[]>([]);
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const loadRules = useCallback(async () => {
+    try {
+      const { data: loc } = await supabase
+        .from('locations')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (!loc) { setRules(DEFAULT_RULES); setLoading(false); return; }
+      setLocationId(loc.id);
+
+      const { data, error } = await supabase
+        .from('tip_out_rules')
+        .select('id, role_name, percentage_of_sales, payout_type')
+        .eq('location_id', loc.id)
+        .eq('is_active', true)
+        .order('created_at');
+
+      if (error) throw error;
+
+      setRules(
+        data && data.length > 0
+          ? data.map(r => ({
+              id: r.id,
+              roleName: r.role_name,
+              percentage: String(r.percentage_of_sales),
+              payoutType: r.payout_type as PayoutType,
+            }))
+          : DEFAULT_RULES
+      );
+    } catch {
+      setRules(DEFAULT_RULES);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadRules(); }, [loadRules]);
 
   function updateRule(id: string, patch: Partial<TipOutRule>) {
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setRules(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   function deleteRule(id: string) {
-    setRules((prev) => prev.filter((r) => r.id !== id));
+    setRules(prev => prev.filter(r => r.id !== id));
   }
 
   function addRule() {
-    setRules((prev) => [
-      ...prev,
-      { id: uid(), roleName: '', percentage: '0', payoutType: 'direct' },
-    ]);
+    setRules(prev => [...prev, { id: uid(), roleName: '', percentage: '0', payoutType: 'direct' }]);
   }
 
   function parseNum(s: string): number {
@@ -270,61 +250,81 @@ function TipOutTab() {
     return isNaN(n) ? 0 : n;
   }
 
-  const directTotal = rules
-    .filter((r) => r.payoutType === 'direct')
-    .reduce((sum, r) => sum + parseNum(r.percentage), 0);
+  const directTotal = rules.filter(r => r.payoutType === 'direct').reduce((sum, r) => sum + parseNum(r.percentage), 0);
+  const houseTotal  = rules.filter(r => r.payoutType === 'house_pool').reduce((sum, r) => sum + parseNum(r.percentage), 0);
+  const grandTotal  = directTotal + houseTotal;
 
-  const houseTotal = rules
-    .filter((r) => r.payoutType === 'house_pool')
-    .reduce((sum, r) => sum + parseNum(r.percentage), 0);
+  async function handleSave() {
+    if (!locationId) {
+      Alert.alert('Not ready', 'Location not loaded yet. Please wait and try again.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error: delError } = await supabase
+        .from('tip_out_rules')
+        .delete()
+        .eq('location_id', locationId);
 
-  const grandTotal = directTotal + houseTotal;
+      if (delError) throw delError;
 
-  function handleSave() {
-    Alert.alert('Saved', 'Tip out rules have been updated.');
+      const toInsert = rules
+        .filter(r => r.roleName.trim() !== '')
+        .map(r => ({
+          location_id: locationId,
+          role_name: r.roleName.trim(),
+          percentage_of_sales: parseNum(r.percentage),
+          payout_type: r.payoutType,
+          is_active: true,
+        }));
+
+      if (toInsert.length > 0) {
+        const { error: insError } = await supabase.from('tip_out_rules').insert(toInsert);
+        if (insError) throw insError;
+      }
+
+      await loadRules();
+      Alert.alert('Saved', 'Tip out rules have been updated.');
+    } catch (err) {
+      console.log('[TipOutTab] save error:', err);
+      Alert.alert('Error', 'Failed to save rules. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
+
+  if (loading) return <ActivityIndicator size="large" color={BLUE} style={{ marginTop: 40 }} />;
 
   return (
     <>
       <Text style={s.heading}>Tip Out Rules</Text>
       <Text style={s.subtitle}>
-        Set what percentage of each server's SALES goes to other roles. Servers keep
-        their remaining tips.
+        Set what percentage of each server's SALES goes to other roles. Servers keep their remaining tips.
       </Text>
 
-      {/* Example card */}
       <View style={s.exampleCard}>
         <Text style={s.exampleText}>
           <Text style={s.exampleBold}>Example: </Text>
-          Susan sells $1,000. Bar tip out 1.5% = $15 goes directly to bar. House 5% =
-          $50 goes to house pool. Susan keeps her tips minus $65.
+          Susan sells $1,000. Bar tip out 1.5% = $15 goes directly to bar. House 5% = $50 goes to house pool. Susan keeps her tips minus $65.
         </Text>
       </View>
 
-      {/* Rules list */}
       <View style={s.rulesCard}>
         {rules.map((rule, index) => (
-          <View
-            key={rule.id}
-            style={[s.ruleRow, index < rules.length - 1 && s.ruleRowBorder]}>
-            {/* Role name */}
+          <View key={rule.id} style={[s.ruleRow, index < rules.length - 1 && s.ruleRowBorder]}>
             <TextInput
               style={s.roleInput}
               value={rule.roleName}
-              onChangeText={(t) => updateRule(rule.id, { roleName: t })}
+              onChangeText={t => updateRule(rule.id, { roleName: t })}
               placeholder="Role"
               placeholderTextColor={MUTED}
             />
-
-            {/* Percentage */}
             <View style={s.pctWrapper}>
               <TextInput
                 style={s.pctInput}
                 value={rule.percentage}
-                onChangeText={(t) => {
-                  if (/^\d{0,2}(\.\d{0,1})?$/.test(t)) {
-                    updateRule(rule.id, { percentage: t });
-                  }
+                onChangeText={t => {
+                  if (/^\d{0,2}(\.\d{0,1})?$/.test(t)) updateRule(rule.id, { percentage: t });
                 }}
                 keyboardType="decimal-pad"
                 maxLength={4}
@@ -333,30 +333,18 @@ function TipOutTab() {
               />
               <Text style={s.pctSymbol}>%</Text>
             </View>
-
-            {/* Payout type toggle */}
-            <PayoutToggle
-              value={rule.payoutType}
-              onChange={(v) => updateRule(rule.id, { payoutType: v })}
-            />
-
-            {/* Delete */}
-            <TouchableOpacity
-              style={s.deleteBtn}
-              onPress={() => deleteRule(rule.id)}
-              activeOpacity={0.7}>
+            <PayoutToggle value={rule.payoutType} onChange={v => updateRule(rule.id, { payoutType: v })} />
+            <TouchableOpacity style={s.deleteBtn} onPress={() => deleteRule(rule.id)} activeOpacity={0.7}>
               <Text style={s.deleteText}>✕</Text>
             </TouchableOpacity>
           </View>
         ))}
       </View>
 
-      {/* Add rule */}
       <TouchableOpacity style={s.addBtn} onPress={addRule} activeOpacity={0.8}>
         <Text style={s.addBtnText}>+ Add Rule</Text>
       </TouchableOpacity>
 
-      {/* Summary card */}
       <View style={s.summaryCard}>
         <View style={s.summaryRow}>
           <Text style={s.summaryLabel}>Total direct tip outs</Text>
@@ -364,22 +352,22 @@ function TipOutTab() {
         </View>
         <View style={[s.summaryRow, s.summaryRowBorder]}>
           <Text style={s.summaryLabel}>Total house pool contribution</Text>
-          <Text style={[s.summaryValue, { color: AMBER }]}>
-            {houseTotal.toFixed(1)}% of server sales
-          </Text>
+          <Text style={[s.summaryValue, { color: AMBER }]}>{houseTotal.toFixed(1)}% of server sales</Text>
         </View>
         <View style={s.summaryRow}>
-          <Text style={[s.summaryLabel, { fontWeight: '700', color: WHITE }]}>
-            Total tip out
-          </Text>
-          <Text style={[s.summaryValue, { color: BLUE }]}>
-            {grandTotal.toFixed(1)}% of server sales
-          </Text>
+          <Text style={[s.summaryLabel, { fontWeight: '700', color: WHITE }]}>Total tip out</Text>
+          <Text style={[s.summaryValue, { color: BLUE }]}>{grandTotal.toFixed(1)}% of server sales</Text>
         </View>
       </View>
 
-      <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.8}>
-        <Text style={s.saveBtnText}>Save Rules</Text>
+      <TouchableOpacity
+        style={[s.saveBtn, saving && { opacity: 0.6 }]}
+        onPress={handleSave}
+        disabled={saving}
+        activeOpacity={0.8}>
+        {saving
+          ? <ActivityIndicator color="#ffffff" />
+          : <Text style={s.saveBtnText}>Save Rules</Text>}
       </TouchableOpacity>
     </>
   );
@@ -387,12 +375,12 @@ function TipOutTab() {
 
 // ─── Tab 2: House Pool ────────────────────────────────────────────────────────
 
-// Mock balance in CAD cents
-const MOCK_BALANCE_CENTS = 34750;
-
 function HousePoolTab() {
-  const [payPeriod, setPayPeriod]   = useState<PayPeriod>('biweekly');
-  const [staff, setStaff]           = useState<HousePoolStaff[]>(DEFAULT_STAFF);
+  const router = useRouter();
+  const [payPeriod, setPayPeriod] = useState<PayPeriod>('biweekly');
+  const [staff, setStaff] = useState<HousePoolStaff[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const PAY_PERIODS: { key: PayPeriod; label: string }[] = [
     { key: 'weekly',   label: 'Weekly'    },
@@ -400,40 +388,60 @@ function HousePoolTab() {
     { key: 'monthly',  label: 'Monthly'   },
   ];
 
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const { data: loc } = await supabase
+          .from('locations')
+          .select('id, house_pool_balance, house_pool_pay_period')
+          .limit(1)
+          .single();
+
+        if (!loc) { setLoading(false); return; }
+        setBalance(loc.house_pool_balance ?? 0);
+        if (loc.house_pool_pay_period) setPayPeriod(loc.house_pool_pay_period as PayPeriod);
+
+        const { data: roles } = await supabase
+          .from('house_pool_roles')
+          .select('id, staff_member_id, distribution_type, staff_members(name, role)')
+          .eq('location_id', loc.id)
+          .eq('is_active', true);
+
+        if (roles) {
+          setStaff(roles.map(r => ({
+            id: r.staff_member_id,
+            name: (r.staff_members as any)?.name ?? 'Unknown',
+            role: (r.staff_members as any)?.role ?? '',
+            distributionType: r.distribution_type as DistributionType,
+          })));
+        }
+      } catch (err) {
+        console.log('[HousePoolTab] load error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   function updateDist(id: string, distributionType: DistributionType) {
-    setStaff((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, distributionType } : m))
-    );
+    setStaff(prev => prev.map(m => (m.id === id ? { ...m, distributionType } : m)));
   }
 
-  function handlePayNow() {
-    Alert.alert(
-      'Confirm Payout',
-      `Pay out $${(MOCK_BALANCE_CENTS / 100).toFixed(2)} to ${staff.length} staff members now?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Pay Out',
-          style: 'destructive',
-          onPress: () => Alert.alert('Payout initiated', 'Payments are being processed via AptPay.'),
-        },
-      ]
-    );
-  }
+  if (loading) return <ActivityIndicator size="large" color={BLUE} style={{ marginTop: 40 }} />;
 
   return (
     <>
       <Text style={s.heading}>House Pool Distribution</Text>
       <Text style={s.subtitle}>
         Configure how the house pool is distributed to support staff every{' '}
-        {PAY_PERIODS.find((p) => p.key === payPeriod)?.label.toLowerCase()} pay period.
+        {PAY_PERIODS.find(p => p.key === payPeriod)?.label.toLowerCase()} pay period.
       </Text>
 
-      {/* Pay period selector */}
       <View style={s.periodRow}>
         <Text style={s.periodLabel}>Pay period:</Text>
         <View style={s.periodPills}>
-          {PAY_PERIODS.map((p) => (
+          {PAY_PERIODS.map(p => (
             <TouchableOpacity
               key={p.key}
               style={[s.periodPill, payPeriod === p.key && s.periodPillActive]}
@@ -447,38 +455,37 @@ function HousePoolTab() {
         </View>
       </View>
 
-      {/* Balance card */}
       <View style={s.balanceCard}>
         <Text style={s.balanceTitle}>Current Balance</Text>
-        <Text style={s.balanceAmount}>
-          ${(MOCK_BALANCE_CENTS / 100).toFixed(2)}
-        </Text>
-        <Text style={s.balanceNext}>
-          Next payout: {nextPayoutDate(payPeriod)}
-        </Text>
-        <TouchableOpacity style={s.payNowBtn} onPress={handlePayNow} activeOpacity={0.8}>
+        <Text style={s.balanceAmount}>${(balance / 100).toFixed(2)}</Text>
+        <Text style={s.balanceNext}>Next payout: {nextPayoutDate(payPeriod)}</Text>
+        <TouchableOpacity
+          style={s.payNowBtn}
+          onPress={() => router.push('/(manager)/housepool')}
+          activeOpacity={0.8}>
           <Text style={s.payNowText}>Pay Out Now</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Staff list */}
-      <Text style={s.sectionTitle}>Staff in House Pool</Text>
-      <View style={s.staffCard}>
-        {staff.map((member, index) => (
-          <View
-            key={member.id}
-            style={[s.staffRow, index < staff.length - 1 && s.staffRowBorder]}>
-            <View style={s.staffInfo}>
-              <Text style={s.staffName}>{member.name}</Text>
-              <Text style={s.staffRole}>{member.role}</Text>
-            </View>
-            <DistributionToggle
-              value={member.distributionType}
-              onChange={(v) => updateDist(member.id, v)}
-            />
+      {staff.length > 0 && (
+        <>
+          <Text style={s.sectionTitle}>Staff in House Pool</Text>
+          <View style={s.staffCard}>
+            {staff.map((member, index) => (
+              <View key={member.id} style={[s.staffRow, index < staff.length - 1 && s.staffRowBorder]}>
+                <View style={s.staffInfo}>
+                  <Text style={s.staffName}>{member.name}</Text>
+                  <Text style={s.staffRole}>{member.role}</Text>
+                </View>
+                <DistributionToggle
+                  value={member.distributionType}
+                  onChange={v => updateDist(member.id, v)}
+                />
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        </>
+      )}
     </>
   );
 }
@@ -500,7 +507,6 @@ export default function TipPoolSettings() {
           showsVerticalScrollIndicator={false}>
 
           <TabSwitcher active={activeTab} onChange={setActiveTab} />
-
           {activeTab === 'tipout' ? <TipOutTab /> : <HousePoolTab />}
 
         </ScrollView>
@@ -512,33 +518,13 @@ export default function TipPoolSettings() {
 // ─── Shared Styles ────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: BG,
-  },
+  safe: { flex: 1, backgroundColor: BG },
   scroll: { flex: 1 },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 60,
-  },
+  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 60 },
 
-  heading: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: WHITE,
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: MUTED,
-    lineHeight: 19,
-    marginBottom: 18,
-  },
+  heading: { fontSize: 24, fontWeight: '800', color: WHITE, letterSpacing: -0.5, marginBottom: 6 },
+  subtitle: { fontSize: 13, color: MUTED, lineHeight: 19, marginBottom: 18 },
 
-  // Example card
   exampleCard: {
     backgroundColor: CARD,
     borderLeftWidth: 3,
@@ -547,17 +533,9 @@ const s = StyleSheet.create({
     padding: 14,
     marginBottom: 18,
   },
-  exampleText: {
-    fontSize: 13,
-    color: MUTED,
-    lineHeight: 20,
-  },
-  exampleBold: {
-    color: BLUE,
-    fontWeight: '700',
-  },
+  exampleText: { fontSize: 13, color: MUTED, lineHeight: 20 },
+  exampleBold: { color: BLUE, fontWeight: '700' },
 
-  // Rules list
   rulesCard: {
     backgroundColor: CARD,
     borderRadius: 14,
@@ -573,10 +551,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
   },
-  ruleRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
+  ruleRowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
   roleInput: {
     flex: 1,
     fontSize: 14,
@@ -601,19 +576,8 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     gap: 2,
   },
-  pctInput: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: BLUE,
-    minWidth: 30,
-    textAlign: 'right',
-    padding: 0,
-  },
-  pctSymbol: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: MUTED,
-  },
+  pctInput: { fontSize: 14, fontWeight: '700', color: BLUE, minWidth: 30, textAlign: 'right', padding: 0 },
+  pctSymbol: { fontSize: 13, fontWeight: '600', color: MUTED },
   deleteBtn: {
     width: 28,
     height: 28,
@@ -622,13 +586,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: RED,
-  },
+  deleteText: { fontSize: 13, fontWeight: '800', color: RED },
 
-  // Add rule button
   addBtn: {
     borderWidth: 1.5,
     borderColor: BLUE,
@@ -638,13 +597,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  addBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: BLUE,
-  },
+  addBtnText: { fontSize: 14, fontWeight: '700', color: BLUE },
 
-  // Summary card
   summaryCard: {
     backgroundColor: CARD,
     borderRadius: 14,
@@ -660,49 +614,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
   },
-  summaryRowBorder: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: BORDER,
-  },
-  summaryLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: MUTED,
-    flex: 1,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: WHITE,
-  },
+  summaryRowBorder: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: BORDER },
+  summaryLabel: { fontSize: 13, fontWeight: '600', color: MUTED, flex: 1 },
+  summaryValue: { fontSize: 14, fontWeight: '800', color: WHITE },
 
-  // Save button
-  saveBtn: {
-    backgroundColor: BLUE,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  saveBtnText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 0.2,
-  },
+  saveBtn: { backgroundColor: BLUE, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  saveBtnText: { fontSize: 16, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 },
 
-  // Pay period selector
-  periodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 18,
-  },
-  periodLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: MUTED,
-  },
+  periodRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  periodLabel: { fontSize: 14, fontWeight: '600', color: MUTED },
   periodPills: {
     flexDirection: 'row',
     backgroundColor: CARD,
@@ -712,24 +632,11 @@ const s = StyleSheet.create({
     padding: 3,
     gap: 3,
   },
-  periodPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  periodPillActive: {
-    backgroundColor: BLUE,
-  },
-  periodPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: MUTED,
-  },
-  periodPillTextActive: {
-    color: '#ffffff',
-  },
+  periodPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  periodPillActive: { backgroundColor: BLUE },
+  periodPillText: { fontSize: 13, fontWeight: '700', color: MUTED },
+  periodPillTextActive: { color: '#ffffff' },
 
-  // Balance card
   balanceCard: {
     backgroundColor: CARD,
     borderRadius: 16,
@@ -747,38 +654,12 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  balanceAmount: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: BLUE,
-    letterSpacing: -1,
-    marginBottom: 6,
-  },
-  balanceNext: {
-    fontSize: 13,
-    color: MUTED,
-    marginBottom: 18,
-  },
-  payNowBtn: {
-    backgroundColor: AMBER,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-  },
-  payNowText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 0.2,
-  },
+  balanceAmount: { fontSize: 42, fontWeight: '800', color: BLUE, letterSpacing: -1, marginBottom: 6 },
+  balanceNext: { fontSize: 13, color: MUTED, marginBottom: 18 },
+  payNowBtn: { backgroundColor: AMBER, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
+  payNowText: { fontSize: 15, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 },
 
-  // Staff list
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: WHITE,
-    marginBottom: 12,
-  },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: WHITE, marginBottom: 12 },
   staffCard: {
     backgroundColor: CARD,
     borderRadius: 14,
@@ -794,22 +675,8 @@ const s = StyleSheet.create({
     paddingVertical: 13,
     gap: 12,
   },
-  staffRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  staffInfo: {
-    flex: 1,
-  },
-  staffName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: WHITE,
-    marginBottom: 2,
-  },
-  staffRole: {
-    fontSize: 12,
-    color: MUTED,
-    fontWeight: '600',
-  },
+  staffRowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
+  staffInfo: { flex: 1 },
+  staffName: { fontSize: 14, fontWeight: '700', color: WHITE, marginBottom: 2 },
+  staffRole: { fontSize: 12, color: MUTED, fontWeight: '600' },
 });

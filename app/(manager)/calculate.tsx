@@ -14,7 +14,9 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { useIsDesktop } from '@/hooks/use-is-desktop';
 import {
   calculateShiftSummary,
   calculateHousePool,
@@ -110,6 +112,8 @@ function formatDate(dateStr: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
+  const isDesktop = useIsDesktop();
+
   // ── Main form state ───────────────────────────────────────────────────────
   const [shiftName, setShiftName] = useState('');
   const [shiftDate, setShiftDate] = useState(today());
@@ -222,6 +226,13 @@ export default function CalculateScreen() {
   useEffect(() => {
     if (locationId) fetchActiveShifts(locationId);
   }, [locationId, fetchActiveShifts]);
+
+  // Refresh pending shifts whenever the tab regains focus (another device may have added/removed shifts)
+  useFocusEffect(
+    useCallback(() => {
+      if (locationId) fetchActiveShifts(locationId);
+    }, [locationId, fetchActiveShifts])
+  );
 
   // ── Update helpers ────────────────────────────────────────────────────────
   function updateServer(
@@ -591,6 +602,397 @@ export default function CalculateScreen() {
   const directTipOutTotals = getDirectTipOutTotals();
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // Servers table header for desktop
+  const serversTableHeader = isDesktop ? (
+    <View style={styles.tableHeader}>
+      <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Staff</Text>
+      <Text style={styles.tableHeaderCell}>Sales ($)</Text>
+      <Text style={styles.tableHeaderCell}>Tips ($)</Text>
+      <Text style={styles.tableHeaderCell}>Hours</Text>
+      <Text style={[styles.tableHeaderCell, { width: 56 }]}>On</Text>
+    </View>
+  ) : null;
+
+  const serversDesktopRows = isDesktop ? (
+    servers.map((s, index) => (
+      <View key={s.id}>
+        {index > 0 && <View style={styles.divider} />}
+        <View style={[styles.desktopServerRow, !s.included && styles.mutedBlock]}>
+          <Text style={[styles.staffName, { flex: 2 }, !s.included && { color: MUTED }]}>
+            {ROLE_EMOJIS.server} {s.name}
+          </Text>
+          <TextInput
+            style={[styles.tableInput, !s.included && { color: MUTED }]}
+            placeholder="0.00"
+            placeholderTextColor={MUTED}
+            value={s.sales}
+            onChangeText={(t) => updateServer(s.id, 'sales', t)}
+            keyboardType="decimal-pad"
+            editable={s.included}
+          />
+          <TextInput
+            style={[styles.tableInput, !s.included && { color: MUTED }]}
+            placeholder="0.00"
+            placeholderTextColor={MUTED}
+            value={s.tipsEarned}
+            onChangeText={(t) => updateServer(s.id, 'tipsEarned', t)}
+            keyboardType="decimal-pad"
+            editable={s.included}
+          />
+          <TextInput
+            style={[styles.tableInput, !s.included && { color: MUTED }]}
+            placeholder="0"
+            placeholderTextColor={MUTED}
+            value={s.hoursWorked}
+            onChangeText={(t) => updateServer(s.id, 'hoursWorked', t)}
+            keyboardType="decimal-pad"
+            editable={s.included}
+          />
+          <Switch
+            value={s.included}
+            onValueChange={() => toggleServer(s.id)}
+            trackColor={{ false: BORDER, true: BLUE_DIM }}
+            thumbColor={s.included ? BLUE : MUTED}
+            style={{ width: 48 }}
+          />
+        </View>
+      </View>
+    ))
+  ) : null;
+
+  const formPanel = (
+    <>
+      {/* ── Pending (active) shifts ──────────────────────────────────── */}
+      {(loadingActive || activeShifts.length > 0) && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Pending Shifts</Text>
+          {loadingActive ? (
+            <ActivityIndicator color={BLUE} style={{ marginVertical: 16 }} />
+          ) : (
+            activeShifts.map((shift, index) => (
+              <View key={shift.id}>
+                {index > 0 && <View style={styles.divider} />}
+                <View style={styles.pendingRow}>
+                  <View style={styles.pendingInfo}>
+                    <Text style={styles.pendingName}>{shift.name}</Text>
+                    <Text style={styles.pendingMeta}>
+                      {formatDate(shift.date)} · {shift.staffCount} staff
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.loadBtn,
+                      activeShiftId === shift.id && styles.loadBtnActive,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => handleLoadShift(shift)}>
+                    <Text style={[
+                      styles.loadBtnText,
+                      activeShiftId === shift.id && styles.loadBtnTextActive,
+                    ]}>
+                      {activeShiftId === shift.id ? '✓ Loaded' : 'Load →'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      )}
+
+      {/* Loaded shift indicator */}
+      {activeShiftId && (
+        <View style={styles.loadedBanner}>
+          <Text style={styles.loadedBannerText}>
+            ✓ Editing: {shiftName} — complete the fields below and calculate
+          </Text>
+        </View>
+      )}
+
+      {/* Tip-out rules */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Tip-Out Rules</Text>
+        {DEFAULT_TIP_OUT_RULES.map((rule, i) => (
+          <View key={rule.role}>
+            {i > 0 && <View style={styles.divider} />}
+            <View style={styles.ruleRow}>
+              <Text style={styles.ruleRole}>
+                {ROLE_EMOJIS[rule.role] ?? ''} {ROLE_LABELS[rule.role] ?? rule.role}
+              </Text>
+              <Text style={styles.rulePct}>{rule.percentage}% of sales</Text>
+              <View style={[
+                styles.ruleBadge,
+                rule.distribution === 'direct' ? styles.badgeTeal : styles.badgeAmber,
+              ]}>
+                <Text style={[
+                  styles.ruleBadgeText,
+                  rule.distribution === 'direct' ? styles.badgeTealText : styles.badgeAmberText,
+                ]}>
+                  {rule.distribution === 'direct' ? 'direct' : 'pool'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Shift Details */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Shift Details</Text>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Shift Name</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="e.g. Friday Dinner"
+            placeholderTextColor={MUTED}
+            value={shiftName}
+            onChangeText={(t) => { setShiftName(t); setSummary(null); }}
+          />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Date</Text>
+          <TextInput
+            style={styles.textInput}
+            value={shiftDate}
+            onChangeText={(t) => { setShiftDate(t); setSummary(null); }}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={MUTED}
+          />
+        </View>
+      </View>
+
+      {/* Servers */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Servers</Text>
+        {loadingStaff ? (
+          <ActivityIndicator color={BLUE} style={{ marginVertical: 20 }} />
+        ) : servers.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No servers found. Add server staff in the Staff tab.
+          </Text>
+        ) : isDesktop ? (
+          <>
+            {serversTableHeader}
+            {serversDesktopRows}
+          </>
+        ) : (
+          servers.map((s, index) => (
+            <View key={s.id}>
+              {index > 0 && <View style={styles.divider} />}
+              <View style={[styles.serverBlock, !s.included && styles.mutedBlock]}>
+                <View style={styles.serverHeader}>
+                  <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
+                    {ROLE_EMOJIS.server} {s.name}
+                  </Text>
+                  <Switch
+                    value={s.included}
+                    onValueChange={() => toggleServer(s.id)}
+                    trackColor={{ false: BORDER, true: BLUE_DIM }}
+                    thumbColor={s.included ? BLUE : MUTED}
+                  />
+                </View>
+                {s.included && (
+                  <View style={styles.serverInputs}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Sales ($)</Text>
+                      <TextInput
+                        style={styles.smallInput}
+                        placeholder="0.00"
+                        placeholderTextColor={MUTED}
+                        value={s.sales}
+                        onChangeText={(t) => updateServer(s.id, 'sales', t)}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Tips ($)</Text>
+                      <TextInput
+                        style={styles.smallInput}
+                        placeholder="0.00"
+                        placeholderTextColor={MUTED}
+                        value={s.tipsEarned}
+                        onChangeText={(t) => updateServer(s.id, 'tipsEarned', t)}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Hours</Text>
+                      <TextInput
+                        style={styles.smallInput}
+                        placeholder="0"
+                        placeholderTextColor={MUTED}
+                        value={s.hoursWorked}
+                        onChangeText={(t) => updateServer(s.id, 'hoursWorked', t)}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* Support Staff */}
+      {!loadingStaff && supportStaff.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Support Staff</Text>
+          <Text style={styles.cardSubtitle}>Hours worked determines house pool share</Text>
+          {supportStaff.map((s, index) => (
+            <View key={s.id}>
+              {index > 0 && <View style={styles.divider} />}
+              <View style={[styles.staffRow, !s.included && styles.mutedBlock]}>
+                <View style={styles.staffInfo}>
+                  <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
+                    {ROLE_EMOJIS[s.role] ?? ''} {s.name}
+                  </Text>
+                  <Text style={styles.staffRole}>{ROLE_LABELS[s.role] ?? s.role}</Text>
+                </View>
+                <TextInput
+                  style={[styles.hoursInput, !s.included && styles.hoursInputDisabled]}
+                  placeholder="hrs"
+                  placeholderTextColor={MUTED}
+                  value={s.hoursWorked}
+                  onChangeText={(t) => updateSupportHours(s.id, t)}
+                  keyboardType="decimal-pad"
+                  editable={s.included}
+                />
+                <Switch
+                  value={s.included}
+                  onValueChange={() => toggleSupport(s.id)}
+                  trackColor={{ false: BORDER, true: BLUE_DIM }}
+                  thumbColor={s.included ? BLUE : MUTED}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Calculate Button */}
+      <TouchableOpacity style={styles.calcBtn} onPress={handleCalculate} activeOpacity={0.8}>
+        <Text style={styles.calcBtnText}>Calculate</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const resultsPanel = summary && housePoolAllocations ? (
+    <View style={styles.resultsSection}>
+      <Text style={styles.resultsTitle}>Results</Text>
+
+      {summary.perServerBreakdown.map((s, index) => (
+        <View
+          key={s.id}
+          style={[
+            styles.resultCard,
+            index < summary.perServerBreakdown.length - 1 && styles.resultCardBorder,
+          ]}>
+          <View style={styles.resultHeaderRow}>
+            <Text style={styles.resultName}>{s.name}</Text>
+            <Text style={[styles.resultAmount, s.tipsKept < 0 && { color: RED }]}>
+              ${centsToDisplay(s.tipsKept)}
+            </Text>
+          </View>
+          <Text style={styles.resultMeta}>
+            ${centsToDisplay(s.sales)} sales · ${centsToDisplay(s.tipsEarned)} earned
+          </Text>
+          {s.directTipOuts.map((t) => (
+            <View key={t.role} style={styles.tipOutRow}>
+              <Text style={styles.tipOutLabel}>
+                → {ROLE_LABELS[t.role] ?? t.role} tip-out ({t.percentage}%)
+              </Text>
+              <Text style={styles.tipOutAmount}>−${centsToDisplay(t.amount)}</Text>
+            </View>
+          ))}
+          {s.housePoolContribution > 0 && (
+            <View style={styles.tipOutRow}>
+              <Text style={styles.tipOutLabel}>→ Pool contribution</Text>
+              <Text style={styles.tipOutAmount}>
+                −${centsToDisplay(s.housePoolContribution)}
+              </Text>
+            </View>
+          )}
+        </View>
+      ))}
+
+      <View style={styles.totalRow}>
+        <View>
+          <Text style={styles.totalLabel}>Servers keep</Text>
+          <Text style={styles.totalSub}>After all tip-outs</Text>
+        </View>
+        <Text style={styles.totalAmount}>${centsToDisplay(summary.totalTipsKept)}</Text>
+      </View>
+
+      {Object.keys(directTipOutTotals).length > 0 && (
+        <View style={styles.poolCard}>
+          <Text style={styles.poolCardTitle}>Direct Tip-Outs</Text>
+          {Object.entries(directTipOutTotals).map(([role, amount], i) => (
+            <View key={role}>
+              {i > 0 && <View style={styles.divider} />}
+              <View style={styles.poolRow}>
+                <Text style={styles.poolName}>
+                  {ROLE_EMOJIS[role] ?? ''} {ROLE_LABELS[role] ?? role}s (split equally)
+                </Text>
+                <Text style={styles.poolAmount}>${centsToDisplay(amount)}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {summary.totalHousePool > 0 && (
+        <View style={styles.poolCard}>
+          <View style={styles.poolCardHeader}>
+            <Text style={styles.poolCardTitle}>House Pool</Text>
+            <Text style={styles.poolCardTotal}>
+              ${centsToDisplay(summary.totalHousePool)}
+            </Text>
+          </View>
+          {housePoolAllocations.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No support staff on shift — pool unallocated.
+            </Text>
+          ) : (
+            housePoolAllocations.map((a, i) => (
+              <View key={a.staffId}>
+                {i > 0 && <View style={styles.divider} />}
+                <View style={styles.poolRow}>
+                  <View>
+                    <Text style={styles.poolName}>{a.name}</Text>
+                    <Text style={styles.poolMeta}>
+                      {a.hoursWorked}h
+                      {a.distributionType === 'points'
+                        ? ` · ${a.points.toFixed(1)} pts`
+                        : ' · fixed'}
+                    </Text>
+                  </View>
+                  <Text style={styles.poolAmount}>
+                    ${centsToDisplay(a.calculatedAmount)}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={[styles.payoutBtn, saving && styles.payoutBtnDisabled]}
+        onPress={handleSaveAndPayout}
+        activeOpacity={0.8}
+        disabled={saving}>
+        {saving ? (
+          <ActivityIndicator color="#09100e" />
+        ) : (
+          <Text style={styles.payoutBtnText}>Save & Pay Out</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -598,7 +1000,7 @@ export default function CalculateScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
 
@@ -616,328 +1018,18 @@ export default function CalculateScreen() {
             <Text style={styles.subtitle}>Enter each server's sales and tips earned</Text>
           </View>
 
-          {/* ── Pending (active) shifts ──────────────────────────────────── */}
-          {(loadingActive || activeShifts.length > 0) && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Pending Shifts</Text>
-              {loadingActive ? (
-                <ActivityIndicator color={BLUE} style={{ marginVertical: 16 }} />
-              ) : (
-                activeShifts.map((shift, index) => (
-                  <View key={shift.id}>
-                    {index > 0 && <View style={styles.divider} />}
-                    <View style={styles.pendingRow}>
-                      <View style={styles.pendingInfo}>
-                        <Text style={styles.pendingName}>{shift.name}</Text>
-                        <Text style={styles.pendingMeta}>
-                          {formatDate(shift.date)} · {shift.staffCount} staff
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={[
-                          styles.loadBtn,
-                          activeShiftId === shift.id && styles.loadBtnActive,
-                        ]}
-                        activeOpacity={0.8}
-                        onPress={() => handleLoadShift(shift)}>
-                        <Text style={[
-                          styles.loadBtnText,
-                          activeShiftId === shift.id && styles.loadBtnTextActive,
-                        ]}>
-                          {activeShiftId === shift.id ? '✓ Loaded' : 'Load →'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))
+          {isDesktop ? (
+            <View style={styles.desktopPanes}>
+              <View style={styles.desktopFormPane}>{formPanel}</View>
+              {resultsPanel && (
+                <View style={styles.desktopResultsPane}>{resultsPanel}</View>
               )}
             </View>
-          )}
-
-          {/* Loaded shift indicator */}
-          {activeShiftId && (
-            <View style={styles.loadedBanner}>
-              <Text style={styles.loadedBannerText}>
-                ✓ Editing: {shiftName} — complete the fields below and calculate
-              </Text>
-            </View>
-          )}
-
-          {/* Tip-out rules */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Tip-Out Rules</Text>
-            {DEFAULT_TIP_OUT_RULES.map((rule, i) => (
-              <View key={rule.role}>
-                {i > 0 && <View style={styles.divider} />}
-                <View style={styles.ruleRow}>
-                  <Text style={styles.ruleRole}>
-                    {ROLE_EMOJIS[rule.role] ?? ''} {ROLE_LABELS[rule.role] ?? rule.role}
-                  </Text>
-                  <Text style={styles.rulePct}>{rule.percentage}% of sales</Text>
-                  <View style={[
-                    styles.ruleBadge,
-                    rule.distribution === 'direct' ? styles.badgeTeal : styles.badgeAmber,
-                  ]}>
-                    <Text style={[
-                      styles.ruleBadgeText,
-                      rule.distribution === 'direct' ? styles.badgeTealText : styles.badgeAmberText,
-                    ]}>
-                      {rule.distribution === 'direct' ? 'direct' : 'pool'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* Shift Details */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Shift Details</Text>
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Shift Name</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Friday Dinner"
-                placeholderTextColor={MUTED}
-                value={shiftName}
-                onChangeText={(t) => { setShiftName(t); setSummary(null); }}
-              />
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Date</Text>
-              <TextInput
-                style={styles.textInput}
-                value={shiftDate}
-                onChangeText={(t) => { setShiftDate(t); setSummary(null); }}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={MUTED}
-              />
-            </View>
-          </View>
-
-          {/* Servers */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Servers</Text>
-            {loadingStaff ? (
-              <ActivityIndicator color={BLUE} style={{ marginVertical: 20 }} />
-            ) : servers.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No servers found. Add server staff in the Staff tab.
-              </Text>
-            ) : (
-              servers.map((s, index) => (
-                <View key={s.id}>
-                  {index > 0 && <View style={styles.divider} />}
-                  <View style={[styles.serverBlock, !s.included && styles.mutedBlock]}>
-                    <View style={styles.serverHeader}>
-                      <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
-                        {ROLE_EMOJIS.server} {s.name}
-                      </Text>
-                      <Switch
-                        value={s.included}
-                        onValueChange={() => toggleServer(s.id)}
-                        trackColor={{ false: BORDER, true: BLUE_DIM }}
-                        thumbColor={s.included ? BLUE : MUTED}
-                      />
-                    </View>
-                    {s.included && (
-                      <View style={styles.serverInputs}>
-                        <View style={styles.inputGroup}>
-                          <Text style={styles.inputLabel}>Sales ($)</Text>
-                          <TextInput
-                            style={styles.smallInput}
-                            placeholder="0.00"
-                            placeholderTextColor={MUTED}
-                            value={s.sales}
-                            onChangeText={(t) => updateServer(s.id, 'sales', t)}
-                            keyboardType="decimal-pad"
-                          />
-                        </View>
-                        <View style={styles.inputGroup}>
-                          <Text style={styles.inputLabel}>Tips ($)</Text>
-                          <TextInput
-                            style={styles.smallInput}
-                            placeholder="0.00"
-                            placeholderTextColor={MUTED}
-                            value={s.tipsEarned}
-                            onChangeText={(t) => updateServer(s.id, 'tipsEarned', t)}
-                            keyboardType="decimal-pad"
-                          />
-                        </View>
-                        <View style={styles.inputGroup}>
-                          <Text style={styles.inputLabel}>Hours</Text>
-                          <TextInput
-                            style={styles.smallInput}
-                            placeholder="0"
-                            placeholderTextColor={MUTED}
-                            value={s.hoursWorked}
-                            onChangeText={(t) => updateServer(s.id, 'hoursWorked', t)}
-                            keyboardType="decimal-pad"
-                          />
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-
-          {/* Support Staff */}
-          {!loadingStaff && supportStaff.length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Support Staff</Text>
-              <Text style={styles.cardSubtitle}>Hours worked determines house pool share</Text>
-              {supportStaff.map((s, index) => (
-                <View key={s.id}>
-                  {index > 0 && <View style={styles.divider} />}
-                  <View style={[styles.staffRow, !s.included && styles.mutedBlock]}>
-                    <View style={styles.staffInfo}>
-                      <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
-                        {ROLE_EMOJIS[s.role] ?? ''} {s.name}
-                      </Text>
-                      <Text style={styles.staffRole}>{ROLE_LABELS[s.role] ?? s.role}</Text>
-                    </View>
-                    <TextInput
-                      style={[styles.hoursInput, !s.included && styles.hoursInputDisabled]}
-                      placeholder="hrs"
-                      placeholderTextColor={MUTED}
-                      value={s.hoursWorked}
-                      onChangeText={(t) => updateSupportHours(s.id, t)}
-                      keyboardType="decimal-pad"
-                      editable={s.included}
-                    />
-                    <Switch
-                      value={s.included}
-                      onValueChange={() => toggleSupport(s.id)}
-                      trackColor={{ false: BORDER, true: BLUE_DIM }}
-                      thumbColor={s.included ? BLUE : MUTED}
-                    />
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Calculate Button */}
-          <TouchableOpacity style={styles.calcBtn} onPress={handleCalculate} activeOpacity={0.8}>
-            <Text style={styles.calcBtnText}>Calculate</Text>
-          </TouchableOpacity>
-
-          {/* Results */}
-          {summary && housePoolAllocations && (
-            <View style={styles.resultsSection}>
-              <Text style={styles.resultsTitle}>Results</Text>
-
-              {summary.perServerBreakdown.map((s, index) => (
-                <View
-                  key={s.id}
-                  style={[
-                    styles.resultCard,
-                    index < summary.perServerBreakdown.length - 1 && styles.resultCardBorder,
-                  ]}>
-                  <View style={styles.resultHeaderRow}>
-                    <Text style={styles.resultName}>{s.name}</Text>
-                    <Text style={[styles.resultAmount, s.tipsKept < 0 && { color: RED }]}>
-                      ${centsToDisplay(s.tipsKept)}
-                    </Text>
-                  </View>
-                  <Text style={styles.resultMeta}>
-                    ${centsToDisplay(s.sales)} sales · ${centsToDisplay(s.tipsEarned)} earned
-                  </Text>
-                  {s.directTipOuts.map((t) => (
-                    <View key={t.role} style={styles.tipOutRow}>
-                      <Text style={styles.tipOutLabel}>
-                        → {ROLE_LABELS[t.role] ?? t.role} tip-out ({t.percentage}%)
-                      </Text>
-                      <Text style={styles.tipOutAmount}>−${centsToDisplay(t.amount)}</Text>
-                    </View>
-                  ))}
-                  {s.housePoolContribution > 0 && (
-                    <View style={styles.tipOutRow}>
-                      <Text style={styles.tipOutLabel}>→ Pool contribution</Text>
-                      <Text style={styles.tipOutAmount}>
-                        −${centsToDisplay(s.housePoolContribution)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-
-              <View style={styles.totalRow}>
-                <View>
-                  <Text style={styles.totalLabel}>Servers keep</Text>
-                  <Text style={styles.totalSub}>After all tip-outs</Text>
-                </View>
-                <Text style={styles.totalAmount}>${centsToDisplay(summary.totalTipsKept)}</Text>
-              </View>
-
-              {Object.keys(directTipOutTotals).length > 0 && (
-                <View style={styles.poolCard}>
-                  <Text style={styles.poolCardTitle}>Direct Tip-Outs</Text>
-                  {Object.entries(directTipOutTotals).map(([role, amount], i) => (
-                    <View key={role}>
-                      {i > 0 && <View style={styles.divider} />}
-                      <View style={styles.poolRow}>
-                        <Text style={styles.poolName}>
-                          {ROLE_EMOJIS[role] ?? ''} {ROLE_LABELS[role] ?? role}s (split equally)
-                        </Text>
-                        <Text style={styles.poolAmount}>${centsToDisplay(amount)}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {summary.totalHousePool > 0 && (
-                <View style={styles.poolCard}>
-                  <View style={styles.poolCardHeader}>
-                    <Text style={styles.poolCardTitle}>House Pool</Text>
-                    <Text style={styles.poolCardTotal}>
-                      ${centsToDisplay(summary.totalHousePool)}
-                    </Text>
-                  </View>
-                  {housePoolAllocations.length === 0 ? (
-                    <Text style={styles.emptyText}>
-                      No support staff on shift — pool unallocated.
-                    </Text>
-                  ) : (
-                    housePoolAllocations.map((a, i) => (
-                      <View key={a.staffId}>
-                        {i > 0 && <View style={styles.divider} />}
-                        <View style={styles.poolRow}>
-                          <View>
-                            <Text style={styles.poolName}>{a.name}</Text>
-                            <Text style={styles.poolMeta}>
-                              {a.hoursWorked}h
-                              {a.distributionType === 'points'
-                                ? ` · ${a.points.toFixed(1)} pts`
-                                : ' · fixed'}
-                            </Text>
-                          </View>
-                          <Text style={styles.poolAmount}>
-                            ${centsToDisplay(a.calculatedAmount)}
-                          </Text>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={[styles.payoutBtn, saving && styles.payoutBtnDisabled]}
-                onPress={handleSaveAndPayout}
-                activeOpacity={0.8}
-                disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator color="#09100e" />
-                ) : (
-                  <Text style={styles.payoutBtnText}>Save & Pay Out</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+          ) : (
+            <>
+              {formPanel}
+              {resultsPanel}
+            </>
           )}
 
         </ScrollView>
@@ -1083,6 +1175,60 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48, gap: 20 },
+  contentDesktop: { paddingHorizontal: 32 },
+
+  // Desktop two-pane layout
+  desktopPanes: {
+    flexDirection: 'row',
+    gap: 24,
+    alignItems: 'flex-start',
+  },
+  desktopFormPane: {
+    flex: 1,
+    gap: 20,
+  },
+  desktopResultsPane: {
+    width: 380,
+    flexShrink: 0,
+  },
+
+  // Desktop server table
+  tableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#0e1a14',
+    gap: 8,
+  },
+  tableHeaderCell: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  desktopServerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  tableInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLUE,
+    backgroundColor: '#0e1a14',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    textAlign: 'center',
+  },
 
   // Header
   header: { gap: 4 },

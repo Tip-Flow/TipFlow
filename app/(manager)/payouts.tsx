@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,9 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useIsDesktop } from '@/hooks/use-is-desktop';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -77,6 +79,7 @@ function payoutMethodEmoji(method: string | null): string {
 }
 
 export default function PayoutsScreen() {
+  const isDesktop = useIsDesktop();
   const [pendingShifts, setPendingShifts] = useState<PendingShift[]>([]);
   const [history, setHistory] = useState<HistoryAllocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,9 +149,11 @@ export default function PayoutsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   async function handlePayout(shift: PendingShift) {
     setPayingShiftId(shift.id);
@@ -181,120 +186,189 @@ export default function PayoutsScreen() {
     }
   }
 
+  const pendingSection = loading ? (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={BLUE} />
+    </View>
+  ) : pendingShifts.length === 0 ? (
+    <View style={styles.emptyCard}>
+      <Text style={styles.emptyText}>No pending payouts</Text>
+      <Text style={styles.emptySubtext}>All shifts have been paid out.</Text>
+    </View>
+  ) : (
+    <>
+      <View style={styles.pendingSectionHeader}>
+        <Text style={styles.readyText}>Ready to Pay Out</Text>
+        <View style={styles.shiftBadge}>
+          <Text style={styles.shiftBadgeText}>
+            {pendingShifts.length} {pendingShifts.length === 1 ? 'shift' : 'shifts'}
+          </Text>
+        </View>
+      </View>
+
+      {isDesktop ? (
+        /* Desktop: table layout for pending shifts */
+        <View style={styles.desktopTable}>
+          <View style={styles.tableHead}>
+            <Text style={[styles.tableHeadCell, { flex: 2 }]}>Shift</Text>
+            <Text style={styles.tableHeadCell}>Date</Text>
+            <Text style={[styles.tableHeadCell, { flex: 2 }]}>Staff</Text>
+            <Text style={styles.tableHeadCell}>Total</Text>
+            <Text style={[styles.tableHeadCell, { width: 160 }]}>Action</Text>
+          </View>
+          {pendingShifts.map((shift, index) => (
+            <View
+              key={shift.id}
+              style={[styles.tableRow, index < pendingShifts.length - 1 && styles.tableRowBorder]}>
+              <View style={{ flex: 2, gap: 2 }}>
+                <Text style={styles.tableShiftName}>{shift.name}</Text>
+                {shift.location_name ? (
+                  <Text style={styles.tableShiftMeta}>{shift.location_name}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.tableCell}>{formatDate(shift.date)}</Text>
+              <View style={{ flex: 2 }}>
+                {shift.allocations.slice(0, 3).map((chip) => (
+                  <Text key={chip.id} style={styles.tableStaffRow}>
+                    {payoutMethodEmoji(chip.payout_method)} {chip.staff_name} · {formatCents(chip.calculated_amount)}
+                  </Text>
+                ))}
+                {shift.allocations.length > 3 && (
+                  <Text style={styles.tableMoreStaff}>+{shift.allocations.length - 3} more</Text>
+                )}
+              </View>
+              <Text style={styles.tableTotalAmount}>{formatCents(shift.total_tips)}</Text>
+              <TouchableOpacity
+                style={[styles.tablePayBtn, payingShiftId === shift.id && styles.payBtnDisabled, { width: 148 }]}
+                activeOpacity={0.8}
+                disabled={payingShiftId === shift.id}
+                onPress={() => handlePayout(shift)}>
+                {payingShiftId === shift.id ? (
+                  <ActivityIndicator size="small" color={BG} />
+                ) : (
+                  <Text style={styles.payBtnText}>Pay via AptPay</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      ) : (
+        /* Mobile: card layout */
+        pendingShifts.map((shift) => (
+          <View key={shift.id} style={styles.pendingCard}>
+            <View style={styles.shiftInfo}>
+              <Text style={styles.shiftName}>{shift.name}</Text>
+              <View style={styles.shiftMeta}>
+                {shift.location_name ? (
+                  <>
+                    <Text style={styles.shiftMetaText}>{shift.location_name}</Text>
+                    <Text style={styles.shiftMetaDot}>·</Text>
+                  </>
+                ) : null}
+                <Text style={styles.shiftMetaText}>{formatDate(shift.date)}</Text>
+              </View>
+            </View>
+            <Text style={styles.totalAmount}>{formatCents(shift.total_tips)} CAD</Text>
+            {shift.allocations.length > 0 && (
+              <View style={styles.staffChips}>
+                {shift.allocations.map((chip) => (
+                  <View key={chip.id} style={styles.chip}>
+                    <Text style={styles.chipEmoji}>{payoutMethodEmoji(chip.payout_method)}</Text>
+                    <Text style={styles.chipName}>{chip.staff_name}</Text>
+                    <Text style={styles.chipAmount}>{formatCents(chip.calculated_amount)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.payBtn, payingShiftId === shift.id && styles.payBtnDisabled]}
+              activeOpacity={0.8}
+              disabled={payingShiftId === shift.id}
+              onPress={() => handlePayout(shift)}>
+              {payingShiftId === shift.id ? (
+                <ActivityIndicator size="small" color={BG} />
+              ) : (
+                <Text style={styles.payBtnText}>Pay via AptPay</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ))
+      )}
+    </>
+  );
+
+  const historySection = !loading && history.length > 0 ? (
+    <View style={styles.historySection}>
+      <Text style={styles.sectionTitle}>Payout History</Text>
+      {isDesktop ? (
+        /* Desktop: full table */
+        <View style={styles.desktopTable}>
+          <View style={styles.tableHead}>
+            <Text style={[styles.tableHeadCell, { flex: 2 }]}>Staff</Text>
+            <Text style={[styles.tableHeadCell, { flex: 2 }]}>Shift</Text>
+            <Text style={styles.tableHeadCell}>Date</Text>
+            <Text style={styles.tableHeadCell}>Method</Text>
+            <Text style={styles.tableHeadCell}>Amount</Text>
+            <Text style={[styles.tableHeadCell, { width: 80 }]}>Status</Text>
+          </View>
+          {history.map((item, index) => (
+            <View
+              key={item.id}
+              style={[styles.tableRow, index < history.length - 1 && styles.tableRowBorder]}>
+              <Text style={[styles.tableShiftName, { flex: 2 }]}>{item.staff_name}</Text>
+              <Text style={[styles.tableCell, { flex: 2 }]}>{item.shift_name}</Text>
+              <Text style={styles.tableCell}>{formatDate(item.shift_date)}</Text>
+              <Text style={styles.tableCell}>{payoutMethodLabel(item.payout_method)}</Text>
+              <Text style={styles.tableTotalAmount}>{formatCents(item.calculated_amount)}</Text>
+              <View style={[styles.sentBadge, { width: 68 }]}>
+                <Text style={styles.sentText}>Sent</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        /* Mobile: list */
+        <View style={styles.historyCard}>
+          {history.map((item, index) => (
+            <View
+              key={item.id}
+              style={[
+                styles.historyRow,
+                index < history.length - 1 && styles.historyRowBorder,
+              ]}>
+              <View style={styles.historyLeft}>
+                <Text style={styles.historyName}>{item.staff_name}</Text>
+                <Text style={styles.historyShift}>
+                  {item.shift_name} · {formatDate(item.shift_date)}
+                </Text>
+                <Text style={styles.historyMethod}>{payoutMethodLabel(item.payout_method)}</Text>
+              </View>
+              <View style={styles.historyRight}>
+                <Text style={styles.historyAmount}>{formatCents(item.calculated_amount)}</Text>
+                <View style={styles.sentBadge}>
+                  <Text style={styles.sentText}>Sent</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  ) : null;
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
         showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Payouts</Text>
         </View>
 
-        {/* Loading state */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={BLUE} />
-          </View>
-        ) : pendingShifts.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No pending payouts</Text>
-            <Text style={styles.emptySubtext}>All shifts have been paid out.</Text>
-          </View>
-        ) : (
-          <>
-            {/* Pending badge */}
-            <View style={styles.pendingSectionHeader}>
-              <Text style={styles.readyText}>Ready to Pay Out</Text>
-              <View style={styles.shiftBadge}>
-                <Text style={styles.shiftBadgeText}>
-                  {pendingShifts.length} {pendingShifts.length === 1 ? 'shift' : 'shifts'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Pending shift cards */}
-            {pendingShifts.map((shift) => (
-              <View key={shift.id} style={styles.pendingCard}>
-                {/* Shift Info */}
-                <View style={styles.shiftInfo}>
-                  <Text style={styles.shiftName}>{shift.name}</Text>
-                  <View style={styles.shiftMeta}>
-                    {shift.location_name ? (
-                      <>
-                        <Text style={styles.shiftMetaText}>{shift.location_name}</Text>
-                        <Text style={styles.shiftMetaDot}>·</Text>
-                      </>
-                    ) : null}
-                    <Text style={styles.shiftMetaText}>{formatDate(shift.date)}</Text>
-                  </View>
-                </View>
-
-                {/* Total Amount */}
-                <Text style={styles.totalAmount}>{formatCents(shift.total_tips)} CAD</Text>
-
-                {/* Staff Chips */}
-                {shift.allocations.length > 0 && (
-                  <View style={styles.staffChips}>
-                    {shift.allocations.map((chip) => (
-                      <View key={chip.id} style={styles.chip}>
-                        <Text style={styles.chipEmoji}>{payoutMethodEmoji(chip.payout_method)}</Text>
-                        <Text style={styles.chipName}>{chip.staff_name}</Text>
-                        <Text style={styles.chipAmount}>{formatCents(chip.calculated_amount)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Pay Button */}
-                <TouchableOpacity
-                  style={[styles.payBtn, payingShiftId === shift.id && styles.payBtnDisabled]}
-                  activeOpacity={0.8}
-                  disabled={payingShiftId === shift.id}
-                  onPress={() => handlePayout(shift)}>
-                  {payingShiftId === shift.id ? (
-                    <ActivityIndicator size="small" color={BG} />
-                  ) : (
-                    <Text style={styles.payBtnText}>Pay via AptPay</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* Payout History */}
-        {!loading && history.length > 0 && (
-          <View style={styles.historySection}>
-            <Text style={styles.sectionTitle}>Payout History</Text>
-            <View style={styles.historyCard}>
-              {history.map((item, index) => (
-                <View
-                  key={item.id}
-                  style={[
-                    styles.historyRow,
-                    index < history.length - 1 && styles.historyRowBorder,
-                  ]}>
-                  <View style={styles.historyLeft}>
-                    <Text style={styles.historyName}>{item.staff_name}</Text>
-                    <Text style={styles.historyShift}>
-                      {item.shift_name} · {formatDate(item.shift_date)}
-                    </Text>
-                    <Text style={styles.historyMethod}>{payoutMethodLabel(item.payout_method)}</Text>
-                  </View>
-                  <View style={styles.historyRight}>
-                    <Text style={styles.historyAmount}>{formatCents(item.calculated_amount)}</Text>
-                    <View style={styles.sentBadge}>
-                      <Text style={styles.sentText}>Sent</Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        {pendingSection}
+        {historySection}
 
       </ScrollView>
     </SafeAreaView>
@@ -314,6 +388,81 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
     gap: 16,
+  },
+  contentDesktop: {
+    paddingHorizontal: 32,
+  },
+
+  // Desktop table
+  desktopTable: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    overflow: 'hidden',
+  },
+  tableHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    backgroundColor: '#0e1a14',
+    gap: 12,
+  },
+  tableHeadCell: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  tableRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+  tableShiftName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  tableShiftMeta: {
+    fontSize: 11,
+    color: MUTED,
+  },
+  tableCell: {
+    flex: 1,
+    fontSize: 13,
+    color: MUTED,
+  },
+  tableStaffRow: {
+    fontSize: 12,
+    color: WHITE,
+    marginBottom: 2,
+  },
+  tableMoreStaff: {
+    fontSize: 11,
+    color: MUTED,
+    fontStyle: 'italic',
+  },
+  tableTotalAmount: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    color: BLUE,
+  },
+  tablePayBtn: {
+    backgroundColor: BLUE,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
   },
 
   // Header

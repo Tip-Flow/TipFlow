@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -7,7 +8,7 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
@@ -22,33 +23,149 @@ const MUTED = '#6b7a74';
 const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
 
-const locationRows = [
-  { name: 'Ossington', city: 'Toronto', tips: '$11,240', staff: 9, status: 'green' as const },
-  { name: 'Kensington', city: 'Toronto', tips: '$9,830', staff: 8, status: 'amber' as const },
-  { name: 'Distillery', city: 'Toronto', tips: '$7,380', staff: 7, status: 'green' as const },
-];
+type PointsRequest = {
+  id: string;
+  locationName: string;
+  locationCity: string;
+  roleName: string;
+  currentPoints: number;
+  requestedPoints: number;
+  reason: string | null;
+};
 
-const statusColor = {
-  green: '#22c55e',
-  amber: AMBER,
-  red: RED,
+type KpiData = {
+  totalLocations: number;
+  totalStaff: number;
+  tipsThisWeek: number;
+  housePoolTotal: number;
 };
 
 export default function RegionalOverview() {
   const router = useRouter();
-  const [approvalVisible, setApprovalVisible] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState<PointsRequest[]>([]);
+  const [kpi, setKpi] = useState<KpiData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const stats = [
-    { label: 'Total Locations', value: '3', icon: '📍', accent: BLUE },
-    { label: 'Total Staff', value: '24', icon: '👥', accent: BLUE },
-    { label: 'Tips This Week', value: '$28,450', icon: '📈', accent: BLUE },
-    { label: 'House Pool Balance', value: '$1,240', icon: '🏦', accent: AMBER },
-  ];
+  const fetchData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id ?? null);
+
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+
+      const [locsRes, staffRes, shiftsRes, requestsRes] = await Promise.all([
+        supabase.from('locations').select('id, name, city, house_pool_balance'),
+        supabase.from('staff_members').select('id'),
+        supabase.from('shifts').select('total_tips').gte('date', weekStartStr),
+        supabase
+          .from('points_change_requests')
+          .select('id, role_name, current_points, requested_points, reason, locations(name, city)')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (locsRes.data) {
+        const housePoolTotal = locsRes.data.reduce((sum, l) => sum + (l.house_pool_balance ?? 0), 0);
+        const tipsTotal = (shiftsRes.data ?? []).reduce((sum, s) => sum + (s.total_tips ?? 0), 0);
+        setKpi({
+          totalLocations: locsRes.data.length,
+          totalStaff: staffRes.data?.length ?? 0,
+          tipsThisWeek: tipsTotal,
+          housePoolTotal,
+        });
+      }
+
+      if (requestsRes.data) {
+        setPendingRequests(
+          requestsRes.data.map(r => ({
+            id: r.id,
+            locationName: (r.locations as any)?.name ?? 'Unknown',
+            locationCity: (r.locations as any)?.city ?? '',
+            roleName: r.role_name,
+            currentPoints: r.current_points,
+            requestedPoints: r.requested_points,
+            reason: r.reason,
+          }))
+        );
+      }
+    } catch (err) {
+      console.log('[RegionalOverview] fetchData error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+
+  async function handleApprove(request: PointsRequest) {
+    setProcessingId(request.id);
+    try {
+      const { error } = await supabase
+        .from('points_change_requests')
+        .update({
+          status: 'approved',
+          reviewed_by: currentUserId,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+
+      if (error) throw error;
+      setPendingRequests(prev => prev.filter(r => r.id !== request.id));
+    } catch (err) {
+      console.log('[RegionalOverview] approve error:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleReject(request: PointsRequest) {
+    setProcessingId(request.id);
+    try {
+      const { error } = await supabase
+        .from('points_change_requests')
+        .update({
+          status: 'rejected',
+          reviewed_by: currentUserId,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+
+      if (error) throw error;
+      setPendingRequests(prev => prev.filter(r => r.id !== request.id));
+    } catch (err) {
+      console.log('[RegionalOverview] reject error:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.replace('/');
   }
+
+  const stats = kpi
+    ? [
+        { label: 'Total Locations', value: String(kpi.totalLocations), icon: '📍', accent: BLUE },
+        { label: 'Total Staff', value: String(kpi.totalStaff), icon: '👥', accent: BLUE },
+        {
+          label: 'Tips This Week',
+          value: '$' + Math.round(kpi.tipsThisWeek / 100).toLocaleString('en-CA'),
+          icon: '📈',
+          accent: BLUE,
+        },
+        {
+          label: 'House Pool Balance',
+          value: '$' + Math.round(kpi.housePoolTotal / 100).toLocaleString('en-CA'),
+          icon: '🏦',
+          accent: AMBER,
+        },
+      ]
+    : [];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -59,103 +176,95 @@ export default function RegionalOverview() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
-
-        {/* Greeting */}
-        <View style={styles.greetingBlock}>
-          <Text style={styles.greeting}>Good evening, Sarah 👋</Text>
-          <Text style={styles.subGreeting}>Regional Manager · Canteen Group</Text>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={BLUE} />
         </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}>
 
-        {/* KPI Cards 2×2 */}
-        <View style={styles.grid}>
-          {stats.map((stat) => (
-            <View key={stat.label} style={styles.card}>
-              <Text style={styles.cardIcon}>{stat.icon}</Text>
-              <Text style={[styles.cardValue, { color: stat.accent }]}>{stat.value}</Text>
-              <Text style={styles.cardLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greeting}>Regional Overview 👋</Text>
+            <Text style={styles.subGreeting}>All locations · This week</Text>
+          </View>
 
-        {/* Locations Performance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Locations Performance</Text>
-          <View style={styles.listCard}>
-            {locationRows.map((loc, index) => (
-              <View
-                key={loc.name}
-                style={[
-                  styles.locationRow,
-                  index < locationRows.length - 1 && styles.rowBorder,
-                ]}>
-                <View style={styles.locationLeft}>
-                  <View style={[styles.statusDot, { backgroundColor: statusColor[loc.status] }]} />
-                  <View style={styles.locationInfo}>
-                    <Text style={styles.locationName}>{loc.name}</Text>
-                    <Text style={styles.locationCity}>{loc.city}</Text>
-                  </View>
-                </View>
-                <View style={styles.locationRight}>
-                  <Text style={styles.locationTips}>{loc.tips}</Text>
-                  <Text style={styles.locationStaff}>{loc.staff} staff</Text>
-                </View>
+          {/* KPI Cards */}
+          <View style={styles.grid}>
+            {stats.map(stat => (
+              <View key={stat.label} style={styles.card}>
+                <Text style={styles.cardIcon}>{stat.icon}</Text>
+                <Text style={[styles.cardValue, { color: stat.accent }]}>{stat.value}</Text>
+                <Text style={styles.cardLabel}>{stat.label}</Text>
               </View>
             ))}
           </View>
-        </View>
 
-        {/* Pending Approvals */}
-        {approvalVisible && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pending Approvals</Text>
-            <View style={styles.approvalCard}>
-              <View style={styles.approvalHeader}>
-                <View style={styles.approvalBadgeWrap}>
-                  <Text style={styles.approvalBadgeText}>1 PENDING</Text>
+          {/* Pending Approvals */}
+          {pendingRequests.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Pending Approvals</Text>
+              <View style={styles.approvalCard}>
+                <View style={styles.approvalHeader}>
+                  <View style={styles.approvalBadgeWrap}>
+                    <Text style={styles.approvalBadgeText}>
+                      {pendingRequests.length} PENDING
+                    </Text>
+                  </View>
+                  <Text style={styles.approvalType}>Points Change Requests</Text>
                 </View>
-                <Text style={styles.approvalType}>Points Change Requests</Text>
-              </View>
-              <View style={styles.approvalItem}>
-                <View style={styles.approvalDetails}>
-                  <Text style={styles.approvalLocation}>Ossington · Line Cook</Text>
-                  <Text style={styles.approvalChange}>2.25 → 3.0 pts/hr</Text>
-                  <Text style={styles.approvalRequested}>Requested by Jamie</Text>
-                </View>
-                <View style={styles.approvalActions}>
-                  <TouchableOpacity
-                    style={styles.approveBtn}
-                    activeOpacity={0.8}
-                    onPress={() => setApprovalVisible(false)}>
-                    <Text style={styles.approveBtnText}>Approve</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.rejectBtn}
-                    activeOpacity={0.8}
-                    onPress={() => setApprovalVisible(false)}>
-                    <Text style={styles.rejectBtnText}>Reject</Text>
-                  </TouchableOpacity>
-                </View>
+
+                {pendingRequests.map((req, i) => {
+                  const isProcessing = processingId === req.id;
+                  return (
+                    <View
+                      key={req.id}
+                      style={[
+                        styles.approvalItem,
+                        i < pendingRequests.length - 1 && styles.approvalItemBorder,
+                      ]}>
+                      <View style={styles.approvalDetails}>
+                        <Text style={styles.approvalLocation}>
+                          {req.locationName} · {req.roleName}
+                        </Text>
+                        <Text style={styles.approvalChange}>
+                          {req.currentPoints} → {req.requestedPoints} pts/hr
+                        </Text>
+                        {req.reason ? (
+                          <Text style={styles.approvalReason}>{req.reason}</Text>
+                        ) : null}
+                      </View>
+                      <View style={styles.approvalActions}>
+                        {isProcessing ? (
+                          <ActivityIndicator size="small" color={BLUE} />
+                        ) : (
+                          <>
+                            <TouchableOpacity
+                              style={styles.approveBtn}
+                              activeOpacity={0.8}
+                              onPress={() => handleApprove(req)}>
+                              <Text style={styles.approveBtnText}>Approve</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.rejectBtn}
+                              activeOpacity={0.8}
+                              onPress={() => handleReject(req)}>
+                              <Text style={styles.rejectBtnText}>Reject</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Team Milestones */}
-        <View style={styles.milestonesCard}>
-          <Text style={styles.milestonesLabel}>TEAM MILESTONES THIS WEEK</Text>
-          <View style={styles.milestonesRow}>
-            <Text style={styles.milestonesCount}>24</Text>
-            <Text style={styles.milestonesText}>
-              milestones hit across all locations this week 🎉
-            </Text>
-          </View>
-        </View>
-
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -180,13 +289,9 @@ const styles = StyleSheet.create({
     borderColor: '#3d1515',
   },
   signOutText: { fontSize: 13, fontWeight: '600', color: RED },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    gap: 24,
-  },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, gap: 24 },
   greetingBlock: { gap: 4 },
   greeting: { fontSize: 26, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   subGreeting: { fontSize: 14, color: MUTED },
@@ -205,29 +310,6 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 12, color: MUTED, fontWeight: '500' },
   section: { gap: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: WHITE },
-  listCard: {
-    backgroundColor: CARD,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    overflow: 'hidden',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
-  locationLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-  locationInfo: { gap: 2 },
-  locationName: { fontSize: 15, fontWeight: '700', color: WHITE },
-  locationCity: { fontSize: 12, color: MUTED },
-  locationRight: { alignItems: 'flex-end', gap: 2 },
-  locationTips: { fontSize: 15, fontWeight: '700', color: BLUE },
-  locationStaff: { fontSize: 12, color: MUTED },
   approvalCard: {
     backgroundColor: CARD,
     borderRadius: 16,
@@ -251,12 +333,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 20,
   },
-  approvalBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: AMBER,
-    letterSpacing: 1,
-  },
+  approvalBadgeText: { fontSize: 10, fontWeight: '700', color: AMBER, letterSpacing: 1 },
   approvalType: { fontSize: 14, fontWeight: '700', color: WHITE },
   approvalItem: {
     flexDirection: 'row',
@@ -266,17 +343,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 12,
   },
+  approvalItemBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
   approvalDetails: { flex: 1, gap: 3 },
   approvalLocation: { fontSize: 14, fontWeight: '700', color: WHITE },
   approvalChange: { fontSize: 13, fontWeight: '600', color: AMBER },
-  approvalRequested: { fontSize: 12, color: MUTED },
+  approvalReason: { fontSize: 12, color: MUTED },
   approvalActions: { flexDirection: 'row', gap: 8 },
-  approveBtn: {
-    backgroundColor: BLUE,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
+  approveBtn: { backgroundColor: BLUE, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   approveBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
   rejectBtn: {
     backgroundColor: RED_DIM,
@@ -287,32 +360,4 @@ const styles = StyleSheet.create({
     borderColor: RED,
   },
   rejectBtnText: { fontSize: 13, fontWeight: '700', color: RED },
-  milestonesCard: {
-    backgroundColor: CARD,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: BORDER,
-    gap: 12,
-  },
-  milestonesLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: BLUE,
-    letterSpacing: 2,
-  },
-  milestonesRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  milestonesCount: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: BLUE,
-    letterSpacing: -2,
-  },
-  milestonesText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: WHITE,
-    lineHeight: 22,
-  },
 });
