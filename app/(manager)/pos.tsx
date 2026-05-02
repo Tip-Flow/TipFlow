@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { parseCSV, CSVParseResult, CSVStaffRow } from '@/lib/csvParser';
 import { parseOCRText, OCRParseResult } from '@/lib/ocrParser';
+import { supabase } from '../../lib/supabase';
 
 const BG = '#09100e';
 const CARD = '#162019';
@@ -65,8 +66,32 @@ function centsToDisplay(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+type ReportShift = {
+  id: string;
+  name: string;
+  date: string;
+  total_tips: number;
+  total_sales: number;
+  status: string;
+};
+
+type ReportAllocation = {
+  id: string;
+  staff_name: string;
+  hours_worked: number;
+  calculated_amount: number;
+};
+
 export default function POSScreen() {
   const router = useRouter();
+
+  // Pull Tonight's Report flow
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [pullingReport, setPullingReport] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportShift, setReportShift] = useState<ReportShift | null>(null);
+  const [reportAllocations, setReportAllocations] = useState<ReportAllocation[]>([]);
+
   // CSV flow
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<CSVParseResult | null>(null);
@@ -102,6 +127,98 @@ export default function POSScreen() {
       scanAnim.setValue(1);
     }
   }, [scanning]);
+
+  // Resolve location once on mount so Pull Report has it ready
+  useEffect(() => {
+    supabase
+      .from('locations')
+      .select('id')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+      .then(({ data }) => { if (data) setLocationId(data.id); });
+  }, []);
+
+  // ── Pull Tonight's Report ─────────────────────────────────────────────────
+
+  async function handlePullReport() {
+    const today = new Date().toISOString().split('T')[0];
+    setPullingReport(true);
+    try {
+      // Resolve location (may already be set from mount effect)
+      let locId = locationId;
+      if (!locId) {
+        const { data: loc } = await supabase
+          .from('locations')
+          .select('id')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+        locId = loc?.id ?? null;
+        if (locId) setLocationId(locId);
+      }
+
+      if (!locId) {
+        Alert.alert('No Location', 'No location found. Please set up your location first.');
+        return;
+      }
+
+      console.log('[POS] pulling report for location:', locId, 'date:', today);
+
+      const { data: shift, error: shiftErr } = await supabase
+        .from('shifts')
+        .select('id, name, date, total_tips, total_sales, status')
+        .eq('location_id', locId)
+        .eq('date', today)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (shiftErr) console.log('[POS] shift fetch error:', shiftErr.message);
+
+      if (!shift) {
+        Alert.alert(
+          'No Shift Tonight',
+          "There's no shift created for today yet. Go to the Calculate tab to create tonight's shift first.",
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Go to Calculate', onPress: () => router.push('/(manager)/calculate') },
+          ]
+        );
+        return;
+      }
+
+      console.log('[POS] found shift:', shift.id, 'status:', shift.status);
+      setReportShift(shift);
+
+      const { data: allocs, error: allocErr } = await supabase
+        .from('tip_allocations')
+        .select('id, calculated_amount, hours_worked, staff_members(name)')
+        .eq('shift_id', shift.id)
+        .order('calculated_amount', { ascending: false });
+
+      if (allocErr) console.log('[POS] allocations fetch error:', allocErr.message);
+
+      console.log('[POS] allocations response:', JSON.stringify(allocs));
+
+      setReportAllocations(
+        (allocs ?? []).map((a) => ({
+          id: a.id,
+          staff_name: (a.staff_members as unknown as { name: string } | null)?.name ?? 'Unknown',
+          hours_worked: Number(a.hours_worked),
+          calculated_amount: Number(a.calculated_amount),
+        }))
+      );
+
+      setReportModalVisible(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log('[POS] handlePullReport error:', msg);
+      Alert.alert('Error', "Couldn't pull tonight's report. Please try again.");
+    } finally {
+      setPullingReport(false);
+    }
+  }
 
   // ── CSV upload ────────────────────────────────────────────────────────────
 
@@ -328,13 +445,13 @@ export default function POSScreen() {
                   style={[
                     styles.actionBtn,
                     isTeal ? styles.actionBtnTeal : styles.actionBtnAmber,
-                    loading && isCSV && styles.actionBtnDisabled,
+                    ((loading && isCSV) || (pullingReport && !isCSV)) && styles.actionBtnDisabled,
                   ]}
                   activeOpacity={0.8}
-                  disabled={loading && isCSV}
-                  onPress={isCSV ? handleUploadCSV : undefined}>
-                  {loading && isCSV ? (
-                    <ActivityIndicator color="#09100e" />
+                  disabled={(loading && isCSV) || (pullingReport && !isCSV)}
+                  onPress={isCSV ? handleUploadCSV : handlePullReport}>
+                  {(loading && isCSV) || (pullingReport && !isCSV) ? (
+                    <ActivityIndicator color="#ffffff" />
                   ) : (
                     <Text style={styles.actionBtnText}>
                       {loc.connected ? "Pull Tonight's Report" : 'Upload CSV'}
@@ -708,6 +825,119 @@ export default function POSScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Tonight's Report Modal ────────────────────────────────────────── */}
+      <Modal
+        visible={reportModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setReportModalVisible(false)}>
+        <SafeAreaView style={styles.modalSafe}>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalContent}
+            showsVerticalScrollIndicator={false}>
+
+            {reportShift && (
+              <>
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={styles.modalTitle}>Tonight's Report</Text>
+                    <Text style={styles.modalSubtitle}>{reportShift.name}</Text>
+                    <View style={[
+                      styles.shiftStatusBadge,
+                      reportShift.status === 'paid' ? styles.shiftStatusPaid
+                        : reportShift.status === 'calculated' ? styles.shiftStatusCalc
+                        : styles.shiftStatusPending,
+                    ]}>
+                      <Text style={[
+                        styles.shiftStatusText,
+                        { color: reportShift.status === 'paid' ? '#22c55e'
+                            : reportShift.status === 'calculated' ? BLUE
+                            : AMBER },
+                      ]}>
+                        {reportShift.status === 'paid' ? '✓ Paid out'
+                          : reportShift.status === 'calculated' ? 'Calculated'
+                          : 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.closeBtn}
+                    onPress={() => setReportModalVisible(false)}
+                    activeOpacity={0.7}>
+                    <Text style={styles.closeBtnText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Totals */}
+                <View style={styles.totalsCard}>
+                  <View style={styles.totalItem}>
+                    <Text style={styles.totalItemLabel}>Total Tips</Text>
+                    <Text style={styles.totalItemValue}>
+                      {reportShift.total_tips > 0 ? `$${centsToDisplay(reportShift.total_tips)}` : '—'}
+                    </Text>
+                  </View>
+                  <View style={[styles.totalItem, styles.totalItemBorder]}>
+                    <Text style={styles.totalItemLabel}>Total Sales</Text>
+                    <Text style={styles.totalItemValue}>
+                      {reportShift.total_sales > 0 ? `$${centsToDisplay(reportShift.total_sales)}` : '—'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Allocations table */}
+                {reportAllocations.length > 0 ? (
+                  <View style={styles.tableCard}>
+                    <View style={styles.tableHeaderRow}>
+                      <Text style={[styles.tableHeaderCell, styles.colName]}>Staff</Text>
+                      <Text style={[styles.tableHeaderCell, styles.colHours]}>Hours</Text>
+                      <Text style={[styles.tableHeaderCell, styles.colTips]}>Amount</Text>
+                    </View>
+                    <View style={styles.tableDivider} />
+                    {reportAllocations.map((a, i) => (
+                      <View key={a.id}>
+                        {i > 0 && <View style={styles.tableRowDivider} />}
+                        <View style={styles.tableRow}>
+                          <Text style={[styles.tableCellName, styles.colName]} numberOfLines={1}>
+                            {a.staff_name}
+                          </Text>
+                          <Text style={[styles.tableCellMuted, styles.colHours]}>
+                            {a.hours_worked > 0 ? `${a.hours_worked}h` : '—'}
+                          </Text>
+                          <Text style={[styles.tableCellTeal, styles.colTips]}>
+                            {a.calculated_amount > 0 ? `$${centsToDisplay(a.calculated_amount)}` : '—'}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.reportEmptyCard}>
+                    <Text style={styles.reportEmptyIcon}>📊</Text>
+                    <Text style={styles.reportEmptyTitle}>No allocations yet</Text>
+                    <Text style={styles.reportEmptyBody}>
+                      Tip allocations haven't been calculated for this shift yet. Go to the Calculate tab to run the calculation.
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.useDataBtn}
+                  onPress={() => {
+                    setReportModalVisible(false);
+                    router.push('/(manager)/calculate');
+                  }}
+                  activeOpacity={0.8}>
+                  <Text style={styles.useDataBtnText}>
+                    {reportShift.status === 'pending' ? 'Go to Calculate →' : 'View in Calculate →'}
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
           </ScrollView>
@@ -1094,4 +1324,30 @@ const styles = StyleSheet.create({
 
   editSaveBtn: { backgroundColor: BLUE, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
   editSaveBtnText: { fontSize: 16, fontWeight: '800', color: '#ffffff', letterSpacing: 0.1 },
+
+  // ── Tonight's Report Modal ───────────────────────────────────────────────
+  shiftStatusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginTop: 2,
+  },
+  shiftStatusPaid:    { backgroundColor: 'rgba(34,197,94,0.15)' },
+  shiftStatusCalc:    { backgroundColor: BLUE_DIM },
+  shiftStatusPending: { backgroundColor: AMBER_DIM },
+  shiftStatusText: { fontSize: 12, fontWeight: '700' },
+
+  reportEmptyCard: {
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 24,
+    alignItems: 'center',
+    gap: 8,
+  },
+  reportEmptyIcon:  { fontSize: 36 },
+  reportEmptyTitle: { fontSize: 16, fontWeight: '700', color: WHITE },
+  reportEmptyBody:  { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 19 },
 });
