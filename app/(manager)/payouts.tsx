@@ -26,6 +26,9 @@ const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
 const GREEN_DIM = 'rgba(34,197,94,0.15)';
 const GREEN = '#22c55e';
+const PURPLE = '#a78bfa';
+const PURPLE_DIM = 'rgba(167,139,250,0.12)';
+const PURPLE_BORDER = 'rgba(167,139,250,0.3)';
 
 type StaffChip = {
   id: string;
@@ -53,14 +56,34 @@ type HistoryAllocation = {
   paid_at: string | null;
 };
 
+type PayoutRequest = {
+  id: string;
+  staff_name: string;
+  amount: number;
+  fee: number;
+  net_amount: number;
+  status: string;
+  requested_at: string;
+};
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
 }
 
+function formatTimestamp(ts: string): string {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+}
+
 function formatCents(cents: number): string {
   const dollars = Math.round(cents / 100);
   return '$' + dollars.toLocaleString('en-CA');
+}
+
+function formatCentsExact(cents: number): string {
+  return '$' + (cents / 100).toFixed(2);
 }
 
 function payoutMethodLabel(method: string | null): string {
@@ -83,13 +106,15 @@ export default function PayoutsScreen() {
   const isDesktop = useIsDesktop();
   const [pendingShifts, setPendingShifts] = useState<PendingShift[]>([]);
   const [history, setHistory] = useState<HistoryAllocation[]>([]);
+  const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingShiftId, setPayingShiftId] = useState<string | null>(null);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [pendingRes, paidRes] = await Promise.all([
+      const [pendingRes, paidRes, requestsRes] = await Promise.all([
         supabase
           .from('shifts')
           .select(
@@ -105,10 +130,16 @@ export default function PayoutsScreen() {
           .eq('status', 'paid')
           .order('date', { ascending: false })
           .limit(20),
+        supabase
+          .from('payout_requests')
+          .select('id, amount, fee, net_amount, status, requested_at, staff_members(name)')
+          .eq('status', 'pending')
+          .order('requested_at', { ascending: false }),
       ]);
 
       if (pendingRes.error) throw pendingRes.error;
       if (paidRes.error) throw paidRes.error;
+      // Ignore payout_requests error — table may not exist yet in dev
 
       console.log('[Payouts] pendingRes.data:', JSON.stringify(pendingRes.data, null, 2));
 
@@ -141,8 +172,19 @@ export default function PayoutsScreen() {
         }
       }
 
+      const requests: PayoutRequest[] = (requestsRes.data ?? []).map((r: any) => ({
+        id: r.id,
+        staff_name: r.staff_members?.name ?? 'Unknown',
+        amount: r.amount,
+        fee: r.fee,
+        net_amount: r.net_amount,
+        status: r.status,
+        requested_at: r.requested_at,
+      }));
+
       setPendingShifts(pending);
       setHistory(historyRows);
+      setPayoutRequests(requests);
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : String(err));
     } finally {
@@ -159,7 +201,6 @@ export default function PayoutsScreen() {
 
   async function handlePayout(shift: PendingShift) {
     setPayingShiftId(shift.id);
-    // Optimistic: remove from pending immediately
     setPendingShifts((prev) => prev.filter((s) => s.id !== shift.id));
     try {
       const aptpayRef = 'APT-TEST-' + Date.now();
@@ -177,14 +218,30 @@ export default function PayoutsScreen() {
         .eq('shift_id', shift.id);
       if (allocError) throw allocError;
 
-      // Refresh history in background
       fetchData();
     } catch (err: unknown) {
-      // Restore shift on failure
       setPendingShifts((prev) => [shift, ...prev]);
       Alert.alert('Payout failed', err instanceof Error ? err.message : String(err));
     } finally {
       setPayingShiftId(null);
+    }
+  }
+
+  async function handleProcessEFT(req: PayoutRequest) {
+    setProcessingRequestId(req.id);
+    setPayoutRequests((prev) => prev.filter((r) => r.id !== req.id));
+    try {
+      const { error } = await supabase
+        .from('payout_requests')
+        .update({ status: 'processed', processed_at: new Date().toISOString() })
+        .eq('id', req.id);
+      if (error) throw error;
+      fetchData();
+    } catch (err: unknown) {
+      setPayoutRequests((prev) => [req, ...prev]);
+      Alert.alert('Error', err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessingRequestId(null);
     }
   }
 
@@ -209,7 +266,6 @@ export default function PayoutsScreen() {
       </View>
 
       {isDesktop ? (
-        /* Desktop: table layout for pending shifts */
         <View style={styles.desktopTable}>
           <View style={styles.tableHead}>
             <Text style={[styles.tableHeadCell, { flex: 2 }]}>Shift</Text>
@@ -247,14 +303,13 @@ export default function PayoutsScreen() {
                 {payingShiftId === shift.id ? (
                   <ActivityIndicator size="small" color={BG} />
                 ) : (
-                  <Text style={styles.payBtnText}>Pay via AptPay</Text>
+                  <Text style={styles.payBtnText}>Pay via EFT</Text>
                 )}
               </Pressable>
             </View>
           ))}
         </View>
       ) : (
-        /* Mobile: card layout */
         pendingShifts.map((shift) => (
           <View key={shift.id} style={styles.pendingCard}>
             <View style={styles.shiftInfo}>
@@ -288,7 +343,7 @@ export default function PayoutsScreen() {
               {payingShiftId === shift.id ? (
                 <ActivityIndicator size="small" color={BG} />
               ) : (
-                <Text style={styles.payBtnText}>Pay via AptPay</Text>
+                <Text style={styles.payBtnText}>Pay via EFT</Text>
               )}
             </Pressable>
           </View>
@@ -297,11 +352,99 @@ export default function PayoutsScreen() {
     </>
   );
 
+  const eftRequestsSection = !loading && payoutRequests.length > 0 ? (
+    <View style={styles.eftSection}>
+      <View style={styles.eftSectionHeader}>
+        <Text style={styles.eftSectionTitle}>Staff Payout Requests</Text>
+        <View style={styles.eftBadge}>
+          <Text style={styles.eftBadgeText}>
+            {payoutRequests.length} pending
+          </Text>
+        </View>
+      </View>
+
+      {isDesktop ? (
+        <View style={styles.desktopTable}>
+          <View style={styles.tableHead}>
+            <Text style={[styles.tableHeadCell, { flex: 2 }]}>Staff</Text>
+            <Text style={styles.tableHeadCell}>Requested</Text>
+            <Text style={styles.tableHeadCell}>Gross</Text>
+            <Text style={styles.tableHeadCell}>Fee</Text>
+            <Text style={styles.tableHeadCell}>Net</Text>
+            <Text style={[styles.tableHeadCell, { width: 148 }]}>Action</Text>
+          </View>
+          {payoutRequests.map((req, index) => (
+            <View
+              key={req.id}
+              style={[styles.tableRow, index < payoutRequests.length - 1 && styles.tableRowBorder]}>
+              <Text style={[styles.tableShiftName, { flex: 2 }]}>{req.staff_name}</Text>
+              <Text style={styles.tableCell}>{formatTimestamp(req.requested_at)}</Text>
+              <Text style={styles.tableCell}>{formatCentsExact(req.amount)}</Text>
+              <Text style={[styles.tableCell, { color: AMBER }]}>−{formatCentsExact(req.fee)}</Text>
+              <Text style={[styles.tableTotalAmount, { color: GREEN }]}>{formatCentsExact(req.net_amount)}</Text>
+              <Pressable
+                style={[styles.eftProcessBtn, processingRequestId === req.id && styles.payBtnDisabled, { width: 136 }]}
+                disabled={processingRequestId === req.id}
+                onPress={() => handleProcessEFT(req)}>
+                {processingRequestId === req.id ? (
+                  <ActivityIndicator size="small" color={BG} />
+                ) : (
+                  <Text style={styles.eftProcessBtnText}>Process EFT</Text>
+                )}
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.eftCard}>
+          {payoutRequests.map((req, index) => (
+            <View
+              key={req.id}
+              style={[
+                styles.eftRow,
+                index < payoutRequests.length - 1 && styles.eftRowBorder,
+              ]}>
+              <View style={styles.eftRowTop}>
+                <Text style={styles.eftStaffName}>{req.staff_name}</Text>
+                <Text style={styles.eftTime}>{formatTimestamp(req.requested_at)}</Text>
+              </View>
+              <View style={styles.eftAmounts}>
+                <View style={styles.eftAmountItem}>
+                  <Text style={styles.eftAmountLabel}>Gross</Text>
+                  <Text style={styles.eftAmountValue}>{formatCentsExact(req.amount)}</Text>
+                </View>
+                <Text style={styles.eftMinus}>−</Text>
+                <View style={styles.eftAmountItem}>
+                  <Text style={styles.eftAmountLabel}>Fee</Text>
+                  <Text style={[styles.eftAmountValue, { color: AMBER }]}>{formatCentsExact(req.fee)}</Text>
+                </View>
+                <Text style={styles.eftEquals}>=</Text>
+                <View style={styles.eftAmountItem}>
+                  <Text style={styles.eftAmountLabel}>Net</Text>
+                  <Text style={[styles.eftAmountValue, { color: GREEN }]}>{formatCentsExact(req.net_amount)}</Text>
+                </View>
+              </View>
+              <Pressable
+                style={[styles.eftProcessBtnMobile, processingRequestId === req.id && styles.payBtnDisabled]}
+                disabled={processingRequestId === req.id}
+                onPress={() => handleProcessEFT(req)}>
+                {processingRequestId === req.id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.eftProcessBtnText}>Process EFT</Text>
+                )}
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  ) : null;
+
   const historySection = !loading && history.length > 0 ? (
     <View style={styles.historySection}>
       <Text style={styles.sectionTitle}>Payout History</Text>
       {isDesktop ? (
-        /* Desktop: full table */
         <View style={styles.desktopTable}>
           <View style={styles.tableHead}>
             <Text style={[styles.tableHeadCell, { flex: 2 }]}>Staff</Text>
@@ -327,7 +470,6 @@ export default function PayoutsScreen() {
           ))}
         </View>
       ) : (
-        /* Mobile: list */
         <View style={styles.historyCard}>
           {history.map((item, index) => (
             <View
@@ -368,6 +510,7 @@ export default function PayoutsScreen() {
         </View>
 
         {pendingSection}
+        {eftRequestsSection}
         {historySection}
 
       </ScrollView>
@@ -612,6 +755,111 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     letterSpacing: 0.1,
+  },
+
+  // EFT Requests Section
+  eftSection: {
+    gap: 12,
+  },
+  eftSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  eftSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: PURPLE,
+  },
+  eftBadge: {
+    backgroundColor: PURPLE_DIM,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: PURPLE_BORDER,
+  },
+  eftBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: PURPLE,
+  },
+  eftCard: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: PURPLE_BORDER,
+    overflow: 'hidden',
+  },
+  eftRow: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  eftRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+  eftRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  eftStaffName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  eftTime: {
+    fontSize: 12,
+    color: MUTED,
+  },
+  eftAmounts: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  eftAmountItem: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  eftAmountLabel: {
+    fontSize: 11,
+    color: MUTED,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  eftAmountValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  eftMinus: {
+    fontSize: 16,
+    color: MUTED,
+    marginTop: 14,
+  },
+  eftEquals: {
+    fontSize: 16,
+    color: MUTED,
+    marginTop: 14,
+  },
+  eftProcessBtn: {
+    backgroundColor: PURPLE,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  eftProcessBtnMobile: {
+    backgroundColor: PURPLE,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  eftProcessBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 
   // History Section

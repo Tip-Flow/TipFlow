@@ -80,7 +80,7 @@ export default function ProfileScreen() {
         {/* Payout Method Card */}
         <View style={styles.card}>
           <Text style={styles.payoutMethod}>📱 Interac e-Transfer</Text>
-          <Text style={styles.payoutDetails}>alex@tip.ca · Instant · 24/7 via AptPay</Text>
+          <Text style={styles.payoutDetails}>alex@tip.ca · Instant · 24/7 via EFT</Text>
         </View>
 
         {/* Settings List */}
