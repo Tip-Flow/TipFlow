@@ -126,7 +126,7 @@ export default function MyTipsScreen() {
       const [paidRes, unpaidRes, requestsRes] = await Promise.all([
         supabase
           .from('tip_allocations')
-          .select('id, calculated_amount, paid_at, aptpay_ref, shifts(name, date)')
+          .select('id, calculated_amount, paid_at, eft_ref, shifts(name, date)')
           .eq('staff_id', member.id)
           .not('paid_at', 'is', null)
           .order('paid_at', { ascending: false })
@@ -175,7 +175,7 @@ export default function MyTipsScreen() {
           amount: a.calculated_amount ?? 0,
           paidAt: a.paid_at ?? '',
           shiftName: (a.shifts as any)?.name ?? 'Shift',
-          eftRef: a.aptpay_ref,
+          eftRef: a.eft_ref,
         }))
       );
 

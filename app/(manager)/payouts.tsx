@@ -203,7 +203,7 @@ export default function PayoutsScreen() {
     setPayingShiftId(shift.id);
     setPendingShifts((prev) => prev.filter((s) => s.id !== shift.id));
     try {
-      const aptpayRef = 'APT-TEST-' + Date.now();
+      const eftRef = 'EFT-' + Date.now();
       const paidAt = new Date().toISOString();
 
       const { error: shiftError } = await supabase
@@ -214,7 +214,7 @@ export default function PayoutsScreen() {
 
       const { error: allocError } = await supabase
         .from('tip_allocations')
-        .update({ aptpay_ref: aptpayRef, paid_at: paidAt })
+        .update({ eft_ref: eftRef, paid_at: paidAt })
         .eq('shift_id', shift.id);
       if (allocError) throw allocError;
 
