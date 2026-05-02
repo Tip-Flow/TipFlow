@@ -154,11 +154,13 @@ export default function MyTipsScreen() {
       console.log('[MyTips] totalCents:', totalCents, '| unpaidCents:', unpaid);
 
       const loc = member.locations as any;
+      const resolvedLocationId = loc?.id ?? member.location_id ?? '';
+      console.log('[MyTips] location — loc.id:', loc?.id ?? null, '| member.location_id:', member.location_id, '| resolved:', resolvedLocationId);
       setHero({
         staffId: member.id,
         staffName: member.name,
         locationName: loc?.name ?? 'Your Location',
-        locationId: loc?.id ?? '',
+        locationId: resolvedLocationId,
         totalCents,
         shiftCount: allocs.length,
         payoutMethod: member.payout_method,
@@ -204,7 +206,12 @@ export default function MyTipsScreen() {
     setSubmitting(true);
     try {
       const netAmount = unpaidCents - EFT_FEE_CENTS;
-      const { error } = await supabase.from('payout_requests').insert({
+
+      if (!hero.locationId) {
+        throw new Error('location_id is empty — staff member has no location assigned');
+      }
+
+      const payload = {
         staff_id: hero.staffId,
         location_id: hero.locationId,
         amount: unpaidCents,
@@ -212,13 +219,24 @@ export default function MyTipsScreen() {
         net_amount: netAmount,
         status: 'pending',
         requested_at: new Date().toISOString(),
-      });
+      };
+      console.log('[MyTips] EFT insert payload:', JSON.stringify(payload));
+
+      const { data: insertData, error } = await supabase
+        .from('payout_requests')
+        .insert(payload)
+        .select();
+
+      console.log('[MyTips] EFT insert result — data:', JSON.stringify(insertData), '| error:', error?.message ?? null, '| code:', error?.code ?? null, '| details:', error?.details ?? null, '| hint:', error?.hint ?? null);
+
       if (error) throw error;
       setConfirmVisible(false);
       setSuccessVisible(true);
       loadData();
     } catch (err: unknown) {
-      Alert.alert('Request failed', err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log('[MyTips] EFT insert exception:', msg);
+      Alert.alert('Request failed', msg);
     } finally {
       setSubmitting(false);
     }
