@@ -58,8 +58,8 @@ const GOAL_TYPE_LABELS: Record<GoalType, string> = {
   managers_choice: "Manager's Choice",
 };
 
-const TODAY_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-const TODAY_LABEL = new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
+function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+function getTodayLabel() { return new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' }); }
 
 const DEMO_STAFF: StaffMember[] = [
   { id: 'staff-1', name: 'Alex Dubois',    role: 'Server' },
@@ -74,6 +74,9 @@ export default function ShiftGoalsScreen() {
 
   const [goals, setGoals] = useState<ShiftGoal[]>([]);
   const [loadingGoals, setLoadingGoals] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [todayLabel, setTodayLabel] = useState(getTodayLabel());
 
   // Resolved shift state — populated on mount from Supabase (or created if none exists today)
   const [shiftId, setShiftId]       = useState<string | null>(null);
@@ -97,9 +100,21 @@ export default function ShiftGoalsScreen() {
 
   useEffect(() => {
     resolveShift();
+
+    // On web, window focus re-fires when the user tabs back in — mobile gets this
+    // for free via native navigation lifecycle, but the browser does not.
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const onFocus = () => resolveShift();
+      window.addEventListener('focus', onFocus);
+      return () => window.removeEventListener('focus', onFocus);
+    }
   }, []);
 
   async function resolveShift() {
+    const todayDate  = getTodayDate();
+    const freshLabel = getTodayLabel();
+    setTodayLabel(freshLabel);
+
     try {
       // Get the authenticated manager
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -111,10 +126,11 @@ export default function ShiftGoalsScreen() {
         return;
       }
 
-      // Fetch location_id directly from locations table
+      // Fetch location_id — order by created_at so mobile and web always pick the same row
       const { data: locationData, error: locationError } = await supabase
         .from('locations')
         .select('id')
+        .order('created_at', { ascending: true })
         .limit(1)
         .single();
 
@@ -123,6 +139,7 @@ export default function ShiftGoalsScreen() {
       }
 
       const resolvedLocationId = locationData?.id ?? null;
+      console.log('[ShiftGoals] resolvedLocationId:', resolvedLocationId, '| todayDate:', todayDate);
 
       if (!resolvedLocationId) {
         console.log('[ShiftGoals] No location found — falling back to demo');
@@ -136,7 +153,7 @@ export default function ShiftGoalsScreen() {
       const { data: existing, error: shiftFetchError } = await supabase
         .from('shifts')
         .select('id, name, location_id, status')
-        .eq('date', TODAY_DATE)
+        .eq('date', todayDate)
         .eq('location_id', resolvedLocationId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -155,12 +172,12 @@ export default function ShiftGoalsScreen() {
         return;
       }
 
-      const defaultName = `${TODAY_LABEL} Shift`;
+      const defaultName = `${freshLabel} Shift`;
       const { data: newShift, error: createError } = await supabase
         .from('shifts')
         .insert({
           location_id: resolvedLocationId,
-          date: TODAY_DATE,
+          date: todayDate,
           name: defaultName,
           total_tips: 0,
           total_sales: 0,
@@ -199,22 +216,32 @@ export default function ShiftGoalsScreen() {
     if (!id) return;
     setLoadingGoals(true);
     try {
+      console.log('[ShiftGoals] loadGoals querying shift_id:', id);
       const { data, error } = await supabase
         .from('shift_goals')
         .select('id, title, goal_type, target_item, winner_staff_id')
         .eq('shift_id', id)
         .order('created_at', { ascending: true });
 
+      console.log('[ShiftGoals] loadGoals response — data:', JSON.stringify(data), '| error:', error?.message ?? null);
+
       if (error) {
-        console.log('[ShiftGoals] loadGoals error:', error.message);
+        console.log('[ShiftGoals] loadGoals error details:', error.details, '| hint:', error.hint);
         throw error;
       }
       setGoals((data ?? []) as ShiftGoal[]);
-    } catch {
-      // Supabase not connected in dev — keep existing list
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log('[ShiftGoals] loadGoals caught:', msg, '— keeping existing list');
     } finally {
       setLoadingGoals(false);
+      setRefreshing(false);
     }
+  }
+
+  async function handleManualRefresh() {
+    setRefreshing(true);
+    await resolveShift();
   }
 
   // ── Create goal ───────────────────────────────────────────────────────────
@@ -374,14 +401,23 @@ export default function ShiftGoalsScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-              <Text style={styles.backChevron}>‹</Text>
-              <Text style={styles.backLabel}>POS</Text>
-            </TouchableOpacity>
+            <View style={styles.headerTop}>
+              <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+                <Text style={styles.backChevron}>‹</Text>
+                <Text style={styles.backLabel}>POS</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.refreshBtn, refreshing && styles.refreshBtnDisabled]}
+                onPress={handleManualRefresh}
+                activeOpacity={0.7}
+                disabled={refreshing}>
+                <Text style={styles.refreshBtnText}>{refreshing ? 'Refreshing…' : 'Refresh'}</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.title}>Shift Goals</Text>
             <Text style={styles.subtitle}>Set tonight's goals</Text>
             <View style={styles.shiftPill}>
-              <Text style={styles.shiftPillText}>{shiftName}  ·  {TODAY_LABEL}</Text>
+              <Text style={styles.shiftPillText}>{shiftName}  ·  {todayLabel}</Text>
             </View>
           </View>
 
@@ -563,9 +599,20 @@ const styles = StyleSheet.create({
 
   // Header
   header: { marginTop: 8, gap: 6 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   backChevron: { fontSize: 24, color: BLUE, lineHeight: 28 },
   backLabel: { fontSize: 15, color: BLUE, fontWeight: '600' },
+  refreshBtn: {
+    backgroundColor: BLUE_DIM,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: BLUE_BORDER,
+  },
+  refreshBtnDisabled: { opacity: 0.5 },
+  refreshBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
   title: { fontSize: 28, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, color: MUTED, fontWeight: '500' },
   shiftPill: {
