@@ -234,13 +234,17 @@ export default function LoginScreen() {
               />
               <Pressable
                 style={styles.eyeBtn}
-                onPress={() => setShowPassword(v => !v)}
-                hitSlop={8}>
-                <Ionicons
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color="#4a5e56"
-                />
+                onPress={() => {
+                  console.log('eye tapped');
+                  setShowPassword(v => !v);
+                }}>
+                <View pointerEvents="none">
+                  <Ionicons
+                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color="#4a5e56"
+                  />
+                </View>
               </Pressable>
             </View>
 
