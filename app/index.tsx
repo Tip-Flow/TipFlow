@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import DailyQuote from './components/DailyQuote';
@@ -67,6 +68,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
   const [pendingRole, setPendingRole] = useState<PendingRole>(null);
@@ -218,17 +220,29 @@ export default function LoginScreen() {
               returnKeyType="next"
               editable={!loading}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#4a5e56"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              returnKeyType="done"
-              onSubmitEditing={handleSignIn}
-              editable={!loading}
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Password"
+                placeholderTextColor="#4a5e56"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleSignIn}
+                editable={!loading}
+              />
+              <Pressable
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(v => !v)}
+                hitSlop={8}>
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color="#4a5e56"
+                />
+              </Pressable>
+            </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -298,6 +312,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: '#e8f0ec',
+  },
+  passwordWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#162019',
+    borderWidth: 1,
+    borderColor: '#1f3028',
+    borderRadius: 12,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#e8f0ec',
+  },
+  eyeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 15,
   },
   errorText: {
     color: '#f87171',
