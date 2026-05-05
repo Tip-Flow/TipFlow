@@ -22,7 +22,7 @@ type PendingRole = 'admin' | 'regional' | 'manager' | 'staff' | null;
 const BLUE = '#4169E1';
 const BG   = '#09100e';
 
-const ADMIN_EMAILS = ['sukhi.muker@gmail.com'];
+const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
 async function resolveRole(email: string): Promise<PendingRole | 'not_found'> {
   // Mise admin — hardcoded list, checked first

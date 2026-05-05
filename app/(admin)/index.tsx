@@ -15,7 +15,7 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
-const ADMIN_EMAILS = ['sukhi.muker@gmail.com'];
+const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
 const BG     = '#09100e';
 const CARD   = '#162019';
