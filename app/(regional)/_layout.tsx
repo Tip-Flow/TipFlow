@@ -52,6 +52,7 @@ export default function RegionalLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />
+      <Tabs.Screen name="location-detail" options={{ href: null }} />
     </Tabs>
   );
 }

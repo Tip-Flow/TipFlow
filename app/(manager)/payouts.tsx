@@ -158,8 +158,8 @@ export default function PayoutsScreen() {
       }));
 
       const historyRows: HistoryAllocation[] = [];
-      for (const shift of paidRes.data ?? []) {
-        for (const a of shift.tip_allocations ?? []) {
+      for (const shift of (paidRes.data ?? []) as any[]) {
+        for (const a of (shift.tip_allocations ?? []) as any[]) {
           historyRows.push({
             id: a.id,
             shift_name: (shift as any).name,

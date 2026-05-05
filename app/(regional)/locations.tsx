@@ -8,7 +8,7 @@ import {
   View,
   SafeAreaView,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useWebFocus } from '@/hooks/useWebFocus';
 
@@ -40,6 +40,7 @@ type LocationRow = {
 };
 
 export default function RegionalLocations() {
+  const router = useRouter();
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -175,7 +176,12 @@ export default function RegionalLocations() {
                         )}
                       </View>
                     </View>
-                    <Pressable style={styles.viewBtn}>
+                    <Pressable
+                      style={styles.viewBtn}
+                      onPress={() => router.push({
+                        pathname: '/(regional)/location-detail' as any,
+                        params: { locationId: loc.id },
+                      })}>
                       <Text style={styles.viewBtnText}>View Details</Text>
                     </Pressable>
                   </View>
