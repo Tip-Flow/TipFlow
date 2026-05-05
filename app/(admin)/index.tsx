@@ -155,10 +155,14 @@ export default function AdminScreen() {
     if (!orgName.trim()) { Alert.alert('Required', 'Organisation name is required'); return; }
     setCreatingOrg(true);
     try {
-      const { error } = await supabase
+      const payload = { name: orgName.trim(), city: orgCity.trim() || null, country: orgCountry.trim() || null };
+      const { data, error } = await supabase
         .from('organisations')
-        .insert({ name: orgName.trim(), city: orgCity.trim() || null, country: orgCountry.trim() || null });
-      if (error) throw error;
+        .insert(payload)
+        .select();
+      console.log('[Admin] createOrg payload:', JSON.stringify(payload));
+      console.log('[Admin] createOrg response — data:', JSON.stringify(data), 'error:', JSON.stringify(error));
+      if (error) throw new Error(`${error.message} (code: ${error.code})`);
       setOrgName(''); setOrgCity(''); setOrgCountry('Canada');
       await loadData();
       Alert.alert('Created', 'Organisation created successfully.');
@@ -173,16 +177,21 @@ export default function AdminScreen() {
     if (!locName.trim()) { Alert.alert('Required', 'Location name is required'); return; }
     setCreatingLoc(true);
     try {
-      const { error } = await supabase
+      // city is NOT NULL in the schema — use empty string as fallback
+      const payload = {
+        name: locName.trim(),
+        city: locAddress.trim() || '',
+        organisation_id: locOrgId || null,
+        pos_type: 'manual',
+        cra_tip_type: 'direct',
+      };
+      const { data, error } = await supabase
         .from('locations')
-        .insert({
-          name: locName.trim(),
-          city: locAddress.trim() || null,
-          organisation_id: locOrgId || null,
-          pos_type: 'manual',
-          cra_tip_type: 'direct',
-        });
-      if (error) throw error;
+        .insert(payload)
+        .select();
+      console.log('[Admin] createLocation payload:', JSON.stringify(payload));
+      console.log('[Admin] createLocation response — data:', JSON.stringify(data), 'error:', JSON.stringify(error));
+      if (error) throw new Error(`${error.message} (code: ${error.code})`);
       setLocName(''); setLocAddress(''); setLocOrgId('');
       await loadData();
       Alert.alert('Created', 'Location created successfully.');
