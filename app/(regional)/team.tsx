@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useIsDesktop } from '@/hooks/use-is-desktop';
 import {
   ActivityIndicator,
   Alert,
@@ -99,6 +100,7 @@ async function callInviteFunction(payload: {
 }
 
 export default function RegionalTeam() {
+  const isDesktop = useIsDesktop();
   const [groups, setGroups]                   = useState<LocationGroup[]>([]);
   const [managers, setManagers]               = useState<ManagerRow[]>([]);
   const [locationOptions, setLocationOptions] = useState<string[]>([ALL]);
@@ -264,17 +266,11 @@ export default function RegionalTeam() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Header — title + staff count */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Team</Text>
-        <View style={styles.headerRight}>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{totalVisible} staff</Text>
-          </View>
-          <Pressable
-            style={styles.inviteBtn}
-            onPress={() => setModalVisible(true)}>
-            <Text style={styles.inviteBtnText}>+ Invite Manager</Text>
-          </Pressable>
+        <View style={styles.countBadge}>
+          <Text style={styles.countText}>{totalVisible} staff</Text>
         </View>
       </View>
 
@@ -307,6 +303,15 @@ export default function RegionalTeam() {
           </Pressable>
         ))}
       </ScrollView>
+
+      {/* Invite Manager — full-width row, always visible on mobile and web */}
+      <View style={styles.inviteRow}>
+        <Pressable
+          style={({ pressed }) => [styles.inviteBtn, pressed && styles.inviteBtnPressed]}
+          onPress={() => setModalVisible(true)}>
+          <Text style={styles.inviteBtnText}>+ Invite Manager</Text>
+        </Pressable>
+      </View>
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -498,13 +503,12 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 4,
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: WHITE },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   countBadge: {
     backgroundColor: BLUE_DIM,
     borderWidth: 1,
@@ -514,15 +518,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   countText: { fontSize: 12, fontWeight: '700', color: BLUE },
+  inviteRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
   inviteBtn: {
     backgroundColor: AMBER_DIM,
     borderWidth: 1,
     borderColor: AMBER_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  inviteBtnText: { fontSize: 12, fontWeight: '700', color: AMBER },
+  inviteBtnPressed: { opacity: 0.75 },
+  inviteBtnText: { fontSize: 14, fontWeight: '700', color: AMBER },
   searchWrap: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   searchInput: {
     backgroundColor: CARD,
