@@ -1,7 +1,7 @@
 # Mise — Claude Code Project Memory
 
 Canadian restaurant tip management SaaS.
-POS → tip calculation → AptPay → staff bank accounts. Instant. No cash. No spreadsheets.
+POS → tip calculation → EFT → staff bank accounts. Instant. No cash. No spreadsheets.
 
 ---
 
@@ -9,7 +9,7 @@ POS → tip calculation → AptPay → staff bank accounts. Instant. No cash. No
 
 - **Frontend:** React Native + Expo (TypeScript)
 - **Backend:** Supabase (region: `ca-central-1` — never change this)
-- **Payments:** AptPay (Interac e-Transfer for staff payouts, EFT for restaurant deposits)
+- **Payments:** EFT (Interac e-Transfer for staff payouts, EFT for restaurant deposits)
 - **Bank linking:** Flinks open banking (staff link their own accounts — Mise never sees credentials)
 - **POS integrations:** Square REST API (OAuth), Lightspeed (partner program), CSV parser (any POS)
 - **OTA updates:** Expo EAS Update — fixes deploy without App Store review
@@ -32,12 +32,13 @@ npx supabase db push    # Apply migrations
 mise/
 ├── app/                    # Expo Router screens
 │   ├── (auth)/             # Login, onboarding
-│   ├── (manager)/          # Manager tab screens
+│   ├── (admin)/            # Mise admin screens
+│   ├── (manager)/          # Location manager tab screens
+│   ├── (regional)/         # Regional manager tab screens
 │   └── (staff)/            # Staff tab screens
 ├── components/             # Shared UI components
 ├── lib/
 │   ├── supabase.ts         # Supabase client (ca-central-1)
-│   ├── aptpay.ts           # AptPay payout logic
 │   └── flinks.ts           # Bank linking flows
 ├── hooks/                  # Custom React hooks
 ├── types/                  # TypeScript types
@@ -69,7 +70,7 @@ type Location = {
   city: string
   pos_type: 'square' | 'lightspeed' | 'csv' | 'manual'
   cra_tip_type: 'direct' | 'controlled'  // CRA classification
-  aptpay_merchant_id: string
+  organisation_id: string | null
 }
 
 // Staff
@@ -82,6 +83,18 @@ type StaffMember = {
   flinks_token: string | null        // null = bank not linked yet
   payout_method: 'etransfer' | 'eft' | 'cash'
   bank_linked: boolean
+}
+
+// Managers
+type Manager = {
+  id: string
+  name: string
+  email: string
+  role: 'regional_manager' | 'location_manager'
+  organisation_id: string | null
+  location_id: string | null
+  auth_user_id: string | null
+  invite_sent_at: string | null
 }
 
 // Shifts
@@ -104,7 +117,7 @@ type TipAllocation = {
   hours_worked: number
   role_weight: number                // % weight for this role
   calculated_amount: number          // CAD cents
-  aptpay_ref: string | null          // set after payout
+  eft_ref: string | null             // set after payout
   paid_at: string | null
   cash_confirmed: boolean            // for cash payouts
 }
@@ -129,9 +142,9 @@ Role percentages are configurable per location. Default:
 
 ## Payment Rules
 
-- **Never hold funds.** All money flows through AptPay's licensed infrastructure only.
-- AptPay sandbox credentials go in `.env.local` (never committed).
-- Payout flow: calculate → manager confirms → AptPay API call → store `aptpay_ref` → mark paid.
+- **Never hold funds.** All money flows through licensed EFT infrastructure only.
+- EFT credentials go in `.env.local` (never committed).
+- Payout flow: calculate → manager confirms → EFT API call → store `eft_ref` → mark paid.
 - Cash payouts: manager confirms in app → creates CRA audit record with timestamp + manager ID.
 - All payout amounts are in **CAD cents** internally. Display as dollars in UI.
 - Interac e-Transfer: uses staff email address. Staff must have auto-deposit enabled.
@@ -144,16 +157,28 @@ Role percentages are configurable per location. Default:
 
 ---
 
-## Two User Roles
+## User Roles
 
-### Manager (operator)
+### Mise Admin (sukhi@drsukhi.com, sukhi.muker@gmail.com)
+Hardcoded list in app/index.tsx and send-staff-invite edge function.
+Can: create organisations, create locations, invite regional managers.
+Routes to: `/(admin)/dashboard`
+
+### Regional Manager
+Sees: all locations and staff in their organisation.
+Can: invite location managers, view cross-location analytics.
+Routes to: `/(regional)/overview`
+
+### Location Manager
 Sees: all staff, all shifts, all payouts for their location(s).
 Can: import POS data, trigger payouts, send bonuses, manage staff, configure tip pool rules.
+Routes to: `/(manager)/home`
 
 ### Staff (employee)
 Sees: **only their own** earnings, payout history, challenges, badges, leaderboard rank.
 Cannot: see other staff dollar amounts (only tip % on leaderboard).
 Cannot: access manager screens.
+Routes to: `/(staff)/mytips`
 
 ---
 
@@ -164,7 +189,7 @@ Bonuses come from a **separate restaurant-funded bonus pool** — never redistri
 | Feature | Logic |
 |---|---|
 | Leaderboard | Ranked by tip % per shift, not raw amount. Resets weekly (Sunday). |
-| Challenges | Upsell Master ($25), 20% Club ($30), Sommelier ($20), Full Week ($20). Auto-paid via AptPay on completion. |
+| Challenges | Upsell Master ($25), 20% Club ($30), Sommelier ($20), Full Week ($20). Auto-paid via EFT on completion. |
 | Team Goal | Weekly location target. Everyone earns $20 CAD bonus on hit. |
 | Streaks | 5+ shifts above 20% = streak bonus. Tracked per staff. |
 | Badges | First Payout, 10 Shifts, Top Earner, 5-Day Streak, Diamond Earner, Legend. |
@@ -208,9 +233,10 @@ Always surface CRA classification in payout confirmations and staff portal.
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_KEY=
-APTPAY_API_KEY=
-APTPAY_MERCHANT_ID=
+EFT_API_KEY=
+EFT_MERCHANT_ID=
 FLINKS_CLIENT_ID=
+RESEND_API_KEY=
 SQUARE_APP_ID=
 SQUARE_ACCESS_TOKEN=
 ```
