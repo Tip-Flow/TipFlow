@@ -17,41 +17,46 @@ import { supabase } from '../lib/supabase';
 import DailyQuote from './components/DailyQuote';
 import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 
-type PendingRole = 'admin' | 'regional' | 'manager' | 'staff' | null;
+type PendingRole = 'regional' | 'manager' | 'staff' | null;
 
 const BLUE = '#4169E1';
 const BG   = '#09100e';
 
 const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
-async function resolveRole(email: string): Promise<PendingRole | 'not_found'> {
-  const lower = email.toLowerCase();
-  console.log('[resolveRole] checking email:', lower);
+async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manager' | 'staff' | 'not_found'> {
+  // Normalise — trim whitespace AND lowercase to handle browser autofill quirks
+  const lower = email.trim().toLowerCase();
 
-  // Mise admin — hardcoded list, checked first
+  console.log('[resolveRole] raw email   :', JSON.stringify(email));
+  console.log('[resolveRole] lower email :', JSON.stringify(lower));
+  console.log('[resolveRole] ADMIN_EMAILS:', JSON.stringify(ADMIN_EMAILS));
+  console.log('[resolveRole] admin match :', ADMIN_EMAILS.includes(lower));
+
+  // ── 1. Admin check — must be FIRST, no DB queries ──
   if (ADMIN_EMAILS.includes(lower)) {
     console.log('[resolveRole] → admin');
     return 'admin';
   }
 
-  // Check managers table
+  // ── 2. Managers table ──
   const { data: manager, error: mgrErr } = await supabase
     .from('managers')
     .select('role')
     .eq('email', lower)
     .maybeSingle();
-  console.log('[resolveRole] managers query — data:', JSON.stringify(manager), 'error:', JSON.stringify(mgrErr));
+  console.log('[resolveRole] managers — data:', JSON.stringify(manager), 'error:', JSON.stringify(mgrErr));
 
   if (manager?.role === 'regional_manager') { console.log('[resolveRole] → regional'); return 'regional'; }
   if (manager?.role === 'location_manager') { console.log('[resolveRole] → manager');  return 'manager';  }
 
-  // Check staff_members table
+  // ── 3. Staff members table ──
   const { data: staff, error: staffErr } = await supabase
     .from('staff_members')
     .select('id')
     .eq('email', lower)
     .maybeSingle();
-  console.log('[resolveRole] staff_members query — data:', JSON.stringify(staff), 'error:', JSON.stringify(staffErr));
+  console.log('[resolveRole] staff — data:', JSON.stringify(staff), 'error:', JSON.stringify(staffErr));
 
   if (staff) { console.log('[resolveRole] → staff'); return 'staff'; }
 
@@ -68,12 +73,12 @@ export default function LoginScreen() {
   const [pendingRole, setPendingRole] = useState<PendingRole>(null);
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
-  async function handleDismissQuote() {
-    if (pendingRole === 'admin') {
-      router.replace('/(admin)/index' as any);
-    } else if (pendingRole === 'regional') {
+  // Called after DailyQuote is dismissed — only for non-admin roles.
+  // Role is passed explicitly to avoid reading stale closure state.
+  async function handleDismissQuote(role: PendingRole) {
+    if (role === 'regional') {
       router.replace('/(regional)/overview');
-    } else if (pendingRole === 'manager') {
+    } else if (role === 'manager') {
       router.replace('/(manager)/home');
     } else {
       const goals = await fetchTodaysShiftGoals();
@@ -141,11 +146,20 @@ export default function LoginScreen() {
       }
 
       const role = await resolveRole(trimmedEmail);
+      console.log('[handleSignIn] resolved role:', role);
 
       if (role === 'not_found') {
-        // Sign back out so they're not left in a broken auth state
         await supabase.auth.signOut();
         setError('Account not found. Contact your manager to be added to Mise.');
+        return;
+      }
+
+      // Admin routes immediately — no DailyQuote, no state indirection.
+      // This avoids the stale-closure problem where the callback reads
+      // pendingRole === null before the state update has settled.
+      if (role === 'admin') {
+        console.log('[handleSignIn] navigating to admin dashboard');
+        router.replace('/(admin)/dashboard' as any);
         return;
       }
 
@@ -159,7 +173,7 @@ export default function LoginScreen() {
     const quoteRole: 'manager' | 'staff' = pendingRole === 'staff' ? 'staff' : 'manager';
     return (
       <SafeAreaView style={styles.container}>
-        <DailyQuote role={quoteRole} onDismiss={handleDismissQuote} />
+        <DailyQuote role={quoteRole} onDismiss={() => handleDismissQuote(pendingRole)} />
       </SafeAreaView>
     );
   }
