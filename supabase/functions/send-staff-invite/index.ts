@@ -181,6 +181,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Stamp invite_sent_at regardless of new/existing
+    let resendResult: Record<string, unknown> | null = null;
     await admin
       .from('staff_members')
       .update({ invite_sent_at: new Date().toISOString() })
@@ -210,14 +211,16 @@ Deno.serve(async (req: Request) => {
         if (!emailRes.ok) {
           // Log but don't fail — auth account was created successfully
           console.error('[send-staff-invite] Resend error:', JSON.stringify(resendBody));
+          resendResult = { ok: false, status: emailRes.status, body: resendBody };
         } else {
           console.log('[send-staff-invite] email sent via Resend id:', resendBody.id);
+          resendResult = { ok: true, id: resendBody.id };
         }
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId, note }),
+      JSON.stringify({ success: true, user_id: userId, note, resend: resendResult }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err: unknown) {
