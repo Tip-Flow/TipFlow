@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useWebFocus } from '@/hooks/useWebFocus';
 
 const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
@@ -136,7 +137,8 @@ export default function AdminScreen() {
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    const email = user?.email ?? '';
+    const email = (user?.email ?? '').toLowerCase();
+    console.log('[Admin] loadData — user email:', email, 'isAdmin:', ADMIN_EMAILS.includes(email));
     const admin = ADMIN_EMAILS.includes(email);
     setIsAdmin(admin);
     if (!admin) return;
@@ -150,6 +152,7 @@ export default function AdminScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useWebFocus(loadData);
 
   async function handleCreateOrg() {
     if (!orgName.trim()) { Alert.alert('Required', 'Organisation name is required'); return; }

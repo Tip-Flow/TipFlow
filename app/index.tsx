@@ -25,28 +25,37 @@ const BG   = '#09100e';
 const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
 async function resolveRole(email: string): Promise<PendingRole | 'not_found'> {
+  const lower = email.toLowerCase();
+  console.log('[resolveRole] checking email:', lower);
+
   // Mise admin — hardcoded list, checked first
-  if (ADMIN_EMAILS.includes(email.toLowerCase())) return 'admin';
+  if (ADMIN_EMAILS.includes(lower)) {
+    console.log('[resolveRole] → admin');
+    return 'admin';
+  }
 
   // Check managers table
-  const { data: manager } = await supabase
+  const { data: manager, error: mgrErr } = await supabase
     .from('managers')
     .select('role')
-    .eq('email', email.toLowerCase())
+    .eq('email', lower)
     .maybeSingle();
+  console.log('[resolveRole] managers query — data:', JSON.stringify(manager), 'error:', JSON.stringify(mgrErr));
 
-  if (manager?.role === 'regional_manager') return 'regional';
-  if (manager?.role === 'location_manager') return 'manager';
+  if (manager?.role === 'regional_manager') { console.log('[resolveRole] → regional'); return 'regional'; }
+  if (manager?.role === 'location_manager') { console.log('[resolveRole] → manager');  return 'manager';  }
 
   // Check staff_members table
-  const { data: staff } = await supabase
+  const { data: staff, error: staffErr } = await supabase
     .from('staff_members')
     .select('id')
-    .eq('email', email.toLowerCase())
+    .eq('email', lower)
     .maybeSingle();
+  console.log('[resolveRole] staff_members query — data:', JSON.stringify(staff), 'error:', JSON.stringify(staffErr));
 
-  if (staff) return 'staff';
+  if (staff) { console.log('[resolveRole] → staff'); return 'staff'; }
 
+  console.log('[resolveRole] → not_found');
   return 'not_found';
 }
 
@@ -61,7 +70,7 @@ export default function LoginScreen() {
 
   async function handleDismissQuote() {
     if (pendingRole === 'admin') {
-      router.replace('/(admin)/' as any);
+      router.replace('/(admin)/index' as any);
     } else if (pendingRole === 'regional') {
       router.replace('/(regional)/overview');
     } else if (pendingRole === 'manager') {
