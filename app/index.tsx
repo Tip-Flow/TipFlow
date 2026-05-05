@@ -25,13 +25,12 @@ const BG   = '#09100e';
 const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
 async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manager' | 'staff' | 'not_found'> {
+  console.log('[resolveRole] starting for:', email);
+
   // Normalise — trim whitespace AND lowercase to handle browser autofill quirks
   const lower = email.trim().toLowerCase();
 
-  console.log('[resolveRole] raw email   :', JSON.stringify(email));
-  console.log('[resolveRole] lower email :', JSON.stringify(lower));
-  console.log('[resolveRole] ADMIN_EMAILS:', JSON.stringify(ADMIN_EMAILS));
-  console.log('[resolveRole] admin match :', ADMIN_EMAILS.includes(lower));
+  console.log('[resolveRole] admin check:', lower, ADMIN_EMAILS, ADMIN_EMAILS.includes(lower));
 
   // ── 1. Admin check — must be FIRST, no DB queries ──
   if (ADMIN_EMAILS.includes(lower)) {
@@ -155,11 +154,14 @@ export default function LoginScreen() {
       }
 
       // Admin routes immediately — no DailyQuote, no state indirection.
-      // This avoids the stale-closure problem where the callback reads
-      // pendingRole === null before the state update has settled.
+      // setTimeout gives the web router one event-loop tick to finish
+      // processing the auth state change before navigation fires.
       if (role === 'admin') {
-        console.log('[handleSignIn] navigating to admin dashboard');
-        router.replace('/(admin)/dashboard' as any);
+        console.log('[handleSignIn] resolved admin — scheduling navigation');
+        setTimeout(() => {
+          console.log('[handleSignIn] navigating to /(admin)/dashboard');
+          router.replace('/(admin)/dashboard' as any);
+        }, 100);
         return;
       }
 
