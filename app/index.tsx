@@ -17,46 +17,64 @@ import { supabase } from '../lib/supabase';
 import DailyQuote from './components/DailyQuote';
 import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 
-type PendingRole = 'manager' | 'staff' | 'regional' | null;
+type PendingRole = 'admin' | 'regional' | 'manager' | 'staff' | null;
 
 const BLUE = '#4169E1';
-const BG = '#09100e';
+const BG   = '#09100e';
+
+const ADMIN_EMAILS = ['sukhi.muker@gmail.com'];
+
+async function resolveRole(email: string): Promise<PendingRole | 'not_found'> {
+  // Mise admin — hardcoded list, checked first
+  if (ADMIN_EMAILS.includes(email.toLowerCase())) return 'admin';
+
+  // Check managers table
+  const { data: manager } = await supabase
+    .from('managers')
+    .select('role')
+    .eq('email', email.toLowerCase())
+    .maybeSingle();
+
+  if (manager?.role === 'regional_manager') return 'regional';
+  if (manager?.role === 'location_manager') return 'manager';
+
+  // Check staff_members table
+  const { data: staff } = await supabase
+    .from('staff_members')
+    .select('id')
+    .eq('email', email.toLowerCase())
+    .maybeSingle();
+
+  if (staff) return 'staff';
+
+  return 'not_found';
+}
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
   const [pendingRole, setPendingRole] = useState<PendingRole>(null);
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
-  function detectRole(userEmail: string): PendingRole {
-    const lower = userEmail.toLowerCase();
-    if (lower.includes('regional')) return 'regional';
-    if (lower.includes('jamie')) return 'manager';
-    if (lower.includes('alex')) return 'staff';
-    // Default fallback — treat unknown as staff
-    return 'staff';
-  }
-
   async function handleDismissQuote() {
-    if (pendingRole === 'regional') {
+    if (pendingRole === 'admin') {
+      router.replace('/(admin)/' as any);
+    } else if (pendingRole === 'regional') {
       router.replace('/(regional)/overview');
-      setPendingRole(null);
     } else if (pendingRole === 'manager') {
       router.replace('/(manager)/home');
-      setPendingRole(null);
     } else {
-      // Staff: check for today's shift goals before navigating
       const goals = await fetchTodaysShiftGoals();
       if (goals.length > 0) {
         setPendingGoals(goals);
-      } else {
-        router.replace('/(staff)/mytips');
-        setPendingRole(null);
+        return;
       }
+      router.replace('/(staff)/mytips');
     }
+    setPendingRole(null);
   }
 
   function handleDismissGoals() {
@@ -112,7 +130,16 @@ export default function LoginScreen() {
         setError(authError.message);
         return;
       }
-      const role = detectRole(trimmedEmail);
+
+      const role = await resolveRole(trimmedEmail);
+
+      if (role === 'not_found') {
+        // Sign back out so they're not left in a broken auth state
+        await supabase.auth.signOut();
+        setError('Account not found. Contact your manager to be added to Mise.');
+        return;
+      }
+
       setPendingRole(role);
     } finally {
       setLoading(false);
@@ -120,9 +147,10 @@ export default function LoginScreen() {
   }
 
   if (pendingRole !== null && pendingGoals === null) {
+    const quoteRole: 'manager' | 'staff' = pendingRole === 'staff' ? 'staff' : 'manager';
     return (
       <SafeAreaView style={styles.container}>
-        <DailyQuote role={pendingRole} onDismiss={handleDismissQuote} />
+        <DailyQuote role={quoteRole} onDismiss={handleDismissQuote} />
       </SafeAreaView>
     );
   }
@@ -188,22 +216,6 @@ export default function LoginScreen() {
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
-            </Pressable>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <Pressable
-              style={[styles.regionalButton, loading && styles.buttonDisabled]}
-              onPress={() => {
-                setEmail('regional@canteen.ca');
-                setPassword('password');
-              }}
-              disabled={loading}>
-              <Text style={styles.regionalButtonText}>Sign in as Regional Manager</Text>
             </Pressable>
           </View>
 
@@ -283,33 +295,5 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#1f3028',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: '#4a5e56',
-    fontWeight: '500',
-  },
-  regionalButton: {
-    backgroundColor: '#162019',
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1f3028',
-  },
-  regionalButtonText: {
-    color: '#6b7a74',
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

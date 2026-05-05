@@ -5,19 +5,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ADMIN_EMAILS = ['sukhi.muker@gmail.com'];
+
 function roleLabel(role: string): string {
   const map: Record<string, string> = {
-    server: 'Server',
-    bartender: 'Bartender',
-    runner: 'Runner',
-    kitchen: 'Kitchen',
-    support: 'Support',
+    server:           'Server',
+    bartender:        'Bartender',
+    runner:           'Runner',
+    kitchen:          'Kitchen',
+    support:          'Support',
+    location_manager: 'Location Manager',
+    regional_manager: 'Regional Manager',
   };
   return map[role] ?? role;
 }
 
+function isManagerRole(role: string): boolean {
+  return role === 'location_manager' || role === 'regional_manager';
+}
+
 function buildInviteEmail(name: string, locationName: string, role: string, inviteUrl: string): string {
   const firstName = name.split(' ')[0];
+  const isManager = isManagerRole(role);
+
+  const bodyText = isManager
+    ? `<strong style="color:#0f172a;">${locationName}</strong> has added you to Mise as a <strong style="color:#4169E1;">${roleLabel(role)}</strong>.`
+    : `<strong style="color:#0f172a;">${locationName}</strong> has added you to Mise as a <strong style="color:#4169E1;">${roleLabel(role)}</strong>.`;
+
+  const description = isManager
+    ? `Mise is how your team gets paid. Manage shift schedules, calculate tips instantly, and pay staff directly — no cash, no spreadsheets.`
+    : `Mise is how your team gets paid. Your tips are calculated instantly after every shift and deposited directly into your bank account — no cash, no waiting.`;
+
+  const step2 = isManager
+    ? `Set up your location's tip pool rules and team`
+    : `Link your bank account securely via Flinks — takes 2 minutes`;
+
+  const step3 = isManager
+    ? `Import your first shift and pay your team in seconds`
+    : `After your next shift, tips land directly in your account`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,11 +70,11 @@ function buildInviteEmail(name: string, locationName: string, role: string, invi
             <td style="background:#ffffff;padding:40px 40px 32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
               <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;">Hi ${firstName} 👋</p>
               <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
-                <strong style="color:#0f172a;">${locationName}</strong> has added you to Mise as a <strong style="color:#4169E1;">${roleLabel(role)}</strong>.
+                ${bodyText}
               </p>
 
               <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
-                Mise is how your team gets paid. Your tips are calculated instantly after every shift and deposited directly into your bank account — no cash, no waiting.
+                ${description}
               </p>
 
               <!-- CTA -->
@@ -88,7 +114,7 @@ function buildInviteEmail(name: string, locationName: string, role: string, invi
                     <div style="width:22px;height:22px;background:#4169E1;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">2</div>
                   </td>
                   <td style="padding:8px 0 8px 10px;font-size:14px;color:#475569;line-height:1.5;">
-                    Link your bank account securely via Flinks — takes 2 minutes
+                    ${step2}
                   </td>
                 </tr>
                 <tr>
@@ -96,7 +122,7 @@ function buildInviteEmail(name: string, locationName: string, role: string, invi
                     <div style="width:22px;height:22px;background:#4169E1;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">3</div>
                   </td>
                   <td style="padding:8px 0 8px 10px;font-size:14px;color:#475569;line-height:1.5;">
-                    After your next shift, tips land directly in your account
+                    ${step3}
                   </td>
                 </tr>
               </table>
@@ -129,10 +155,18 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { email, name, role, location_id, staff_member_id } = await req.json();
+    const {
+      email,
+      name,
+      role,
+      location_id,
+      organisation_id,
+      staff_member_id,
+      manager_id,
+    } = await req.json();
 
-    if (!email || !staff_member_id) {
-      throw new Error('email and staff_member_id are required');
+    if (!email || !name || !role) {
+      throw new Error('email, name, and role are required');
     }
 
     const admin = createClient(
@@ -141,21 +175,71 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // Look up location name for the email body
-    const { data: loc } = await admin
-      .from('locations')
-      .select('name')
-      .eq('id', location_id)
-      .maybeSingle();
-    const locationName = loc?.name ?? 'your restaurant';
+    // Verify caller authorisation for sensitive roles
+    const authHeader = req.headers.get('Authorization');
+    if (role === 'regional_manager' && authHeader) {
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await admin.auth.getUser(jwt);
+      if (!ADMIN_EMAILS.includes(user?.email ?? '')) {
+        throw new Error('Unauthorized: only Mise admins can invite regional managers');
+      }
+    }
 
-    // generateLink creates the auth account and returns the invite URL
-    // without sending Supabase's default plain-text invite email.
+    // Look up location name for the email
+    let locationName = 'your restaurant';
+    if (location_id) {
+      const { data: loc } = await admin
+        .from('locations')
+        .select('name')
+        .eq('id', location_id)
+        .maybeSingle();
+      locationName = loc?.name ?? locationName;
+    } else if (organisation_id) {
+      const { data: org } = await admin
+        .from('organisations')
+        .select('name')
+        .eq('id', organisation_id)
+        .maybeSingle();
+      locationName = org?.name ?? locationName;
+    }
+
+    // Resolve or create the record row
+    let recordId: string | null = null;
+
+    if (isManagerRole(role)) {
+      if (manager_id) {
+        recordId = manager_id;
+      } else {
+        // Check if manager already exists
+        const { data: existing } = await admin
+          .from('managers')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (existing) {
+          recordId = existing.id;
+        } else {
+          const { data: inserted, error: insertErr } = await admin
+            .from('managers')
+            .insert({ name, email, role, organisation_id: organisation_id ?? null, location_id: location_id ?? null })
+            .select('id')
+            .single();
+          if (insertErr) throw insertErr;
+          recordId = inserted?.id ?? null;
+        }
+      }
+    } else {
+      recordId = staff_member_id ?? null;
+      if (!recordId) throw new Error('staff_member_id is required for staff role');
+    }
+
+    // Generate invite link (suppresses Supabase default email)
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'invite',
       email,
       options: {
-        data: { name, role, location_id, staff_member_id },
+        data: { name, role, location_id, organisation_id },
       },
     });
 
@@ -180,14 +264,21 @@ Deno.serve(async (req: Request) => {
       inviteUrl = linkData.properties.action_link;
     }
 
-    // Stamp invite_sent_at regardless of new/existing
-    let resendResult: Record<string, unknown> | null = null;
-    await admin
-      .from('staff_members')
-      .update({ invite_sent_at: new Date().toISOString() })
-      .eq('id', staff_member_id);
+    // Stamp invite_sent_at on the correct table
+    if (isManagerRole(role) && recordId) {
+      await admin
+        .from('managers')
+        .update({ invite_sent_at: new Date().toISOString() })
+        .eq('id', recordId);
+    } else if (recordId) {
+      await admin
+        .from('staff_members')
+        .update({ invite_sent_at: new Date().toISOString() })
+        .eq('id', recordId);
+    }
 
-    // Send branded Resend email for new users only
+    // Send branded email for new users only
+    let resendResult: Record<string, unknown> | null = null;
     if (inviteUrl) {
       const resendKey = Deno.env.get('RESEND_API_KEY');
       if (!resendKey) {
@@ -209,7 +300,6 @@ Deno.serve(async (req: Request) => {
 
         const resendBody = await emailRes.json();
         if (!emailRes.ok) {
-          // Log but don't fail — auth account was created successfully
           console.error('[send-staff-invite] Resend error:', JSON.stringify(resendBody));
           resendResult = { ok: false, status: emailRes.status, body: resendBody };
         } else {
@@ -220,7 +310,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId, note, resend: resendResult }),
+      JSON.stringify({ success: true, user_id: userId, record_id: recordId, note, resend: resendResult }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err: unknown) {
