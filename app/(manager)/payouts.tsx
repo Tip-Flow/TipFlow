@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -110,6 +111,24 @@ export default function PayoutsScreen() {
   const [loading, setLoading] = useState(true);
   const [payingShiftId, setPayingShiftId] = useState<string | null>(null);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [confirmShift, setConfirmShift] = useState<PendingShift | null>(null);
+
+  // ── Toast banner ──────────────────────────────────────────────────────────
+  const bannerOpacity = useRef(new Animated.Value(0)).current;
+  const [showBanner, setShowBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerSuccess, setBannerSuccess] = useState(true);
+
+  function triggerBanner(message: string, success: boolean) {
+    setBannerMessage(message);
+    setBannerSuccess(success);
+    setShowBanner(true);
+    bannerOpacity.setValue(1);
+    Animated.sequence([
+      Animated.delay(2500),
+      Animated.timing(bannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start(() => setShowBanner(false));
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -186,7 +205,8 @@ export default function PayoutsScreen() {
       setHistory(historyRows);
       setPayoutRequests(requests);
     } catch (err: unknown) {
-      Alert.alert('Error', err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : (err as any)?.message ? String((err as any).message) : 'Failed to load';
+      triggerBanner(msg, false);
     } finally {
       setLoading(false);
     }
@@ -199,7 +219,14 @@ export default function PayoutsScreen() {
   );
   useWebFocus(fetchData);
 
-  async function handlePayout(shift: PendingShift) {
+  function handlePayout(shift: PendingShift) {
+    setConfirmShift(shift);
+  }
+
+  async function handleConfirmPayout() {
+    const shift = confirmShift;
+    if (!shift) return;
+    setConfirmShift(null);
     setPayingShiftId(shift.id);
     setPendingShifts((prev) => prev.filter((s) => s.id !== shift.id));
     try {
@@ -219,9 +246,12 @@ export default function PayoutsScreen() {
       if (allocError) throw allocError;
 
       fetchData();
+      triggerBanner('EFT payout processed successfully!', true);
     } catch (err: unknown) {
       setPendingShifts((prev) => [shift, ...prev]);
-      Alert.alert('Payout failed', err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : (err as any)?.message ? String((err as any).message) : 'Unknown error';
+      console.log('[Payouts] payout error:', JSON.stringify(err));
+      triggerBanner(`Payout failed — ${msg}`, false);
     } finally {
       setPayingShiftId(null);
     }
@@ -239,7 +269,8 @@ export default function PayoutsScreen() {
       fetchData();
     } catch (err: unknown) {
       setPayoutRequests((prev) => [req, ...prev]);
-      Alert.alert('Error', err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : (err as any)?.message ? String((err as any).message) : 'Unknown error';
+      triggerBanner(`Processing failed — ${msg}`, false);
     } finally {
       setProcessingRequestId(null);
     }
@@ -500,6 +531,57 @@ export default function PayoutsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Toast banner */}
+      {showBanner && (
+        <Animated.View
+          style={[styles.banner, { opacity: bannerOpacity, backgroundColor: bannerSuccess ? '#16a34a' : '#ef4444' }]}
+          pointerEvents="none">
+          <Text style={styles.bannerText}>{bannerMessage}</Text>
+        </Animated.View>
+      )}
+
+      {/* EFT confirmation modal */}
+      <Modal
+        visible={confirmShift !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmShift(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Confirm EFT Payout</Text>
+            <Text style={styles.modalShiftName}>{confirmShift?.name}</Text>
+            <Text style={styles.modalShiftDate}>{confirmShift ? formatDate(confirmShift.date) : ''}</Text>
+
+            <View style={styles.modalDivider} />
+
+            {(confirmShift?.allocations ?? []).map((chip) => (
+              <View key={chip.id} style={styles.modalStaffRow}>
+                <Text style={styles.modalStaffName}>
+                  {payoutMethodEmoji(chip.payout_method)} {chip.staff_name}
+                </Text>
+                <Text style={styles.modalStaffAmount}>{formatCents(chip.calculated_amount)}</Text>
+              </View>
+            ))}
+
+            <View style={styles.modalDivider} />
+
+            <View style={styles.modalTotalRow}>
+              <Text style={styles.modalTotalLabel}>Total</Text>
+              <Text style={styles.modalTotalAmount}>{formatCents(confirmShift?.total_tips ?? 0)}</Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setConfirmShift(null)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalConfirmBtn} onPress={handleConfirmPayout}>
+                <Text style={styles.modalConfirmText}>Confirm & Pay</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
@@ -523,6 +605,68 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
+
+  // Toast banner
+  banner: {
+    position: 'absolute',
+    top: 16,
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  bannerText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+
+  // Confirmation modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    gap: 4,
+  },
+  modalTitle: { fontSize: 13, fontWeight: '700', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
+  modalShiftName: { fontSize: 22, fontWeight: '800', color: WHITE, letterSpacing: -0.3 },
+  modalShiftDate: { fontSize: 13, color: MUTED, marginBottom: 4 },
+  modalDivider: { height: 1, backgroundColor: BORDER, marginVertical: 12 },
+  modalStaffRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
+  modalStaffName: { fontSize: 14, fontWeight: '600', color: WHITE },
+  modalStaffAmount: { fontSize: 14, fontWeight: '700', color: BLUE },
+  modalTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTotalLabel: { fontSize: 14, fontWeight: '700', color: MUTED },
+  modalTotalAmount: { fontSize: 20, fontWeight: '800', color: BLUE },
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+  },
+  modalCancelText: { fontSize: 15, fontWeight: '700', color: MUTED },
+  modalConfirmBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+  },
+  modalConfirmText: { fontSize: 15, fontWeight: '700', color: '#ffffff' },
+
   scroll: {
     flex: 1,
   },
