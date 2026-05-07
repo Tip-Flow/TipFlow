@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -114,6 +115,7 @@ function formatDate(dateStr: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
   const isDesktop = useIsDesktop();
+  const scrollRef = useRef<ScrollView>(null);
 
   // ── Main form state ───────────────────────────────────────────────────────
   const [shiftName, setShiftName] = useState('');
@@ -618,6 +620,10 @@ export default function CalculateScreen() {
 
       console.log('[SaveAndPayout] success — shiftId:', shiftId);
 
+      // Dismiss keyboard and scroll to top before resetting
+      Keyboard.dismiss();
+      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+
       // Reset form for next shift
       setShiftName('');
       setShiftDate(today());
@@ -627,6 +633,8 @@ export default function CalculateScreen() {
       setServers((prev) => prev.map((s) => ({ ...s, sales: '', tipsEarned: '', hoursWorked: '', included: true })));
       setSupportStaff((prev) => prev.map((s) => ({ ...s, hoursWorked: '', included: true })));
       if (locationId) fetchActiveShifts(locationId);
+
+      Alert.alert('Shift saved', 'Shift saved and paid out!');
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -1041,6 +1049,7 @@ export default function CalculateScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
           keyboardShouldPersistTaps="always"
