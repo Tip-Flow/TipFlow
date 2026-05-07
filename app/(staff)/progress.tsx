@@ -32,6 +32,7 @@ function getLevelProgress(avg: number) {
 }
 
 type ShiftPoint = {
+  id: string;
   label: string;
   pct: number;
 };
@@ -76,7 +77,7 @@ export default function ProgressScreen() {
 
       // tip % = this staff's tips / shift's total_tips * 100
       // This gives their share of the total tip pool as a percentage
-      const points: { pct: number; label: string; date: string }[] = allocations
+      const points: { id: string; pct: number; label: string; date: string }[] = allocations
         .filter(a => {
           const shift = a.shifts as any;
           return shift && shift.total_tips > 0;
@@ -86,7 +87,7 @@ export default function ProgressScreen() {
           const pct = ((a.calculated_amount ?? 0) / shift.total_tips) * 100;
           const d = new Date(shift.date);
           const label = d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-          return { pct: parseFloat(pct.toFixed(1)), label, date: shift.date };
+          return { id: a.id, pct: parseFloat(pct.toFixed(1)), label, date: shift.date };
         });
 
       if (points.length === 0) { setLoading(false); return; }
@@ -251,7 +252,7 @@ export default function ProgressScreen() {
                 const barHeight = Math.max((s.pct / CHART_MAX) * 100, 8);
                 const isAboveAvg = s.pct >= data.avg;
                 return (
-                  <View key={s.label} style={styles.barCol}>
+                  <View key={s.id} style={styles.barCol}>
                     <Text style={styles.barPct}>{s.pct}%</Text>
                     <View style={styles.barTrack}>
                       <View
