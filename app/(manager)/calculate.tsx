@@ -534,6 +534,12 @@ export default function CalculateScreen() {
     try {
       let shiftId: string;
 
+      const allocations = buildAllocations('__placeholder__');
+      console.log('[SaveAndPayout] locationId:', locationId);
+      console.log('[SaveAndPayout] activeShiftId:', activeShiftId);
+      console.log('[SaveAndPayout] totalTipsCents:', totalTipsCents, 'totalSalesCents:', totalSalesCents);
+      console.log('[SaveAndPayout] allocations to insert:', JSON.stringify(allocations, null, 2));
+
       if (activeShiftId) {
         // Update existing active shift
         const { error: updateError } = await supabase
@@ -546,14 +552,20 @@ export default function CalculateScreen() {
             status: 'calculated',
           })
           .eq('id', activeShiftId);
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.log('[SaveAndPayout] shifts UPDATE error:', JSON.stringify(updateError));
+          throw updateError;
+        }
 
         // Replace stub allocations with calculated ones
         const { error: deleteError } = await supabase
           .from('tip_allocations')
           .delete()
           .eq('shift_id', activeShiftId);
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.log('[SaveAndPayout] tip_allocations DELETE error:', JSON.stringify(deleteError));
+          throw deleteError;
+        }
 
         shiftId = activeShiftId;
       } else {
@@ -571,14 +583,22 @@ export default function CalculateScreen() {
           })
           .select('id')
           .single();
-        if (shiftError) throw shiftError;
+        if (shiftError) {
+          console.log('[SaveAndPayout] shifts INSERT error:', JSON.stringify(shiftError));
+          throw shiftError;
+        }
         shiftId = shiftData.id;
       }
 
+      const finalAllocations = buildAllocations(shiftId);
+      console.log('[SaveAndPayout] inserting', finalAllocations.length, 'allocations for shiftId:', shiftId);
       const { error: allocError } = await supabase
         .from('tip_allocations')
-        .insert(buildAllocations(shiftId));
-      if (allocError) throw allocError;
+        .insert(finalAllocations);
+      if (allocError) {
+        console.log('[SaveAndPayout] tip_allocations INSERT error:', JSON.stringify(allocError));
+        throw allocError;
+      }
 
       // Update house pool balance
       const { data: locBalance } = await supabase
@@ -591,7 +611,12 @@ export default function CalculateScreen() {
         .from('locations')
         .update({ house_pool_balance: currentBalance + summary.totalHousePool })
         .eq('id', locationId);
-      if (balanceError) throw balanceError;
+      if (balanceError) {
+        console.log('[SaveAndPayout] locations UPDATE error:', JSON.stringify(balanceError));
+        throw balanceError;
+      }
+
+      console.log('[SaveAndPayout] success — shiftId:', shiftId);
 
       // Reset form for next shift
       setShiftName('');
@@ -603,7 +628,14 @@ export default function CalculateScreen() {
       setSupportStaff((prev) => prev.map((s) => ({ ...s, hoursWorked: '', included: true })));
       if (locationId) fetchActiveShifts(locationId);
     } catch (err: unknown) {
-      Alert.alert('Save failed', err instanceof Error ? err.message : String(err));
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as any)?.message
+          ? String((err as any).message)
+          : JSON.stringify(err);
+      console.log('[SaveAndPayout] caught error:', JSON.stringify(err));
+      Alert.alert('Save failed', msg);
     } finally {
       setSaving(false);
     }
