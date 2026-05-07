@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -116,6 +117,17 @@ function formatDate(dateStr: string): string {
 export default function CalculateScreen() {
   const isDesktop = useIsDesktop();
   const scrollRef = useRef<ScrollView>(null);
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  const [showBanner, setShowBanner] = useState(false);
+
+  function triggerSuccessBanner() {
+    setShowBanner(true);
+    successOpacity.setValue(1);
+    Animated.sequence([
+      Animated.delay(2500),
+      Animated.timing(successOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start(() => setShowBanner(false));
+  }
 
   // ── Main form state ───────────────────────────────────────────────────────
   const [shiftName, setShiftName] = useState('');
@@ -620,8 +632,13 @@ export default function CalculateScreen() {
 
       console.log('[SaveAndPayout] success — shiftId:', shiftId);
 
-      // Dismiss keyboard and scroll to top before resetting
+      // Dismiss keyboard — native uses Keyboard.dismiss(), web blurs the active element
       Keyboard.dismiss();
+      if (Platform.OS === 'web') {
+        const el = (global as any)?.document?.activeElement;
+        if (el && typeof el.blur === 'function') el.blur();
+      }
+
       scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
 
       // Reset form for next shift
@@ -634,7 +651,9 @@ export default function CalculateScreen() {
       setSupportStaff((prev) => prev.map((s) => ({ ...s, hoursWorked: '', included: true })));
       if (locationId) fetchActiveShifts(locationId);
 
-      Alert.alert('Shift saved', 'Shift saved and paid out!');
+      // Banner works on both mobile and web; Alert.alert on web maps to
+      // window.alert() which is a blocking browser dialog — use banner instead.
+      triggerSuccessBanner();
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -1043,6 +1062,11 @@ export default function CalculateScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {showBanner && (
+        <Animated.View style={[styles.successBanner, { opacity: successOpacity }]} pointerEvents="none">
+          <Text style={styles.successBannerText}>✓ Shift saved and paid out!</Text>
+        </Animated.View>
+      )}
       {/* KeyboardAvoidingView: only apply padding behavior on iOS — on web/Android
           the 'height' behavior can add a blocking div layer over content */}
       <KeyboardAvoidingView
@@ -1209,6 +1233,19 @@ export default function CalculateScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
+  successBanner: {
+    position: 'absolute',
+    top: 16,
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    backgroundColor: '#16a34a',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  successBannerText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48, gap: 20 },
   contentDesktop: { paddingHorizontal: 32 },
