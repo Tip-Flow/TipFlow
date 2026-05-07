@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 64,
     fontWeight: '800',
-    color: '#ffffff',
+    color: BLUE,
     letterSpacing: -2,
   },
   tagline: {
