@@ -55,10 +55,7 @@ export default function ShiftGoalsSplash({ goals, onDismiss }: Props) {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       {/* Logo */}
-      <View style={styles.logoRow}>
-        <Text style={styles.logoEmoji}>💸</Text>
-        <Text style={styles.logoText}>Mise</Text>
-      </View>
+      <Text style={styles.logoText}>Mise</Text>
 
       {/* Title block */}
       <View style={styles.titleBlock}>
@@ -108,19 +105,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoEmoji: {
-    fontSize: 22,
-  },
   logoText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
     color: BLUE,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   titleBlock: {
     width: '100%',

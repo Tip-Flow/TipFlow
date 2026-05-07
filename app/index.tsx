@@ -203,7 +203,6 @@ export default function LoginScreen() {
           bounces={false}>
 
           <View style={styles.logoContainer}>
-            <Text style={styles.logoEmoji}>💸</Text>
             <Text style={styles.logoText}>Mise</Text>
             <Text style={styles.tagline}>Everything in its Place.</Text>
           </View>
@@ -286,22 +285,19 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    gap: 8,
-  },
-  logoEmoji: {
-    fontSize: 64,
-    marginBottom: 8,
+    gap: 10,
   },
   logoText: {
-    fontSize: 48,
+    fontSize: 64,
     fontWeight: '800',
-    color: BLUE,
-    letterSpacing: -1,
+    color: '#ffffff',
+    letterSpacing: -2,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6b7a74',
-    letterSpacing: 0.3,
+    fontWeight: '400',
+    letterSpacing: 0.5,
   },
   formContainer: {
     width: '100%',
