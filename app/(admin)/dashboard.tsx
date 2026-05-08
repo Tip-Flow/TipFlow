@@ -163,6 +163,7 @@ export default function AdminScreen() {
   useWebFocus(loadData);
 
   async function handleCreateOrg() {
+    console.log('[Admin] handleCreateOrg tapped');
     if (!orgName.trim()) { showToast('Organisation name is required', true); return; }
     setCreatingOrg(true);
     try {
@@ -181,6 +182,7 @@ export default function AdminScreen() {
   }
 
   async function handleCreateLocation() {
+    console.log('[Admin] handleCreateLocation tapped');
     if (!locName.trim()) { showToast('Location name is required', true); return; }
     setCreatingLoc(true);
     try {
@@ -199,6 +201,7 @@ export default function AdminScreen() {
   }
 
   async function handleInviteRegionalManager() {
+    console.log('[Admin] handleInviteRegionalManager tapped');
     if (!rmName.trim() || !rmEmail.trim()) {
       setInviteError('Name and email are required.');
       return;
@@ -442,7 +445,7 @@ export default function AdminScreen() {
         ) : null
       ) : (
         <Modal visible={!!confirmRemove} transparent animationType="fade"
-          onRequestClose={() => setConfirmRemove(null)}>
+          presentationStyle="overFullScreen" onRequestClose={() => setConfirmRemove(null)}>
           {confirmRemoveContent ?? <View />}
         </Modal>
       )}
