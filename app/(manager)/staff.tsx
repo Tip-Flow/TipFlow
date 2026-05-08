@@ -105,10 +105,12 @@ function StaffCard({
   member,
   isLast,
   onSendInvite,
+  onRemove,
 }: {
   member: StaffMember;
   isLast: boolean;
   onSendInvite: (m: StaffMember) => void;
+  onRemove: (m: StaffMember) => void;
 }) {
   const color = avatarColor(member.id);
   const showResend = !!member.inviteSentAt && member.status === 'unlinked';
@@ -125,6 +127,9 @@ function StaffCard({
           <View style={styles.badgeRow}>
             {member.inviteSentAt && member.status === 'unlinked' && <InviteBadge />}
             <StatusBadge status={member.status} />
+            <Pressable onPress={() => onRemove(member)} style={styles.removeBtn}>
+              <Text style={styles.removeBtnText}>✕</Text>
+            </Pressable>
           </View>
         </View>
         <Text style={styles.staffMeta}>{member.role} · {member.location}</Text>
@@ -160,9 +165,11 @@ function StaffCard({
 function StaffGridCard({
   member,
   onSendInvite,
+  onRemove,
 }: {
   member: StaffMember;
   onSendInvite: (m: StaffMember) => void;
+  onRemove: (m: StaffMember) => void;
 }) {
   const color = avatarColor(member.id);
   const showResend = !!member.inviteSentAt && member.status === 'unlinked';
@@ -174,7 +181,12 @@ function StaffGridCard({
         <View style={[styles.initCircle, { backgroundColor: color + '33' }]}>
           <Text style={[styles.initText, { color }]}>{getInitials(member.name)}</Text>
         </View>
-        <StatusBadge status={member.status} />
+        <View style={styles.gridCardTopRight}>
+          <StatusBadge status={member.status} />
+          <Pressable onPress={() => onRemove(member)} style={styles.removeBtn}>
+            <Text style={styles.removeBtnText}>✕</Text>
+          </Pressable>
+        </View>
       </View>
       <Text style={styles.gridName}>{member.name}</Text>
       <Text style={styles.gridMeta}>{member.role} · {member.location}</Text>
@@ -225,6 +237,10 @@ export default function StaffScreen() {
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Remove staff state
+  const [confirmRemove, setConfirmRemove] = useState<StaffMember | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   // Toast banner
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -294,13 +310,9 @@ export default function StaffScreen() {
         const body = await (error as any).context?.json?.();
         if (body?.error) message = body.error;
       } catch {}
-      console.log('[Staff] invite error:', message);
       return { error: new Error(message), note: null };
     }
-
-    const note: string | null = data?.note ?? null;
-    console.log('[Staff] invite result — user_id:', data?.user_id ?? 'existing', '| note:', note);
-    return { error: null, note };
+    return { error: null, note: data?.note ?? null };
   }
 
   async function handleSendInvite(member: StaffMember) {
@@ -322,16 +334,13 @@ export default function StaffScreen() {
             setSendingInviteId(member.id);
             try {
               const { error: invErr, note } = await callInviteFunction({
-                id: member.id,
-                name: member.name,
-                role: member.role,
-                email: member.email!,
+                id: member.id, name: member.name, role: member.role, email: member.email!,
               });
               await fetchStaff();
               if (invErr) {
                 showToast(`Invite failed: ${invErr.message}`, true);
               } else if (note) {
-                showToast(`${member.name} is already registered — invited badge applied.`);
+                showToast(`${member.name} is already registered.`);
               } else {
                 showToast(`Invite sent to ${member.name}!`);
               }
@@ -344,21 +353,40 @@ export default function StaffScreen() {
     );
   }
 
+  async function handleConfirmRemove() {
+    if (!confirmRemove) return;
+    const member = confirmRemove;
+    setConfirmRemove(null);
+    setRemoving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('remove-user', {
+        body: { record_id: member.id, table: 'staff_members' },
+      });
+      if (error) {
+        let msg = error.message;
+        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch {}
+        showToast(`Failed to remove ${member.name}: ${msg}`, true);
+        return;
+      }
+      if (data?.error) { showToast(`Failed to remove ${member.name}: ${data.error}`, true); return; }
+      await fetchStaff();
+      showToast(`${member.name} removed from Mise.`);
+    } catch (err: unknown) {
+      showToast(`Error: ${err instanceof Error ? err.message : String(err)}`, true);
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   function resetModal() {
-    setFirstName('');
-    setLastName('');
-    setSelectedRole(null);
-    setEmail('');
-    setSaving(false);
-    setFormError('');
-    setModalVisible(false);
+    setFirstName(''); setLastName(''); setSelectedRole(null);
+    setEmail(''); setSaving(false); setFormError(''); setModalVisible(false);
   }
 
   async function handleAddStaff() {
     const first = firstName.trim();
     const last  = lastName.trim();
     const mail  = email.trim().toLowerCase();
-
     setFormError('');
     if (!first) { setFormError('Enter a first name.'); return; }
     if (!last)  { setFormError('Enter a last name.');  return; }
@@ -371,18 +399,13 @@ export default function StaffScreen() {
       const { data: inserted, error: insertError } = await supabase
         .from('staff_members')
         .insert({
-          location_id:   locationId,
-          name:          `${first} ${last}`,
-          role:          selectedRole,
-          email:         mail,
-          bank_linked:   false,
-          payout_method: 'cash',
+          location_id: locationId, name: `${first} ${last}`, role: selectedRole,
+          email: mail, bank_linked: false, payout_method: 'cash',
         })
-        .select('id')
-        .single();
+        .select('id').single();
 
       if (insertError) {
-        console.log('[Staff] insert error:', insertError.message, insertError.details, insertError.code);
+        console.log('[Staff] insert error:', insertError.message, insertError.code);
         setFormError(insertError.message);
         return;
       }
@@ -392,12 +415,8 @@ export default function StaffScreen() {
       await fetchStaff();
 
       const { error: inviteErr, note } = await callInviteFunction({
-        id: inserted.id,
-        name: `${first} ${last}`,
-        role: selectedRole,
-        email: mail,
+        id: inserted.id, name: `${first} ${last}`, role: selectedRole, email: mail,
       });
-
       await fetchStaff();
 
       if (inviteErr) {
@@ -409,14 +428,15 @@ export default function StaffScreen() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.log('[Staff] handleAddStaff exception:', msg);
       setFormError('Something went wrong. Please try again.');
+      console.log('[Staff] handleAddStaff exception:', msg);
     } finally {
       setSaving(false);
     }
   }
 
-  const sheetContent = (
+  // Add-staff sheet (bottom sheet)
+  const addSheetContent = (
     <KeyboardAvoidingView
       style={styles.modalOverlay}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -426,43 +446,25 @@ export default function StaffScreen() {
         <Text style={styles.modalTitle}>Add Staff Member</Text>
         <Text style={styles.modalSubtitle}>They'll receive an email to create their Mise account.</Text>
 
-        {/* Name row */}
         <View style={styles.nameRow}>
           <View style={styles.nameHalf}>
             <Text style={styles.inputLabel}>First name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Alex"
-              placeholderTextColor={MUTED}
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
+            <TextInput style={styles.input} placeholder="Alex" placeholderTextColor={MUTED}
+              value={firstName} onChangeText={setFirstName} autoCapitalize="words" returnKeyType="next" />
           </View>
           <View style={styles.nameHalf}>
             <Text style={styles.inputLabel}>Last name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Dubois"
-              placeholderTextColor={MUTED}
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
+            <TextInput style={styles.input} placeholder="Dubois" placeholderTextColor={MUTED}
+              value={lastName} onChangeText={setLastName} autoCapitalize="words" returnKeyType="next" />
           </View>
         </View>
 
-        {/* Role selector */}
         <Text style={styles.inputLabel}>Role</Text>
         <View style={styles.roleGrid}>
           {ROLES.map(({ value, label, icon }) => {
             const selected = selectedRole === value;
             return (
-              <Pressable
-                key={value}
-                style={[styles.roleChip, selected && styles.roleChipSelected]}
+              <Pressable key={value} style={[styles.roleChip, selected && styles.roleChipSelected]}
                 onPress={() => setSelectedRole(value)}>
                 <Text style={styles.roleIcon}>{icon}</Text>
                 <Text style={[styles.roleLabel, selected && styles.roleLabelSelected]}>{label}</Text>
@@ -471,47 +473,54 @@ export default function StaffScreen() {
           })}
         </View>
 
-        {/* Email */}
         <Text style={styles.inputLabel}>Email address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="alex@restaurant.com"
-          placeholderTextColor={MUTED}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="done"
-        />
+        <TextInput style={styles.input} placeholder="alex@restaurant.com" placeholderTextColor={MUTED}
+          value={email} onChangeText={setEmail} keyboardType="email-address"
+          autoCapitalize="none" autoCorrect={false} returnKeyType="done" />
 
         <View style={styles.inviteNote}>
-          <Text style={styles.inviteNoteText}>
-            ✉ An account invite will be emailed automatically after saving.
-          </Text>
+          <Text style={styles.inviteNoteText}>✉ An account invite will be emailed automatically after saving.</Text>
         </View>
 
-        {/* Inline form error */}
         {formError ? (
           <View style={styles.formErrorBox}>
             <Text style={styles.formErrorText}>{formError}</Text>
           </View>
         ) : null}
 
-        {/* Actions */}
-        <Pressable
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-          onPress={handleAddStaff}
-          disabled={saving}>
+        <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          onPress={handleAddStaff} disabled={saving}>
           <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add & Send Invite'}</Text>
         </Pressable>
-
         <Pressable style={styles.cancelBtn} onPress={resetModal}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
   );
+
+  // Confirm-remove sheet
+  const confirmRemoveContent = confirmRemove ? (
+    <KeyboardAvoidingView style={styles.modalOverlay} behavior={undefined}>
+      <Pressable style={styles.modalBackdrop} onPress={() => setConfirmRemove(null)} />
+      <View style={[styles.modalSheet, styles.confirmSheet]}>
+        <View style={styles.modalHandle} />
+        <Text style={styles.modalTitle}>Remove Staff Member</Text>
+        <Text style={styles.confirmBody}>
+          Remove{' '}
+          <Text style={{ color: WHITE, fontWeight: '700' }}>{confirmRemove.name}</Text>
+          {' '}from Mise?{'\n\n'}They will lose access immediately.
+        </Text>
+        <Pressable style={[styles.saveBtn, { backgroundColor: RED }, removing && styles.saveBtnDisabled]}
+          onPress={handleConfirmRemove} disabled={removing}>
+          <Text style={styles.saveBtnText}>{removing ? 'Removing…' : 'Remove from Mise'}</Text>
+        </Pressable>
+        <Pressable style={styles.cancelBtn} onPress={() => setConfirmRemove(null)}>
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
+  ) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -521,20 +530,13 @@ export default function StaffScreen() {
           contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
           showsVerticalScrollIndicator={false}>
 
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Staff</Text>
-            <Pressable
-              style={styles.addBtn}
-              onPress={() => {
-                console.log('Add Staff tapped');
-                setModalVisible(true);
-              }}>
+            <Pressable style={styles.addBtn} onPress={() => { console.log('Add Staff tapped'); setModalVisible(true); }}>
               <Text style={styles.addBtnText}>+ Add</Text>
             </Pressable>
           </View>
 
-          {/* Info Card */}
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>How staff onboarding works</Text>
             <Text style={styles.infoBody}>
@@ -543,16 +545,13 @@ export default function StaffScreen() {
             <View style={styles.infoSteps}>
               {['Add staff', 'Email invite sent', 'Staff signs up', 'Tips auto-routed'].map((step, i) => (
                 <View key={step} style={styles.infoStep}>
-                  <View style={styles.stepDot}>
-                    <Text style={styles.stepNum}>{i + 1}</Text>
-                  </View>
+                  <View style={styles.stepDot}><Text style={styles.stepNum}>{i + 1}</Text></View>
                   <Text style={styles.stepLabel}>{step}</Text>
                 </View>
               ))}
             </View>
           </View>
 
-          {/* Team Members */}
           <View style={styles.listHeader}>
             <Text style={styles.listTitle}>
               {locationName ? `${locationName} — Team` : 'Team Members'}
@@ -573,23 +572,16 @@ export default function StaffScreen() {
           ) : isDesktop ? (
             <View style={styles.cardGrid}>
               {staff.map(member => (
-                <StaffGridCard
-                  key={member.id}
-                  member={member}
-                  onSendInvite={handleSendInvite}
-                />
+                <StaffGridCard key={member.id} member={member}
+                  onSendInvite={handleSendInvite} onRemove={setConfirmRemove} />
               ))}
             </View>
           ) : (
             <View style={styles.listCard}>
               <View style={styles.listDivider} />
               {staff.map((member, index) => (
-                <StaffCard
-                  key={member.id}
-                  member={member}
-                  isLast={index === staff.length - 1}
-                  onSendInvite={handleSendInvite}
-                />
+                <StaffCard key={member.id} member={member} isLast={index === staff.length - 1}
+                  onSendInvite={handleSendInvite} onRemove={setConfirmRemove} />
               ))}
             </View>
           )}
@@ -597,30 +589,31 @@ export default function StaffScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Toast banner */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.toast,
-          { opacity: toastOpacity, backgroundColor: toastIsError ? '#ef4444' : '#16a34a' },
-        ]}>
+      {/* Toast */}
+      <Animated.View pointerEvents="none"
+        style={[styles.toast, { opacity: toastOpacity, backgroundColor: toastIsError ? RED : '#16a34a' }]}>
         <Text style={styles.toastText}>{toastMsg}</Text>
       </Animated.View>
 
-      {/* Add Staff Modal — absolute overlay on web, Modal on native */}
+      {/* Add Staff Modal */}
       {Platform.OS === 'web' ? (
         modalVisible ? (
-          <View style={[StyleSheet.absoluteFillObject, { zIndex: 50 }]}>
-            {sheetContent}
-          </View>
+          <View style={[StyleSheet.absoluteFillObject, { zIndex: 50 }]}>{addSheetContent}</View>
         ) : null
       ) : (
-        <Modal
-          visible={modalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={resetModal}>
-          {sheetContent}
+        <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={resetModal}>
+          {addSheetContent}
+        </Modal>
+      )}
+
+      {/* Confirm Remove Modal */}
+      {Platform.OS === 'web' ? (
+        confirmRemove ? (
+          <View style={[StyleSheet.absoluteFillObject, { zIndex: 50 }]}>{confirmRemoveContent}</View>
+        ) : null
+      ) : (
+        <Modal visible={!!confirmRemove} transparent animationType="fade" onRequestClose={() => setConfirmRemove(null)}>
+          {confirmRemoveContent ?? <View />}
         </Modal>
       )}
     </View>
@@ -630,109 +623,46 @@ export default function StaffScreen() {
 const styles = StyleSheet.create({
   safe: { backgroundColor: BG },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-    gap: 20,
-  },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, gap: 20 },
   contentDesktop: { paddingHorizontal: 32 },
 
-  cardGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
+  cardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   gridCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 18,
-    gap: 8,
-    minWidth: 260,
-    flex: 1,
-    maxWidth: '32%' as any,
+    backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER,
+    padding: 18, gap: 8, minWidth: 260, flex: 1, maxWidth: '32%' as any,
   },
-  gridCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
+  gridCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  gridCardTopRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   gridName: { fontSize: 16, fontWeight: '800', color: WHITE, letterSpacing: -0.2 },
   gridMeta: { fontSize: 12, color: MUTED },
   gridEmail: { fontSize: 11, color: MUTED },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 26, fontWeight: '800', color: WHITE, letterSpacing: -0.5 },
   addBtn: {
-    backgroundColor: BLUE_DIM,
-    borderWidth: 1,
-    borderColor: BLUE_BORDER,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: BLUE_DIM, borderWidth: 1, borderColor: BLUE_BORDER,
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
   },
   addBtnText: { fontSize: 14, fontWeight: '700', color: BLUE },
 
   infoCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: BLUE_BORDER,
-    padding: 18,
-    gap: 12,
+    backgroundColor: CARD, borderRadius: 18, borderWidth: 1.5, borderColor: BLUE_BORDER, padding: 18, gap: 12,
   },
   infoTitle: { fontSize: 15, fontWeight: '800', color: BLUE, letterSpacing: -0.2 },
   infoBody: { fontSize: 13, color: MUTED, lineHeight: 19 },
   infoSteps: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   infoStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: BLUE_DIM,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: BLUE_DIM, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
   },
-  stepDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  stepDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: BLUE, alignItems: 'center', justifyContent: 'center' },
   stepNum: { fontSize: 10, fontWeight: '800', color: '#ffffff' },
   stepLabel: { fontSize: 12, fontWeight: '600', color: BLUE },
 
-  listCard: {
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: BORDER,
-    overflow: 'hidden',
-  },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 14,
-  },
+  listCard: { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
+  listHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 },
   listTitle: { fontSize: 17, fontWeight: '800', color: WHITE, letterSpacing: -0.3 },
-  countBadge: {
-    backgroundColor: BLUE_DIM,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-  },
+  countBadge: { backgroundColor: BLUE_DIM, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
   countText: { fontSize: 12, fontWeight: '700', color: BLUE },
   listDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 18 },
 
@@ -740,187 +670,71 @@ const styles = StyleSheet.create({
   emptyWrap: { padding: 32, alignItems: 'center' },
   emptyText: { fontSize: 14, color: MUTED, textAlign: 'center', lineHeight: 20 },
 
-  staffRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-  },
+  staffRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingHorizontal: 18, paddingVertical: 16 },
   staffRowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
-
-  initCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 2,
-  },
+  initCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
   initText: { fontSize: 15, fontWeight: '800' },
-
   staffInfo: { flex: 1, gap: 5 },
-  staffTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
+  staffTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   staffName: { fontSize: 15, fontWeight: '700', color: WHITE, flex: 1 },
   staffMeta: { fontSize: 12, color: MUTED },
   staffEmail: { fontSize: 11, color: MUTED },
-
   badgeRow: { flexDirection: 'row', gap: 4, alignItems: 'center', flexShrink: 0 },
 
-  tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 },
-  tag: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+  removeBtn: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: RED_DIM, borderWidth: 1, borderColor: RED_BORDER,
+    alignItems: 'center', justifyContent: 'center',
   },
-  tagText: { fontSize: 11, fontWeight: '600', color: MUTED },
+  removeBtnText: { fontSize: 10, color: RED, fontWeight: '800' },
 
+  tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 },
+  tag: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: BORDER, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  tagText: { fontSize: 11, fontWeight: '600', color: MUTED },
   badge: { borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, flexShrink: 0 },
   badgeText: { fontSize: 11, fontWeight: '700' },
 
-  inviteBtn: {
-    backgroundColor: BLUE_DIM,
-    borderWidth: 1,
-    borderColor: BLUE_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
+  inviteBtn: { backgroundColor: BLUE_DIM, borderWidth: 1, borderColor: BLUE_BORDER, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, alignSelf: 'flex-start', marginTop: 4 },
   inviteBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
-
-  resendBtn: {
-    backgroundColor: AMBER_DIM,
-    borderWidth: 1,
-    borderColor: AMBER_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
+  resendBtn: { backgroundColor: AMBER_DIM, borderWidth: 1, borderColor: AMBER_BORDER, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, alignSelf: 'flex-start', marginTop: 4 },
   resendBtnText: { fontSize: 13, fontWeight: '700', color: AMBER },
 
-  inviteNote: {
-    backgroundColor: BLUE_DIM,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: BLUE_BORDER,
-  },
+  inviteNote: { backgroundColor: BLUE_DIM, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: BLUE_BORDER },
   inviteNoteText: { fontSize: 12, color: BLUE, lineHeight: 17 },
 
-  formErrorBox: {
-    backgroundColor: RED_DIM,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: RED_BORDER,
-  },
+  formErrorBox: { backgroundColor: RED_DIM, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: RED_BORDER },
   formErrorText: { fontSize: 13, color: RED, fontWeight: '600' },
 
-  toast: {
-    position: 'absolute',
-    top: 60,
-    left: 16,
-    right: 16,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    zIndex: 100,
-  },
+  toast: { position: 'absolute', top: 60, left: 16, right: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, zIndex: 100 },
   toastText: { fontSize: 14, color: '#fff', fontWeight: '700', textAlign: 'center' },
 
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
   modalSheet: {
-    backgroundColor: '#0f1e16',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    borderTopWidth: 1,
-    borderColor: BORDER,
-    gap: 12,
+    backgroundColor: '#0f1e16', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40, borderTopWidth: 1, borderColor: BORDER, gap: 12,
   },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: BORDER,
-    alignSelf: 'center',
-    marginBottom: 8,
-  },
+  confirmSheet: { paddingBottom: 32 },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: BORDER, alignSelf: 'center', marginBottom: 8 },
   modalTitle: { fontSize: 20, fontWeight: '800', color: WHITE, letterSpacing: -0.4 },
   modalSubtitle: { fontSize: 13, color: MUTED, marginTop: -4 },
+  confirmBody: { fontSize: 15, color: MUTED, lineHeight: 24 },
 
   nameRow: { flexDirection: 'row', gap: 12 },
   nameHalf: { flex: 1, gap: 6 },
-
   inputLabel: { fontSize: 12, fontWeight: '700', color: MUTED, letterSpacing: 0.5, textTransform: 'uppercase' },
-  input: {
-    backgroundColor: '#0d1a14',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: WHITE,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
+  input: { backgroundColor: '#0d1a14', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: WHITE, borderWidth: 1, borderColor: BORDER },
 
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  roleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#0d1a14',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  roleChipSelected: {
-    backgroundColor: BLUE_DIM,
-    borderColor: BLUE_BORDER,
-  },
+  roleChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#0d1a14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: BORDER },
+  roleChipSelected: { backgroundColor: BLUE_DIM, borderColor: BLUE_BORDER },
   roleIcon: { fontSize: 16 },
   roleLabel: { fontSize: 13, fontWeight: '700', color: MUTED },
   roleLabelSelected: { color: BLUE },
 
-  saveBtn: {
-    backgroundColor: BLUE,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
+  saveBtn: { backgroundColor: BLUE, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { fontSize: 15, fontWeight: '800', color: '#ffffff', letterSpacing: 0.3 },
-
-  cancelBtn: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
+  cancelBtn: { paddingVertical: 12, alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontWeight: '600', color: MUTED },
 });
