@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -223,6 +224,22 @@ export default function StaffScreen() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  // Toast banner
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastIsError, setToastIsError] = useState(false);
+
+  function showToast(msg: string, isError = false) {
+    setToastMsg(msg);
+    setToastIsError(isError);
+    toastOpacity.setValue(1);
+    Animated.sequence([
+      Animated.delay(2500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+  }
 
   const fetchStaff = useCallback(async () => {
     if (!locationId) return;
@@ -272,7 +289,6 @@ export default function StaffScreen() {
     });
 
     if (error) {
-      // FunctionsHttpError.message is just "non-2xx status code" — unwrap the JSON body
       let message = error.message;
       try {
         const body = await (error as any).context?.json?.();
@@ -313,11 +329,11 @@ export default function StaffScreen() {
               });
               await fetchStaff();
               if (invErr) {
-                Alert.alert('Invite failed', invErr.message);
+                showToast(`Invite failed: ${invErr.message}`, true);
               } else if (note) {
-                Alert.alert('Already registered', `${note}\n\nThe Invited badge has been applied.`);
+                showToast(`${member.name} is already registered — invited badge applied.`);
               } else {
-                Alert.alert('Invite sent!', `${member.name} will receive an email at ${member.email} to set up their Mise account.`);
+                showToast(`Invite sent to ${member.name}!`);
               }
             } finally {
               setSendingInviteId(null);
@@ -334,6 +350,7 @@ export default function StaffScreen() {
     setSelectedRole(null);
     setEmail('');
     setSaving(false);
+    setFormError('');
     setModalVisible(false);
   }
 
@@ -342,15 +359,15 @@ export default function StaffScreen() {
     const last  = lastName.trim();
     const mail  = email.trim().toLowerCase();
 
-    if (!first) { Alert.alert('Required', 'Enter a first name.'); return; }
-    if (!last)  { Alert.alert('Required', 'Enter a last name.');  return; }
-    if (!selectedRole) { Alert.alert('Required', 'Select a role.'); return; }
-    if (!mail || !mail.includes('@')) { Alert.alert('Required', 'Enter a valid email address.'); return; }
-    if (!locationId) { Alert.alert('Error', 'No location found. Please try again.'); return; }
+    setFormError('');
+    if (!first) { setFormError('Enter a first name.'); return; }
+    if (!last)  { setFormError('Enter a last name.');  return; }
+    if (!selectedRole) { setFormError('Select a role.'); return; }
+    if (!mail || !mail.includes('@')) { setFormError('Enter a valid email address.'); return; }
+    if (!locationId) { setFormError('No location found. Please try again.'); return; }
 
     setSaving(true);
     try {
-      // 1. Insert the staff_members row
       const { data: inserted, error: insertError } = await supabase
         .from('staff_members')
         .insert({
@@ -365,8 +382,8 @@ export default function StaffScreen() {
         .single();
 
       if (insertError) {
-        console.log('[Staff] insert error:', insertError.message, insertError.details);
-        Alert.alert('Error', insertError.message);
+        console.log('[Staff] insert error:', insertError.message, insertError.details, insertError.code);
+        setFormError(insertError.message);
         return;
       }
 
@@ -374,7 +391,6 @@ export default function StaffScreen() {
       resetModal();
       await fetchStaff();
 
-      // 2. Send the Supabase auth invite email (non-blocking — failure is shown but doesn't undo the insert)
       const { error: inviteErr, note } = await callInviteFunction({
         id: inserted.id,
         name: `${first} ${last}`,
@@ -382,209 +398,237 @@ export default function StaffScreen() {
         email: mail,
       });
 
-      await fetchStaff(); // refresh to show invite badge regardless of outcome
+      await fetchStaff();
 
       if (inviteErr) {
-        console.log('[Staff] invite email failed (non-fatal):', inviteErr.message);
-        Alert.alert(
-          'Staff added',
-          `${first} ${last} was added, but the invite failed: ${inviteErr.message}\n\nYou can resend from the staff list.`
-        );
+        showToast(`${first} ${last} added — invite failed: ${inviteErr.message}`, true);
       } else if (note) {
-        // Already registered — no invite email sent but record is saved
-        Alert.alert(
-          'Staff added',
-          `${first} ${last} has been added.\n\n${note}\n\nThey can log in to Mise directly.`
-        );
+        showToast(`${first} ${last} added. ${note}`);
       } else {
-        Alert.alert('Invite sent! ✉', `${first} ${last} has been added and will receive an email at ${mail} to create their Mise account.`);
+        showToast(`${first} ${last} added! Invite sent to ${mail}.`);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log('[Staff] handleAddStaff exception:', msg);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      setFormError('Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }
   }
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
-        showsVerticalScrollIndicator={false}>
+  const sheetContent = (
+    <KeyboardAvoidingView
+      style={styles.modalOverlay}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Pressable style={styles.modalBackdrop} onPress={resetModal} />
+      <View style={styles.modalSheet}>
+        <View style={styles.modalHandle} />
+        <Text style={styles.modalTitle}>Add Staff Member</Text>
+        <Text style={styles.modalSubtitle}>They'll receive an email to create their Mise account.</Text>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Staff</Text>
-          <Pressable style={styles.addBtn} onPress={() => setModalVisible(true)}>
-            <Text style={styles.addBtnText}>+ Add</Text>
-          </Pressable>
-        </View>
-
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>How staff onboarding works</Text>
-          <Text style={styles.infoBody}>
-            Add staff → they receive an email invite → create their Mise account → link their bank via Flinks → tips route automatically
-          </Text>
-          <View style={styles.infoSteps}>
-            {['Add staff', 'Email invite sent', 'Staff signs up', 'Tips auto-routed'].map((step, i) => (
-              <View key={step} style={styles.infoStep}>
-                <View style={styles.stepDot}>
-                  <Text style={styles.stepNum}>{i + 1}</Text>
-                </View>
-                <Text style={styles.stepLabel}>{step}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Team Members */}
-        <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>
-            {locationName ? `${locationName} — Team` : 'Team Members'}
-          </Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{staff.length}</Text>
-          </View>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={BLUE} />
-          </View>
-        ) : staff.length === 0 ? (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>No staff members yet. Tap + Add to get started.</Text>
-          </View>
-        ) : isDesktop ? (
-          <View style={styles.cardGrid}>
-            {staff.map(member => (
-              <StaffGridCard
-                key={member.id}
-                member={member}
-                onSendInvite={handleSendInvite}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.listCard}>
-            <View style={styles.listDivider} />
-            {staff.map((member, index) => (
-              <StaffCard
-                key={member.id}
-                member={member}
-                isLast={index === staff.length - 1}
-                onSendInvite={handleSendInvite}
-              />
-            ))}
-          </View>
-        )}
-
-      </ScrollView>
-
-      {/* Add Staff Modal */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={resetModal}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable style={styles.modalBackdrop} onPress={resetModal} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Add Staff Member</Text>
-            <Text style={styles.modalSubtitle}>They'll receive an email to create their Mise account.</Text>
-
-            {/* Name row */}
-            <View style={styles.nameRow}>
-              <View style={styles.nameHalf}>
-                <Text style={styles.inputLabel}>First name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Alex"
-                  placeholderTextColor={MUTED}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
-              </View>
-              <View style={styles.nameHalf}>
-                <Text style={styles.inputLabel}>Last name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Dubois"
-                  placeholderTextColor={MUTED}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
-              </View>
-            </View>
-
-            {/* Role selector */}
-            <Text style={styles.inputLabel}>Role</Text>
-            <View style={styles.roleGrid}>
-              {ROLES.map(({ value, label, icon }) => {
-                const selected = selectedRole === value;
-                return (
-                  <Pressable
-                    key={value}
-                    style={[styles.roleChip, selected && styles.roleChipSelected]}
-                    onPress={() => setSelectedRole(value)}>
-                    <Text style={styles.roleIcon}>{icon}</Text>
-                    <Text style={[styles.roleLabel, selected && styles.roleLabelSelected]}>{label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Email */}
-            <Text style={styles.inputLabel}>Email address</Text>
+        {/* Name row */}
+        <View style={styles.nameRow}>
+          <View style={styles.nameHalf}>
+            <Text style={styles.inputLabel}>First name</Text>
             <TextInput
               style={styles.input}
-              placeholder="alex@restaurant.com"
+              placeholder="Alex"
               placeholderTextColor={MUTED}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+              returnKeyType="next"
             />
+          </View>
+          <View style={styles.nameHalf}>
+            <Text style={styles.inputLabel}>Last name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Dubois"
+              placeholderTextColor={MUTED}
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+          </View>
+        </View>
 
-            <View style={styles.inviteNote}>
-              <Text style={styles.inviteNoteText}>
-                ✉ An account invite will be emailed automatically after saving.
-              </Text>
-            </View>
+        {/* Role selector */}
+        <Text style={styles.inputLabel}>Role</Text>
+        <View style={styles.roleGrid}>
+          {ROLES.map(({ value, label, icon }) => {
+            const selected = selectedRole === value;
+            return (
+              <Pressable
+                key={value}
+                style={[styles.roleChip, selected && styles.roleChipSelected]}
+                onPress={() => setSelectedRole(value)}>
+                <Text style={styles.roleIcon}>{icon}</Text>
+                <Text style={[styles.roleLabel, selected && styles.roleLabelSelected]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-            {/* Actions */}
+        {/* Email */}
+        <Text style={styles.inputLabel}>Email address</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="alex@restaurant.com"
+          placeholderTextColor={MUTED}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="done"
+        />
+
+        <View style={styles.inviteNote}>
+          <Text style={styles.inviteNoteText}>
+            ✉ An account invite will be emailed automatically after saving.
+          </Text>
+        </View>
+
+        {/* Inline form error */}
+        {formError ? (
+          <View style={styles.formErrorBox}>
+            <Text style={styles.formErrorText}>{formError}</Text>
+          </View>
+        ) : null}
+
+        {/* Actions */}
+        <Pressable
+          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          onPress={handleAddStaff}
+          disabled={saving}>
+          <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add & Send Invite'}</Text>
+        </Pressable>
+
+        <Pressable style={styles.cancelBtn} onPress={resetModal}>
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <SafeAreaView style={[styles.safe, { flex: 1 }]}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
+          showsVerticalScrollIndicator={false}>
+
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Staff</Text>
             <Pressable
-              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-              onPress={handleAddStaff}
-              disabled={saving}>
-              <Text style={styles.saveBtnText}>{saving ? 'Adding…' : 'Add & Send Invite'}</Text>
-            </Pressable>
-
-            <Pressable style={styles.cancelBtn} onPress={resetModal}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              style={styles.addBtn}
+              onPress={() => {
+                console.log('Add Staff tapped');
+                setModalVisible(true);
+              }}>
+              <Text style={styles.addBtnText}>+ Add</Text>
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </SafeAreaView>
+
+          {/* Info Card */}
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>How staff onboarding works</Text>
+            <Text style={styles.infoBody}>
+              Add staff → they receive an email invite → create their Mise account → link their bank via Flinks → tips route automatically
+            </Text>
+            <View style={styles.infoSteps}>
+              {['Add staff', 'Email invite sent', 'Staff signs up', 'Tips auto-routed'].map((step, i) => (
+                <View key={step} style={styles.infoStep}>
+                  <View style={styles.stepDot}>
+                    <Text style={styles.stepNum}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.stepLabel}>{step}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Team Members */}
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>
+              {locationName ? `${locationName} — Team` : 'Team Members'}
+            </Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{staff.length}</Text>
+            </View>
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={BLUE} />
+            </View>
+          ) : staff.length === 0 ? (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyText}>No staff members yet. Tap + Add to get started.</Text>
+            </View>
+          ) : isDesktop ? (
+            <View style={styles.cardGrid}>
+              {staff.map(member => (
+                <StaffGridCard
+                  key={member.id}
+                  member={member}
+                  onSendInvite={handleSendInvite}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.listCard}>
+              <View style={styles.listDivider} />
+              {staff.map((member, index) => (
+                <StaffCard
+                  key={member.id}
+                  member={member}
+                  isLast={index === staff.length - 1}
+                  onSendInvite={handleSendInvite}
+                />
+              ))}
+            </View>
+          )}
+
+        </ScrollView>
+      </SafeAreaView>
+
+      {/* Toast banner */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.toast,
+          { opacity: toastOpacity, backgroundColor: toastIsError ? '#ef4444' : '#16a34a' },
+        ]}>
+        <Text style={styles.toastText}>{toastMsg}</Text>
+      </Animated.View>
+
+      {/* Add Staff Modal — absolute overlay on web, Modal on native */}
+      {Platform.OS === 'web' ? (
+        modalVisible ? (
+          <View style={[StyleSheet.absoluteFillObject, { zIndex: 50 }]}>
+            {sheetContent}
+          </View>
+        ) : null
+      ) : (
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={resetModal}>
+          {sheetContent}
+        </Modal>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
+  safe: { backgroundColor: BG },
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: 20,
@@ -776,6 +820,28 @@ const styles = StyleSheet.create({
     borderColor: BLUE_BORDER,
   },
   inviteNoteText: { fontSize: 12, color: BLUE, lineHeight: 17 },
+
+  formErrorBox: {
+    backgroundColor: RED_DIM,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: RED_BORDER,
+  },
+  formErrorText: { fontSize: 13, color: RED, fontWeight: '600' },
+
+  toast: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    right: 16,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    zIndex: 100,
+  },
+  toastText: { fontSize: 14, color: '#fff', fontWeight: '700', textAlign: 'center' },
 
   // Modal
   modalOverlay: {
