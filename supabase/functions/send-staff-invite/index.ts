@@ -34,7 +34,7 @@ function buildInviteEmail(name: string, locationName: string, role: string, invi
 
   const description = isManager
     ? `Mise is how your team gets paid. Manage shift schedules, calculate tips instantly, and pay staff directly — no cash, no spreadsheets.`
-    : `Mise is how your team gets paid. Your tips are calculated instantly after every shift and deposited directly into your bank account — no cash, no waiting.`;
+    : `After every shift, your tips are calculated automatically and waiting for you in Mise. Check your earnings, request a payout, and watch it land directly in your bank account.`;
 
   const step2 = isManager
     ? `Set up your location's tip pool rules and team`
