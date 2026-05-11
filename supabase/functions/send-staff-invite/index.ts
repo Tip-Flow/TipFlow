@@ -291,7 +291,7 @@ Deno.serve(async (req: Request) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Mise <onboarding@resend.dev>',
+            from: 'Mise <noreply@mise.ltd>',
             to: email,
             subject: "You've been added to Mise",
             html: buildInviteEmail(name, locationName, role, inviteUrl),
