@@ -87,7 +87,7 @@ async function runFixAgent() {
 
   if (issues.length === 0) {
     try {
-      issues = await fetchSentryIssues('1h');
+      issues = await fetchSentryIssues('24h');
     } catch (err) {
       // Sentry API failure (bad token, network, etc.) — log and exit cleanly.
       // A misconfigured token is not a reason to fail the entire GHA job.
@@ -122,7 +122,7 @@ async function runFixAgent() {
 
 // ── Sentry API ────────────────────────────────────────────────────────────────
 
-async function fetchSentryIssues(period = '1h') {
+async function fetchSentryIssues(period = '24h') {
   const url = new URL(`https://sentry.io/api/0/projects/${SENTRY_ORG}/${SENTRY_PROJECT}/issues/`);
   url.searchParams.set('query', 'is:unresolved');
   url.searchParams.set('sort', 'date');
