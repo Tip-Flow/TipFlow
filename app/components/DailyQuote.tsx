@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -18,7 +18,7 @@ type Props = {
   onDismiss: () => void;
 };
 
-export default function DailyQuote({ role, onDismiss }: Props) {
+const DailyQuote = memo(function DailyQuote({ role, onDismiss }: Props) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const label = role === 'staff' ? "TODAY'S INTENTION" : 'LEAD WITH THIS TODAY';
 
@@ -82,7 +82,9 @@ export default function DailyQuote({ role, onDismiss }: Props) {
       </Animated.View>
     </TouchableWithoutFeedback>
   );
-}
+});
+
+export default DailyQuote;
 
 const styles = StyleSheet.create({
   container: {

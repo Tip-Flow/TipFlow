@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { memo, useRef, useEffect } from 'react';
 import {
   Animated,
   ScrollView,
@@ -41,7 +41,7 @@ type Props = {
   onDismiss: () => void;
 };
 
-export default function ShiftGoalsSplash({ goals, onDismiss }: Props) {
+const ShiftGoalsSplash = memo(function ShiftGoalsSplash({ goals, onDismiss }: Props) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -93,7 +93,9 @@ export default function ShiftGoalsSplash({ goals, onDismiss }: Props) {
       </Pressable>
     </Animated.View>
   );
-}
+});
+
+export default ShiftGoalsSplash;
 
 const styles = StyleSheet.create({
   container: {

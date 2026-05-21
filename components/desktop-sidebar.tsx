@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 
@@ -17,7 +18,7 @@ const NAV_ITEMS = [
   { label: 'Settings', segment: 'settings', icon: '⚙️' },
 ] as const;
 
-export function DesktopSidebar() {
+export const DesktopSidebar = memo(function DesktopSidebar() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -54,7 +55,7 @@ export function DesktopSidebar() {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   sidebar: {

@@ -1,5 +1,10 @@
 import { Stack } from 'expo-router';
+import { ErrorBoundary } from '@/app/components/ErrorBoundary';
 
 export default function AdminLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <ErrorBoundary>
+      <Stack screenOptions={{ headerShown: false }} />
+    </ErrorBoundary>
+  );
 }
