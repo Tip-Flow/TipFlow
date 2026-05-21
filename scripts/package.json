@@ -1,0 +1,9 @@
+{
+  "name": "mise-ai-agent",
+  "version": "1.0.0",
+  "description": "Mise AI error fix agent — runs in GitHub Actions",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": ">=0.27.0"
+  }
+}

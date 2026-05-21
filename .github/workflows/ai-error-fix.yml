@@ -1,0 +1,90 @@
+name: AI Error Fix Agent
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes — fix agent
+    - cron: '0 13 * * *'    # 8am ET (13:00 UTC) — morning report
+  repository_dispatch:
+    types: [sentry-error]   # Sentry webhook → GitHub dispatch relay
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: false
+        default: fix
+        type: choice
+        options: [fix, morning-report]
+
+jobs:
+  fix-errors:
+    name: Fetch & Fix Sentry Errors
+    if: |
+      github.event_name == 'repository_dispatch' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install agent dependencies
+        run: npm install
+        working-directory: scripts
+
+      - name: Configure git identity
+        run: |
+          git config user.name "Mise AI Agent"
+          git config user.email "ai-agent@mise.ltd"
+
+      - name: Run fix agent
+        run: node scripts/ai-agent.js
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUN_MODE: fix
+          SENTRY_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+
+  morning-report:
+    name: Morning Summary Report
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 13 * * *') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'morning-report')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install agent dependencies
+        run: npm install
+        working-directory: scripts
+
+      - name: Send morning report
+        run: node scripts/ai-agent.js
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUN_MODE: morning-report
