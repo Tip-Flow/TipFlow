@@ -57,7 +57,7 @@ async function main() {
 
 function validateEnv() {
   const required = MODE === 'morning-report'
-    ? ['SENTRY_AUTH_TOKEN', 'RESEND_API_KEY']
+    ? ['SENTRY_AUTH_TOKEN', 'RESEND_API_KEY', 'GITHUB_TOKEN']
     : ['SENTRY_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'RESEND_API_KEY', 'GITHUB_TOKEN'];
   for (const key of required) {
     if (!process.env[key]) throw new Error(`Missing required env var: ${key}`);
@@ -86,7 +86,15 @@ async function runFixAgent() {
   }
 
   if (issues.length === 0) {
-    issues = await fetchSentryIssues('1h');
+    try {
+      issues = await fetchSentryIssues('1h');
+    } catch (err) {
+      // Sentry API failure (bad token, network, etc.) — log and exit cleanly.
+      // A misconfigured token is not a reason to fail the entire GHA job.
+      console.error('[Agent] Sentry API error:', err.message);
+      console.error('[Agent] Check SENTRY_AUTH_TOKEN secret and org/project slug.');
+      process.exit(1);
+    }
   }
 
   if (issues.length === 0) {
@@ -344,6 +352,7 @@ async function createBranchAndPR(issue, result, relPath) {
     execSync(`git push origin ${branch}`, { stdio: 'inherit', cwd: REPO_ROOT });
   } catch (err) {
     console.error('[Agent] Git error:', err.message);
+    if (err.stderr) console.error('[Agent] Git stderr:', err.stderr.toString().trim());
     return;
   }
 
