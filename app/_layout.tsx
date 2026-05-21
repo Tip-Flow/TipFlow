@@ -20,7 +20,7 @@ Sentry.init({
   enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
 });
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -58,4 +58,4 @@ export default function RootLayout() {
       </ThemeProvider>
     </ErrorBoundary>
   );
-}
+});
