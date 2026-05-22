@@ -682,10 +682,10 @@ export default function CalculateScreen() {
   const serversTableHeader = isDesktop ? (
     <View style={styles.tableHeader}>
       <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Staff</Text>
-      <Text style={[styles.tableHeaderCell, { width: COL_SALES, flex: 0, textAlign: 'center' }]}>Sales ($)</Text>
-      <Text style={[styles.tableHeaderCell, { width: COL_TIPS,  flex: 0, textAlign: 'center' }]}>Tips ($)</Text>
-      <Text style={[styles.tableHeaderCell, { width: COL_HOURS, flex: 0, textAlign: 'center' }]}>Hours</Text>
-      <Text style={[styles.tableHeaderCell, { width: COL_ON,   flex: 0, textAlign: 'center' }]}>On</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_SALES, flexShrink: 0, textAlign: 'center' }]}>Sales ($)</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_TIPS,  flexShrink: 0, textAlign: 'center' }]}>Tips ($)</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_HOURS, flexShrink: 0, textAlign: 'center' }]}>Hours</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_ON,   flexShrink: 0, textAlign: 'center' }]}>On</Text>
     </View>
   ) : null;
 
@@ -698,7 +698,7 @@ export default function CalculateScreen() {
             {ROLE_EMOJIS.server} {s.name}
           </Text>
           <TextInput
-            style={[styles.tableInput, { width: COL_SALES }, !s.included && { color: MUTED }]}
+            style={[styles.tableInput, { width: COL_SALES, flexShrink: 0 }, !s.included && { color: MUTED }]}
             placeholder="0.00"
             placeholderTextColor={MUTED}
             value={s.sales}
@@ -707,7 +707,7 @@ export default function CalculateScreen() {
             editable={s.included}
           />
           <TextInput
-            style={[styles.tableInput, { width: COL_TIPS }, !s.included && { color: MUTED }]}
+            style={[styles.tableInput, { width: COL_TIPS, flexShrink: 0 }, !s.included && { color: MUTED }]}
             placeholder="0.00"
             placeholderTextColor={MUTED}
             value={s.tipsEarned}
@@ -716,7 +716,7 @@ export default function CalculateScreen() {
             editable={s.included}
           />
           <TextInput
-            style={[styles.tableInput, { width: COL_HOURS }, !s.included && { color: MUTED }]}
+            style={[styles.tableInput, { width: COL_HOURS, flexShrink: 0 }, !s.included && { color: MUTED }]}
             placeholder="0"
             placeholderTextColor={MUTED}
             value={s.hoursWorked}
@@ -724,7 +724,7 @@ export default function CalculateScreen() {
             keyboardType="decimal-pad"
             editable={s.included}
           />
-          <View style={{ width: COL_ON, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: COL_ON, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
             <Switch
               value={s.included}
               onValueChange={() => toggleServer(s.id)}
