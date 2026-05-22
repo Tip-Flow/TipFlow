@@ -47,16 +47,19 @@ const DailyQuote = memo(function DailyQuote({ role, onDismiss }: Props) {
   return (
     <TouchableWithoutFeedback onPress={onDismiss}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        {/* Logo */}
-        <Text style={styles.logoText}>Mise</Text>
 
-        {/* Quote block */}
+        {/* TOP — wordmark + tagline */}
+        <View style={styles.topBlock}>
+          <Text style={styles.logoText}>Mise</Text>
+          <Text style={styles.taglineMise}>Everything in its Place.</Text>
+        </View>
+
+        {/* CENTER — quote block */}
         <View style={styles.quoteBlock}>
           <Text style={styles.categoryLabel}>{label}</Text>
 
           <Text style={styles.quoteText}>{quote?.text ?? ''}</Text>
 
-          {/* Animated teal underline */}
           <Animated.View
             style={[
               styles.line,
@@ -74,11 +77,9 @@ const DailyQuote = memo(function DailyQuote({ role, onDismiss }: Props) {
           ) : null}
         </View>
 
-        {/* Tagline */}
-        <Text style={styles.taglineMise}>Everything in its Place.</Text>
-
-        {/* Dismiss hint */}
+        {/* BOTTOM — dismiss hint */}
         <Text style={styles.hint}>Tap anywhere to continue →</Text>
+
       </Animated.View>
     </TouchableWithoutFeedback>
   );
@@ -96,11 +97,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  topBlock: {
+    alignItems: 'center',
+    gap: 6,
+  },
   logoText: {
-    fontSize: 22,
+    fontSize: 48,
     fontWeight: '800',
     color: BLUE,
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   quoteBlock: {
     width: '100%',
@@ -139,10 +144,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   taglineMise: {
-    fontSize: 22,
+    fontSize: 15,
     color: BLUE,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     fontStyle: 'italic',
+    fontWeight: '500',
   },
   hint: {
     fontSize: 16,
