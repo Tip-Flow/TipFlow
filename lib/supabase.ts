@@ -19,6 +19,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Pass it only in browser/native environments.
 const isClient = typeof window !== 'undefined';
 
+// @supabase/auth-js internally uses a 6 s AbortSignal timeout on auth fetches.
+// Override global fetch with a 15 s timeout so cold-start connections don't fail.
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 15_000);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-anon-key',
@@ -28,6 +43,9 @@ export const supabase = createClient(
       autoRefreshToken: isClient,
       persistSession: isClient,
       detectSessionInUrl: false,
+    },
+    global: {
+      fetch: isClient ? fetchWithTimeout : undefined,
     },
   }
 );

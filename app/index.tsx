@@ -71,6 +71,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
+  const [timedOut, setTimedOut]     = useState(false);
   const [pendingRole, setPendingRole] = useState<PendingRole>(null);
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
@@ -128,6 +129,17 @@ export default function LoginScreen() {
     }
   }
 
+  function isTimeoutError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      msg.includes('timeout') ||
+      msg.includes('Timeout') ||
+      msg.includes('AbortError') ||
+      msg.includes('aborted') ||
+      msg.includes('timed out')
+    );
+  }
+
   async function handleSignIn() {
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
@@ -135,6 +147,7 @@ export default function LoginScreen() {
       return;
     }
     setError('');
+    setTimedOut(false);
     setLoading(true);
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({
@@ -142,11 +155,26 @@ export default function LoginScreen() {
         password,
       });
       if (authError) {
-        setError(authError.message);
+        if (isTimeoutError(authError)) {
+          setTimedOut(true);
+          setError('');
+        } else {
+          setError(authError.message);
+        }
         return;
       }
 
-      const role = await resolveRole(trimmedEmail);
+      let role: Awaited<ReturnType<typeof resolveRole>>;
+      try {
+        role = await resolveRole(trimmedEmail);
+      } catch (resolveErr) {
+        if (isTimeoutError(resolveErr)) {
+          setTimedOut(true);
+        } else {
+          setError('Something went wrong. Please try again.');
+        }
+        return;
+      }
       console.log('[handleSignIn] resolved role:', role);
 
       if (role === 'not_found') {
@@ -249,16 +277,35 @@ export default function LoginScreen() {
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleSignIn}
-              disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color={BG} />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </Pressable>
+            {timedOut ? (
+              <View style={styles.timeoutBox}>
+                <Text style={styles.timeoutTitle}>Connection timed out</Text>
+                <Text style={styles.timeoutSub}>
+                  Supabase took too long to respond — this can happen on cold starts.
+                </Text>
+                <Pressable
+                  style={styles.retryButton}
+                  onPress={handleSignIn}
+                  disabled={loading}>
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                  )}
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleSignIn}
+                disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color={BG} />
+                ) : (
+                  <Text style={styles.buttonText}>Sign In</Text>
+                )}
+              </Pressable>
+            )}
           </View>
 
         </ScrollView>
@@ -337,6 +384,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  timeoutBox: {
+    backgroundColor: 'rgba(239,68,68,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
+    borderRadius: 12,
+    padding: 20,
+    gap: 8,
+    alignItems: 'center',
+  },
+  timeoutTitle: {
+    color: '#f87171',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  timeoutSub: {
+    color: '#9ca3af',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  retryButton: {
+    backgroundColor: BLUE,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+    minWidth: 120,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   button: {
     backgroundColor: BLUE,

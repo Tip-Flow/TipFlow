@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react-native';
 import { supabase } from './supabase';
 
 const RETRY_DELAY_MS = 2000;
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 15_000;
 
 type QueryResult<T> = { data: T | null; error: unknown };
 type QueryFn<T> = () => Promise<QueryResult<T>>;
