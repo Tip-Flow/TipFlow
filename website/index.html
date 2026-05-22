@@ -911,6 +911,220 @@
       font-size: 0.9rem;
     }
 
+    /* ── RELIABILITY ── */
+    .reliability-section {
+      text-align: center;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .reliability-section .section-title,
+    .reliability-section .section-sub { margin-left: auto; margin-right: auto; }
+
+    .reliability-glow {
+      position: absolute;
+      top: -240px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 700px;
+      background: radial-gradient(ellipse at center, rgba(65,105,225,0.11) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .reliability-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(65,105,225,0.1);
+      border: 1px solid rgba(65,105,225,0.3);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 28px;
+    }
+
+    .reliability-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 8px var(--blue);
+    }
+
+    .reliability-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 640px;
+      margin: 60px auto 0;
+    }
+
+    .stat-card {
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(65,105,225,0.22);
+      border-radius: var(--radius-card);
+      padding: 28px 24px;
+      text-align: left;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(65,105,225,0.45), transparent);
+    }
+
+    .stat-card:hover {
+      border-color: rgba(65,105,225,0.5);
+      box-shadow: 0 0 40px rgba(65,105,225,0.16), 0 0 0 1px rgba(65,105,225,0.18);
+      transform: translateY(-3px);
+    }
+
+    .stat-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(65,105,225,0.1);
+      border: 1px solid rgba(65,105,225,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .reliability-body-text {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      max-width: 520px;
+      margin: 36px auto 0;
+    }
+
+    .comparison-section { margin-top: 80px; }
+
+    .comparison-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+      margin-bottom: 32px;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .comparison-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 28px 24px;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .comparison-card.mise-card {
+      background: rgba(65,105,225,0.07);
+      border-color: rgba(65,105,225,0.45);
+      box-shadow: 0 4px 32px rgba(65,105,225,0.15), 0 0 0 1px rgba(65,105,225,0.18);
+      transform: translateY(-4px);
+    }
+
+    .comparison-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .comparison-icon.red-icon {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #ef4444;
+    }
+
+    .comparison-icon.blue-icon {
+      background: rgba(65,105,225,0.14);
+      border: 1px solid rgba(65,105,225,0.35);
+      color: var(--blue);
+    }
+
+    .comparison-card h4 {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .comparison-card p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .comparison-card.mise-card p { color: rgba(255,255,255,0.72); }
+
+    .reliability-closing {
+      margin-top: 80px;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+      padding-top: 0;
+    }
+
+    .reliability-closing-main {
+      font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.45;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    .reliability-closing-sub {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
     /* ── PRICING ── */
     .pricing-section { text-align: center; }
     .pricing-section .section-title,
@@ -1122,6 +1336,8 @@
       .roles-grid { grid-template-columns: 1fr; }
       .role-card.featured { transform: none; }
       .nav-links { display: none; }
+      .comparison-grid { grid-template-columns: 1fr; }
+      .comparison-card.mise-card { transform: none; }
     }
 
     @media (max-width: 600px) {
@@ -1129,6 +1345,7 @@
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .footer-main { flex-direction: column; gap: 24px; }
       .footer-links { flex-wrap: wrap; gap: 16px; }
+      .reliability-stats { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -1866,6 +2083,69 @@
         <div class="check-item"><span class="check">✦</span>CRA tip type displayed on every payout</div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- RELIABILITY / AI AGENT -->
+<section id="reliability" class="reliability-section">
+  <div class="reliability-glow"></div>
+
+  <div class="reliability-badge fade-up">
+    <span class="reliability-badge-dot"></span>
+    Platform Reliability
+  </div>
+  <h2 class="section-title fade-up fade-up-delay-1">While you sleep, Mise works.</h2>
+  <p class="section-sub fade-up fade-up-delay-2">Every 15 minutes, 24 hours a day, 7 days a week — an AI agent scans Mise for issues. If something breaks, it fixes it. If it can't, it wakes us up.</p>
+
+  <div class="reliability-stats">
+    <div class="stat-card fade-up fade-up-delay-1">
+      <div class="stat-icon">🕐</div>
+      <div class="stat-value">15 minutes</div>
+      <div class="stat-label">Maximum time before an issue is detected</div>
+    </div>
+    <div class="stat-card fade-up fade-up-delay-2">
+      <div class="stat-icon">🤖</div>
+      <div class="stat-value">Automatic</div>
+      <div class="stat-label">Safe fixes deployed without human intervention</div>
+    </div>
+    <div class="stat-card fade-up fade-up-delay-3">
+      <div class="stat-icon">🛡️</div>
+      <div class="stat-value">Always human</div>
+      <div class="stat-label">Anything touching money escalated immediately — never auto-fixed</div>
+    </div>
+    <div class="stat-card fade-up fade-up-delay-4">
+      <div class="stat-icon">🌅</div>
+      <div class="stat-value">8am daily</div>
+      <div class="stat-label">Morning report of everything fixed overnight</div>
+    </div>
+  </div>
+
+  <p class="reliability-body-text fade-up fade-up-delay-2">Most restaurant software breaks silently. You find out when a manager calls you mid-service. We find out before they do.</p>
+
+  <div class="comparison-section fade-up fade-up-delay-2">
+    <p class="comparison-title">The honest comparison</p>
+    <div class="comparison-grid">
+      <div class="comparison-card">
+        <div class="comparison-icon red-icon">✕</div>
+        <h4>Most platforms</h4>
+        <p>Engineers on call. Hours to respond. You find out when staff complain.</p>
+      </div>
+      <div class="comparison-card">
+        <div class="comparison-icon red-icon">✕</div>
+        <h4>The old way</h4>
+        <p>Status page updates. No timeline. Silence until Monday morning.</p>
+      </div>
+      <div class="comparison-card mise-card">
+        <div class="comparison-icon blue-icon">✓</div>
+        <h4>Mise</h4>
+        <p>Fixed before anyone notices. Every shift. Every service. Every night.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="reliability-closing fade-up fade-up-delay-2">
+    <p class="reliability-closing-main">We launched at 8/10 platform stability. Most restaurant platforms reach that after years in market.</p>
+    <p class="reliability-closing-sub">This isn't a feature. It's a promise. Mise runs.</p>
   </div>
 </section>
 
