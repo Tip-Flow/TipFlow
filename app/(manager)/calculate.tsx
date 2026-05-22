@@ -42,6 +42,12 @@ const WHITE = '#e8f0ec';
 const BORDER = '#1f3028';
 const RED = '#ef4444';
 
+// ─── Desktop table column widths ─────────────────────────────────────────────
+const COL_SALES = 80;
+const COL_TIPS  = 80;
+const COL_HOURS = 70;
+const COL_ON    = 56;
+
 // ─── Default tip-out rules ────────────────────────────────────────────────────
 const DEFAULT_TIP_OUT_RULES: TipOutRule[] = [
   { role: 'bartender', percentage: 1.5, distribution: 'direct' },
@@ -675,11 +681,11 @@ export default function CalculateScreen() {
   // Servers table header for desktop
   const serversTableHeader = isDesktop ? (
     <View style={styles.tableHeader}>
-      <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Staff</Text>
-      <Text style={styles.tableHeaderCell}>Sales ($)</Text>
-      <Text style={styles.tableHeaderCell}>Tips ($)</Text>
-      <Text style={styles.tableHeaderCell}>Hours</Text>
-      <Text style={[styles.tableHeaderCell, { width: 56 }]}>On</Text>
+      <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Staff</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_SALES, flex: 0, textAlign: 'center' }]}>Sales ($)</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_TIPS,  flex: 0, textAlign: 'center' }]}>Tips ($)</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_HOURS, flex: 0, textAlign: 'center' }]}>Hours</Text>
+      <Text style={[styles.tableHeaderCell, { width: COL_ON,   flex: 0, textAlign: 'center' }]}>On</Text>
     </View>
   ) : null;
 
@@ -688,11 +694,11 @@ export default function CalculateScreen() {
       <View key={s.id}>
         {index > 0 && <View style={styles.divider} />}
         <View style={[styles.desktopServerRow, !s.included && styles.mutedBlock]}>
-          <Text style={[styles.staffName, { flex: 2 }, !s.included && { color: MUTED }]}>
+          <Text style={[styles.staffName, { flex: 1 }, !s.included && { color: MUTED }]}>
             {ROLE_EMOJIS.server} {s.name}
           </Text>
           <TextInput
-            style={[styles.tableInput, !s.included && { color: MUTED }]}
+            style={[styles.tableInput, { width: COL_SALES }, !s.included && { color: MUTED }]}
             placeholder="0.00"
             placeholderTextColor={MUTED}
             value={s.sales}
@@ -701,7 +707,7 @@ export default function CalculateScreen() {
             editable={s.included}
           />
           <TextInput
-            style={[styles.tableInput, !s.included && { color: MUTED }]}
+            style={[styles.tableInput, { width: COL_TIPS }, !s.included && { color: MUTED }]}
             placeholder="0.00"
             placeholderTextColor={MUTED}
             value={s.tipsEarned}
@@ -710,7 +716,7 @@ export default function CalculateScreen() {
             editable={s.included}
           />
           <TextInput
-            style={[styles.tableInput, !s.included && { color: MUTED }]}
+            style={[styles.tableInput, { width: COL_HOURS }, !s.included && { color: MUTED }]}
             placeholder="0"
             placeholderTextColor={MUTED}
             value={s.hoursWorked}
@@ -718,7 +724,7 @@ export default function CalculateScreen() {
             keyboardType="decimal-pad"
             editable={s.included}
           />
-          <View style={{ width: 56, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: COL_ON, alignItems: 'center', justifyContent: 'center' }}>
             <Switch
               value={s.included}
               onValueChange={() => toggleServer(s.id)}
@@ -1276,7 +1282,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tableHeaderCell: {
-    flex: 1,
     fontSize: 11,
     fontWeight: '700',
     color: MUTED,
@@ -1291,7 +1296,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tableInput: {
-    flex: 1,
     fontSize: 14,
     fontWeight: '700',
     color: BLUE,
