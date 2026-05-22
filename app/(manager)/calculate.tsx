@@ -718,13 +718,14 @@ export default function CalculateScreen() {
             keyboardType="decimal-pad"
             editable={s.included}
           />
-          <Switch
-            value={s.included}
-            onValueChange={() => toggleServer(s.id)}
-            trackColor={{ false: BORDER, true: BLUE_DIM }}
-            thumbColor={s.included ? BLUE : MUTED}
-            style={{ width: 48 }}
-          />
+          <View style={{ width: 56, alignItems: 'center', justifyContent: 'center' }}>
+            <Switch
+              value={s.included}
+              onValueChange={() => toggleServer(s.id)}
+              trackColor={{ false: BORDER, true: BLUE_DIM }}
+              thumbColor={s.included ? BLUE : MUTED}
+            />
+          </View>
         </View>
       </View>
     ))
