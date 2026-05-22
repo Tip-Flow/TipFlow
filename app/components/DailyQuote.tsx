@@ -139,14 +139,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   taglineMise: {
-    fontSize: 11,
-    color: MUTED,
+    fontSize: 22,
+    color: BLUE,
     letterSpacing: 1,
     fontStyle: 'italic',
   },
   hint: {
-    fontSize: 13,
-    color: MUTED,
+    fontSize: 16,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
 });

@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/app/components/ErrorBoundary';
 
 const BG = '#09100e';
 const BLUE = '#4169E1';
-const INACTIVE = '#3d4f47';
+const INACTIVE = '#AAAAAA';
 
 const MyTipsIcon = ({ color }: { color: string }) => <IconSymbol size={26} name="dollarsign.circle.fill" color={color} />;
 const ProgressIcon = ({ color }: { color: string }) => <IconSymbol size={26} name="chart.line.uptrend.xyaxis" color={color} />;
@@ -20,7 +20,7 @@ export default function StaffLayout() {
         screenOptions={{
           headerShown: false,
           tabBarButton: HapticTab,
-          tabBarActiveTintColor: BLUE,
+          tabBarActiveTintColor: '#FFFFFF',
           tabBarInactiveTintColor: INACTIVE,
           tabBarStyle: {
             backgroundColor: BG,
@@ -28,7 +28,7 @@ export default function StaffLayout() {
             borderTopWidth: 1,
           },
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: '600',
           },
         }}>

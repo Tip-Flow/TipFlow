@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/app/components/ErrorBoundary';
 
 const BG = '#09100e';
 const BLUE = '#4169E1';
-const INACTIVE = '#3d4f47';
+const INACTIVE = '#AAAAAA';
 
 const OverviewIcon = ({ color }: { color: string }) => <IconSymbol size={26} name="house.fill" color={color} />;
 const LocationsIcon = ({ color }: { color: string }) => <IconSymbol size={26} name="mappin.and.ellipse" color={color} />;
@@ -19,7 +19,7 @@ export default function RegionalLayout() {
         screenOptions={{
           headerShown: false,
           tabBarButton: HapticTab,
-          tabBarActiveTintColor: BLUE,
+          tabBarActiveTintColor: '#FFFFFF',
           tabBarInactiveTintColor: INACTIVE,
           tabBarStyle: {
             backgroundColor: BG,
@@ -27,7 +27,7 @@ export default function RegionalLayout() {
             borderTopWidth: 1,
           },
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: '600',
           },
         }}>

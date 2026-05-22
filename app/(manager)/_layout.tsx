@@ -8,7 +8,7 @@ import { ErrorBoundary } from '@/app/components/ErrorBoundary';
 
 const BG = '#09100e';
 const BLUE = '#4169E1';
-const INACTIVE = '#3d4f47';
+const INACTIVE = '#AAAAAA';
 
 const HomeIcon = ({ color }: { color: string }) => <IconSymbol size={26} name="house.fill" color={color} />;
 const PosIcon = ({ color }: { color: string }) => <IconSymbol size={26} name="creditcard.fill" color={color} />;
@@ -30,7 +30,7 @@ export default function ManagerLayout() {
             screenOptions={{
               headerShown: false,
               tabBarButton: HapticTab,
-              tabBarActiveTintColor: BLUE,
+              tabBarActiveTintColor: '#FFFFFF',
               tabBarInactiveTintColor: INACTIVE,
               tabBarStyle: isDesktop
                 ? { display: 'none' }
@@ -41,7 +41,7 @@ export default function ManagerLayout() {
                   },
               tabBarLabelStyle: isDesktop
                 ? undefined
-                : { fontSize: 11, fontWeight: '600' },
+                : { fontSize: 12, fontWeight: '600' },
             }}>
             <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: HomeIcon }} />
             <Tabs.Screen name="pos" options={{ title: 'POS', tabBarIcon: PosIcon }} />
