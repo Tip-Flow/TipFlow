@@ -11,16 +11,20 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  environment: process.env.EXPO_PUBLIC_ENVIRONMENT ?? 'development',
-  release: process.env.EXPO_PUBLIC_APP_VERSION,
-  enableAutoSessionTracking: true,
-  tracesSampleRate: 0.2,
-  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
-});
+// Sentry must not run during SSR — expo-router static export executes in Node.js
+// where @sentry/react-native accesses browser/native globals that don't exist.
+if (typeof window !== 'undefined') {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    environment: process.env.EXPO_PUBLIC_ENVIRONMENT ?? 'development',
+    release: process.env.EXPO_PUBLIC_APP_VERSION,
+    enableAutoSessionTracking: true,
+    tracesSampleRate: 0.2,
+    enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  });
+}
 
-export default Sentry.wrap(function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -58,4 +62,7 @@ export default Sentry.wrap(function RootLayout() {
       </ThemeProvider>
     </ErrorBoundary>
   );
-});
+}
+
+// Sentry.wrap only works in browser context; during SSR export use the plain component.
+export default typeof window !== 'undefined' ? Sentry.wrap(RootLayout) : RootLayout;
