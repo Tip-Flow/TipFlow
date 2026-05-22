@@ -1,0 +1,24 @@
+# Native build outputs — not needed for web deployment
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# Expo internals
+.expo/
+expo-env.d.ts
+
+# AI agent — not part of the web app
+scripts/
+.github/
+
+# Supabase migrations — server-side only
+supabase/
+
+# Local env and secrets
+.env*.local
+
+# Dev artifacts
+node_modules/.cache/
