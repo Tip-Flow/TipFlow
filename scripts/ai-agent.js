@@ -526,6 +526,28 @@ async function fetchAIFixPRs() {
   return Array.isArray(all) ? all.filter(pr => pr.head?.ref?.startsWith('ai-fix/')) : [];
 }
 
+// ── Sentry: mark issue resolved ───────────────────────────────────────────────
+
+async function resolveSentryIssue(issueId) {
+  try {
+    const res = await fetch(`https://sentry.io/api/0/issues/${issueId}/`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${process.env.SENTRY_AUTH_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status: 'resolved' }),
+    });
+    if (!res.ok) {
+      console.error(`[Agent] Failed to resolve Sentry issue ${issueId}: ${res.status} ${await res.text()}`);
+    } else {
+      console.log(`[Agent] Resolved Sentry issue ${issueId}`);
+    }
+  } catch (err) {
+    console.error(`[Agent] Error resolving Sentry issue ${issueId}:`, err.message);
+  }
+}
+
 // ── Email (Resend) ────────────────────────────────────────────────────────────
 
 async function sendEscalationEmail(issue, event, reason) {
@@ -566,6 +588,9 @@ ${sentryLink}
     subject: `Mise Alert — Human review needed: ${(issue.title ?? 'Unknown error').slice(0, 80)}`,
     html,
   });
+
+  // Resolve in Sentry so the agent doesn't re-escalate the same issue every 15 min.
+  await resolveSentryIssue(issue.id);
 }
 
 async function sendEmail({ to, subject, html }) {
