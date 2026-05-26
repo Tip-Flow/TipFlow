@@ -105,6 +105,9 @@ export default function POSScreen() {
   const [ocrResult, setOcrResult] = useState<OCRParseResult | null>(null);
   const [ocrPreviewVisible, setOcrPreviewVisible] = useState(false);
 
+  // Coming-soon integration modals
+  const [comingSoonModal, setComingSoonModal] = useState<null | 'squirrel' | 'push' | 'adp'>(null);
+
   // Edit row flow
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingRowIdx, setEditingRowIdx] = useState<number | null>(null);
@@ -485,6 +488,61 @@ export default function POSScreen() {
           onPress={() => router.push('/(manager)/shiftgoals')}>
           <Text style={styles.shiftGoalsBtnText}>🎯  Set tonight's shift goals →</Text>
         </Pressable>
+
+        {/* Coming-Soon Integrations */}
+        <View style={styles.integrationsCard}>
+          <Text style={styles.integrationsTitle}>More Integrations</Text>
+          <View style={styles.divider} />
+
+          {/* Squirrel */}
+          <Pressable
+            style={styles.integrationRow}
+            onPress={() => setComingSoonModal('squirrel')}>
+            <View style={styles.integrationRowLeft}>
+              <View style={styles.integrationIcon}>
+                <Text style={styles.integrationIconText}>🖥️</Text>
+              </View>
+              <Text style={styles.integrationRowName}>Sync from Squirrel</Text>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+            </View>
+          </Pressable>
+
+          <View style={styles.rowDivider} />
+
+          {/* Push Operations */}
+          <Pressable
+            style={styles.integrationRow}
+            onPress={() => setComingSoonModal('push')}>
+            <View style={styles.integrationRowLeft}>
+              <View style={styles.integrationIcon}>
+                <Text style={styles.integrationIconText}>🕐</Text>
+              </View>
+              <Text style={styles.integrationRowName}>Sync from Push</Text>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+            </View>
+          </Pressable>
+
+          <View style={styles.rowDivider} />
+
+          {/* ADP */}
+          <Pressable
+            style={styles.integrationRow}
+            onPress={() => setComingSoonModal('adp')}>
+            <View style={styles.integrationRowLeft}>
+              <View style={styles.integrationIcon}>
+                <Text style={styles.integrationIconText}>👥</Text>
+              </View>
+              <Text style={styles.integrationRowName}>Sync from ADP</Text>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+            </View>
+          </Pressable>
+        </View>
 
         {/* Supported POS Systems */}
         <View style={styles.supportedCard}>
@@ -1026,6 +1084,47 @@ export default function POSScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── Coming-Soon Integration Modals ─────────────────────────────────── */}
+      {([
+        {
+          key: 'squirrel' as const,
+          title: 'Squirrel Integration',
+          body: "Coming soon. This will automatically pull tonight's sales data for all servers directly from your POS.",
+        },
+        {
+          key: 'push' as const,
+          title: 'Push Operations Integration',
+          body: "Coming soon. This will automatically pull staff hours and schedule data for tonight's shift.",
+        },
+        {
+          key: 'adp' as const,
+          title: 'ADP Integration',
+          body: 'Coming soon. This will sync payroll, positions, and wage data for your team.',
+        },
+      ] as const).map(({ key, title, body }) => (
+        <Modal
+          key={key}
+          visible={comingSoonModal === key}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setComingSoonModal(null)}>
+          <Pressable
+            style={styles.sheetOverlay}
+            onPress={() => setComingSoonModal(null)}>
+            <View style={styles.comingSoonSheet}>
+              <Text style={styles.comingSoonSheetTitle}>{title}</Text>
+              <Text style={styles.comingSoonSheetBody}>{body}</Text>
+              <Pressable
+                style={styles.comingSoonGotIt}
+                onPress={() => setComingSoonModal(null)}>
+                <Text style={styles.comingSoonGotItText}>Got it</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
+      ))}
+
     </SafeAreaView>
   );
 }
@@ -1108,6 +1207,65 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   shiftGoalsBtnText: { fontSize: 15, fontWeight: '700', color: BLUE, letterSpacing: 0.2 },
+
+  // Coming-soon integrations card
+  integrationsCard: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    overflow: 'hidden',
+  },
+  integrationsTitle: { fontSize: 16, fontWeight: '700', color: WHITE, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 },
+  integrationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  integrationRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  integrationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: BLUE_DIM,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  integrationIconText: { fontSize: 18 },
+  integrationRowName: { fontSize: 15, fontWeight: '600', color: WHITE },
+  rowDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 18 },
+  comingSoonBadge: {
+    backgroundColor: 'rgba(65,105,225,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(65,105,225,0.3)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  comingSoonBadgeText: { fontSize: 11, fontWeight: '700', color: BLUE, letterSpacing: 0.3 },
+
+  // Coming-soon modal sheet
+  comingSoonSheet: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 28,
+    marginHorizontal: 24,
+    gap: 16,
+    alignItems: 'center',
+  },
+  comingSoonSheetTitle: { fontSize: 18, fontWeight: '800', color: WHITE, textAlign: 'center', letterSpacing: -0.3 },
+  comingSoonSheetBody: { fontSize: 15, color: MUTED, textAlign: 'center', lineHeight: 22 },
+  comingSoonGotIt: {
+    backgroundColor: BLUE,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  comingSoonGotItText: { fontSize: 15, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
 
   // Supported POS card
   supportedCard: { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
