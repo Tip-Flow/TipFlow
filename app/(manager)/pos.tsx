@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { parseCSV, CSVParseResult, CSVStaffRow } from '@/lib/csvParser';
 import { parseOCRText, OCRParseResult } from '@/lib/ocrParser';
+import { formatSyncSummary, SyncSummary } from '@/lib/syncInviteGate';
 import { supabase } from '../../lib/supabase';
 import { useLocationId } from '@/hooks/useLocationId';
 import { useWebFocus } from '@/hooks/useWebFocus';
@@ -107,6 +108,8 @@ export default function POSScreen() {
 
   // Coming-soon integration modals
   const [comingSoonModal, setComingSoonModal] = useState<null | 'squirrel' | 'push' | 'adp'>(null);
+  // Sync result banner — set by processSyncedStaff() when integrations go live
+  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
 
   // Edit row flow
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -401,6 +404,16 @@ export default function POSScreen() {
             </Pressable>
           </View>
         </View>
+
+        {/* Sync summary banner */}
+        {syncSummary && (
+          <View style={styles.syncBanner}>
+            <Text style={styles.syncBannerText}>{formatSyncSummary(syncSummary)}</Text>
+            <Pressable onPress={() => setSyncSummary(null)}>
+              <Text style={styles.syncBannerDismiss}>✕</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Location Cards */}
         <View style={styles.section}>
@@ -1094,7 +1107,7 @@ export default function POSScreen() {
           bullets: [
             "Pull tonight's sales for every server directly from your POS",
             'Sync your full staff list — no manual entry needed',
-            'Send every new staff member an invite email to set up their account and link their bank',
+            'New staff members receive an automatic invite — existing Mise users are never re-invited',
             'Pre-fill the Calculate tab with real sales data every shift',
           ],
           closing: 'One tap. Everything done.',
@@ -1307,6 +1320,22 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   comingSoonGotItText: { fontSize: 15, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
+
+  // Sync summary banner
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: BLUE_DIM,
+    borderWidth: 1,
+    borderColor: 'rgba(65,105,225,0.35)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  syncBannerText: { flex: 1, fontSize: 14, fontWeight: '600', color: WHITE, lineHeight: 20 },
+  syncBannerDismiss: { fontSize: 14, color: MUTED, fontWeight: '700', paddingLeft: 8 },
 
   // Supported POS card
   supportedCard: { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
