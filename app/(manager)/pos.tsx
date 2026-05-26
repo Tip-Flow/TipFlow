@@ -1089,20 +1089,41 @@ export default function POSScreen() {
       {([
         {
           key: 'squirrel' as const,
-          title: 'Squirrel Integration',
-          body: "Coming soon. This will automatically pull tonight's sales data for all servers directly from your POS.",
+          title: 'Squirrel POS — Coming Soon',
+          intro: 'When connected, Mise will automatically:',
+          bullets: [
+            "Pull tonight's sales for every server directly from your POS",
+            'Sync your full staff list — no manual entry needed',
+            'Send every new staff member an invite email to set up their account and link their bank',
+            'Pre-fill the Calculate tab with real sales data every shift',
+          ],
+          closing: 'One tap. Everything done.',
         },
         {
           key: 'push' as const,
-          title: 'Push Operations Integration',
-          body: "Coming soon. This will automatically pull staff hours and schedule data for tonight's shift.",
+          title: 'Push Operations — Coming Soon',
+          intro: 'When connected, Mise will automatically:',
+          bullets: [
+            'Pull staff schedules and clock-in/clock-out times',
+            'Auto-fill hours worked for every staff member every shift',
+            'Detect new hires and send them Mise invite emails instantly',
+            'Keep your team roster in sync across Mise and Push',
+          ],
+          closing: 'No manual hours entry. Ever.',
         },
         {
           key: 'adp' as const,
-          title: 'ADP Integration',
-          body: 'Coming soon. This will sync payroll, positions, and wage data for your team.',
+          title: 'ADP Payroll — Coming Soon',
+          intro: 'When connected, Mise will automatically:',
+          bullets: [
+            'Sync staff positions, wage rates, and payroll data',
+            'Onboard new employees the moment they\'re added in ADP — invite sent, account created',
+            'Feed labour cost data into your management reports',
+            'Keep payroll and tip data in one place',
+          ],
+          closing: 'Your team is always up to date.',
         },
-      ] as const).map(({ key, title, body }) => (
+      ] as const).map(({ key, title, intro, bullets, closing }) => (
         <Modal
           key={key}
           visible={comingSoonModal === key}
@@ -1114,7 +1135,16 @@ export default function POSScreen() {
             onPress={() => setComingSoonModal(null)}>
             <View style={styles.comingSoonSheet}>
               <Text style={styles.comingSoonSheetTitle}>{title}</Text>
-              <Text style={styles.comingSoonSheetBody}>{body}</Text>
+              <Text style={styles.comingSoonSheetIntro}>{intro}</Text>
+              <View style={styles.comingSoonBullets}>
+                {bullets.map((b, i) => (
+                  <View key={i} style={styles.comingSoonBulletRow}>
+                    <Text style={styles.comingSoonBulletDot}>•</Text>
+                    <Text style={styles.comingSoonBulletText}>{b}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.comingSoonClosing}>{closing}</Text>
               <Pressable
                 style={styles.comingSoonGotIt}
                 onPress={() => setComingSoonModal(null)}>
@@ -1250,20 +1280,31 @@ const styles = StyleSheet.create({
   comingSoonSheet: {
     backgroundColor: CARD,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(65,105,225,0.45)',
     padding: 28,
-    marginHorizontal: 24,
-    gap: 16,
-    alignItems: 'center',
+    marginHorizontal: 20,
+    gap: 14,
+    alignItems: 'stretch',
+    shadowColor: BLUE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 12,
   },
-  comingSoonSheetTitle: { fontSize: 18, fontWeight: '800', color: WHITE, textAlign: 'center', letterSpacing: -0.3 },
-  comingSoonSheetBody: { fontSize: 15, color: MUTED, textAlign: 'center', lineHeight: 22 },
+  comingSoonSheetTitle: { fontSize: 18, fontWeight: '800', color: WHITE, textAlign: 'center', letterSpacing: -0.3, marginBottom: 2 },
+  comingSoonSheetIntro: { fontSize: 14, color: MUTED, lineHeight: 20 },
+  comingSoonBullets: { gap: 10 },
+  comingSoonBulletRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  comingSoonBulletDot: { fontSize: 15, color: BLUE, lineHeight: 22, flexShrink: 0 },
+  comingSoonBulletText: { fontSize: 14, color: WHITE, lineHeight: 22, flex: 1 },
+  comingSoonClosing: { fontSize: 14, fontWeight: '700', color: BLUE, marginTop: 2 },
   comingSoonGotIt: {
     backgroundColor: BLUE,
     borderRadius: 12,
     paddingVertical: 13,
-    paddingHorizontal: 40,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   comingSoonGotItText: { fontSize: 15, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
 
