@@ -234,12 +234,15 @@ Deno.serve(async (req: Request) => {
       if (!recordId) throw new Error('staff_member_id is required for staff role');
     }
 
-    // Generate invite link (suppresses Supabase default email)
+    // Generate invite link (suppresses Supabase default email).
+    // redirectTo is explicit so the link always lands on app.mise.ltd regardless
+    // of what SITE_URL is set to in the Supabase project Auth settings.
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'invite',
       email,
       options: {
         data: { name, role, location_id, organisation_id },
+        redirectTo: 'https://app.mise.ltd',
       },
     });
 
