@@ -108,6 +108,7 @@ export default function LoginScreen() {
     inviteEmailRef.current = emailArg;
     setInviteEmail(emailArg);
     try { sessionStorage.setItem('mise_invite_email', emailArg); } catch {}
+    console.log('[invite] sessionStorage written — value:', sessionStorage.getItem('mise_invite_email'));
     console.log("[invite] calling setScreenMode('set-password')");
     setScreenMode('set-password');
   }
