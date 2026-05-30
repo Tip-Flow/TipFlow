@@ -75,11 +75,12 @@ export default function LoginScreen() {
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
   // Invite / set-password state
-  const [screenMode, setScreenMode]         = useState<ScreenMode>('login');
-  const [newPassword, setNewPassword]       = useState('');
+  const [screenMode, setScreenMode]           = useState<ScreenMode>('login');
+  const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPw, setShowNewPw]           = useState(false);
-  const [showConfirmPw, setShowConfirmPw]   = useState(false);
+  const [showNewPw, setShowNewPw]             = useState(false);
+  const [showConfirmPw, setShowConfirmPw]     = useState(false);
+  const [inviteEmail, setInviteEmail]         = useState('');
 
   // ── Detect invite token in URL on web ──────────────────────────────────────
   useEffect(() => {
@@ -97,32 +98,64 @@ export default function LoginScreen() {
     const tokenHash    = searchParams.get('token_hash');
     const searchType   = searchParams.get('type');
 
-    if (hashType === 'invite' && accessToken && refreshToken) {
+    console.log('[invite] URL hash:', window.location.hash);
+    console.log('[invite] URL search:', window.location.search);
+    console.log('[invite] hashType:', hashType, '| accessToken present:', !!accessToken, '| refreshToken present:', !!refreshToken);
+    console.log('[invite] searchType:', searchType, '| tokenHash present:', !!tokenHash);
+
+    async function handleInviteToken() {
       setScreenMode('invite-loading');
-      supabase.auth
-        .setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(({ error: sessionErr }) => {
-          if (sessionErr) {
-            setError('Invite link expired or invalid. Ask your manager to resend it.');
-            setScreenMode('login');
-          } else {
-            setScreenMode('set-password');
-            window.history.replaceState({}, '', '/');
-          }
+
+      if (hashType === 'invite' && accessToken && refreshToken) {
+        console.log('[invite] path: setSession (implicit flow)');
+        const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
         });
-    } else if (searchType === 'invite' && tokenHash) {
-      setScreenMode('invite-loading');
-      supabase.auth
-        .verifyOtp({ token_hash: tokenHash, type: 'invite' })
-        .then(({ error: otpErr }) => {
-          if (otpErr) {
-            setError('Invite link expired or invalid. Ask your manager to resend it.');
-            setScreenMode('login');
-          } else {
-            setScreenMode('set-password');
-            window.history.replaceState({}, '', '/');
-          }
+        console.log('[invite] setSession — user:', sessionData?.user?.email ?? 'none', '| error:', sessionErr?.message ?? 'none');
+        if (sessionErr) {
+          setError('Invite link expired or invalid. Ask your manager to resend it.');
+          setScreenMode('login');
+          return;
+        }
+      } else if (searchType === 'invite' && tokenHash) {
+        console.log('[invite] path: verifyOtp (PKCE flow)');
+        const { data: otpData, error: otpErr } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'invite',
         });
+        console.log('[invite] verifyOtp — user:', otpData?.user?.email ?? 'none', '| error:', otpErr?.message ?? 'none');
+        if (otpErr) {
+          setError('Invite link expired or invalid. Ask your manager to resend it.');
+          setScreenMode('login');
+          return;
+        }
+      } else {
+        // No invite params found — normal load
+        setScreenMode('login');
+        return;
+      }
+
+      // Confirm session is actually active before showing the password screen
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[invite] getSession after token exchange — user:', session?.user?.email ?? 'NONE', '| expires_at:', session?.expires_at ?? 'N/A');
+      if (!session) {
+        console.error('[invite] session is null after token exchange — link may be expired or already used');
+        setError('Invite link expired or already used. Ask your manager to resend it.');
+        setScreenMode('login');
+        return;
+      }
+
+      setInviteEmail(session.user.email ?? '');
+      window.history.replaceState({}, '', '/');
+      setScreenMode('set-password');
+    }
+
+    if (
+      (hashType === 'invite' && accessToken && refreshToken) ||
+      (searchType === 'invite' && tokenHash)
+    ) {
+      handleInviteToken();
     }
   }, []);
 
@@ -203,10 +236,31 @@ export default function LoginScreen() {
     setError('');
     setLoading(true);
     try {
-      const { data, error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      // 1. Confirm the invite session is still active
+      const { data: { session: preSession } } = await supabase.auth.getSession();
+      console.log('[invite] pre-updateUser session — user:', preSession?.user?.email ?? 'NONE', '| expires_at:', preSession?.expires_at ?? 'N/A');
+      if (!preSession) {
+        setError('Your invite session expired. Please contact your manager for a new invite link.');
+        setScreenMode('login');
+        return;
+      }
+
+      // 2. Set the password on the invited account
+      const { data: updateData, error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      console.log('[invite] updateUser — user:', updateData?.user?.email ?? 'none', '| error:', updateErr?.message ?? 'none');
       if (updateErr) throw updateErr;
 
-      const userEmail = data.user?.email ?? '';
+      // 3. Sign in fresh with the new password — proves it was set and establishes a full session
+      const userEmail = updateData.user?.email ?? inviteEmail;
+      console.log('[invite] signing in fresh with email:', userEmail);
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: newPassword,
+      });
+      console.log('[invite] fresh signIn — error:', signInErr?.message ?? 'none');
+      if (signInErr) throw signInErr;
+
+      // 4. Resolve role and navigate
       let role: Awaited<ReturnType<typeof resolveRole>>;
       try {
         role = await resolveRole(userEmail);
@@ -214,7 +268,7 @@ export default function LoginScreen() {
         if (isTimeoutError(resolveErr)) {
           setTimedOut(true);
         } else {
-          setError('Password set. Please sign in to continue.');
+          setError('Account created. Please sign in to continue.');
           setScreenMode('login');
           setEmail(userEmail);
         }
@@ -226,13 +280,14 @@ export default function LoginScreen() {
         return;
       }
       if (role === 'not_found') {
-        setError('Password set. Please sign in to continue.');
+        setError('Account created. Please sign in to continue.');
         setScreenMode('login');
         setEmail(userEmail);
         return;
       }
       setPendingRole(role as PendingRole);
     } catch (err) {
+      console.error('[invite] handleSetPassword error:', err);
       setError(err instanceof Error ? err.message : 'Failed to set password. Please try again.');
     } finally {
       setLoading(false);
