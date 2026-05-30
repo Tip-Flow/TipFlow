@@ -567,6 +567,8 @@ export default function LoginScreen() {
                     onChangeText={setNewPassword}
                     secureTextEntry={!showNewPw}
                     autoCapitalize="none"
+                    autoComplete="new-password"
+                    autoCorrect={false}
                     returnKeyType="next"
                     editable={!loading}
                   />
@@ -596,6 +598,8 @@ export default function LoginScreen() {
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showConfirmPw}
                     autoCapitalize="none"
+                    autoComplete="new-password"
+                    autoCorrect={false}
                     returnKeyType="done"
                     onSubmitEditing={() => {
                       console.log('[invite] confirm-password returnKey submitted');
