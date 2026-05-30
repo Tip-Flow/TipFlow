@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,6 +19,7 @@ import DailyQuote from './components/DailyQuote';
 import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 
 type PendingRole = 'regional' | 'manager' | 'staff' | null;
+type ScreenMode = 'login' | 'invite-loading' | 'set-password';
 
 const BLUE = '#4169E1';
 const BG   = '#09100e';
@@ -28,18 +29,15 @@ const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manager' | 'staff' | 'not_found'> {
   console.log('[resolveRole] starting for:', email);
 
-  // Normalise — trim whitespace AND lowercase to handle browser autofill quirks
   const lower = email.trim().toLowerCase();
 
   console.log('[resolveRole] admin check:', lower, ADMIN_EMAILS, ADMIN_EMAILS.includes(lower));
 
-  // ── 1. Admin check — must be FIRST, no DB queries ──
   if (ADMIN_EMAILS.includes(lower)) {
     console.log('[resolveRole] → admin');
     return 'admin';
   }
 
-  // ── 2. Managers table ──
   const { data: manager, error: mgrErr } = await supabase
     .from('managers')
     .select('role')
@@ -50,7 +48,6 @@ async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manag
   if (manager?.role === 'regional_manager') { console.log('[resolveRole] → regional'); return 'regional'; }
   if (manager?.role === 'location_manager') { console.log('[resolveRole] → manager');  return 'manager';  }
 
-  // ── 3. Staff members table ──
   const { data: staff, error: staffErr } = await supabase
     .from('staff_members')
     .select('id')
@@ -66,17 +63,70 @@ async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manag
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail]           = useState('');
-  const [password, setPassword]     = useState('');
+
+  // Login state
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState('');
-  const [timedOut, setTimedOut]     = useState(false);
-  const [pendingRole, setPendingRole] = useState<PendingRole>(null);
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
+  const [timedOut, setTimedOut]         = useState(false);
+  const [pendingRole, setPendingRole]   = useState<PendingRole>(null);
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
-  // Called after DailyQuote is dismissed — only for non-admin roles.
-  // Role is passed explicitly to avoid reading stale closure state.
+  // Invite / set-password state
+  const [screenMode, setScreenMode]         = useState<ScreenMode>('login');
+  const [newPassword, setNewPassword]       = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPw, setShowNewPw]           = useState(false);
+  const [showConfirmPw, setShowConfirmPw]   = useState(false);
+
+  // ── Detect invite token in URL on web ──────────────────────────────────────
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    // Supabase redirects with params in the hash fragment:
+    // app.mise.ltd#access_token=...&refresh_token=...&type=invite
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken  = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const hashType     = hashParams.get('type');
+
+    // PKCE / OTP flow uses query params: ?token_hash=...&type=invite
+    const searchParams = new URLSearchParams(window.location.search);
+    const tokenHash    = searchParams.get('token_hash');
+    const searchType   = searchParams.get('type');
+
+    if (hashType === 'invite' && accessToken && refreshToken) {
+      setScreenMode('invite-loading');
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error: sessionErr }) => {
+          if (sessionErr) {
+            setError('Invite link expired or invalid. Ask your manager to resend it.');
+            setScreenMode('login');
+          } else {
+            setScreenMode('set-password');
+            window.history.replaceState({}, '', '/');
+          }
+        });
+    } else if (searchType === 'invite' && tokenHash) {
+      setScreenMode('invite-loading');
+      supabase.auth
+        .verifyOtp({ token_hash: tokenHash, type: 'invite' })
+        .then(({ error: otpErr }) => {
+          if (otpErr) {
+            setError('Invite link expired or invalid. Ask your manager to resend it.');
+            setScreenMode('login');
+          } else {
+            setScreenMode('set-password');
+            window.history.replaceState({}, '', '/');
+          }
+        });
+    }
+  }, []);
+
+  // ── After DailyQuote dismissed ─────────────────────────────────────────────
   async function handleDismissQuote(role: PendingRole) {
     if (role === 'regional') {
       router.replace('/(regional)/overview');
@@ -140,6 +190,56 @@ export default function LoginScreen() {
     );
   }
 
+  // ── Handle set password (invite flow) ─────────────────────────────────────
+  async function handleSetPassword() {
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const { data, error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateErr) throw updateErr;
+
+      const userEmail = data.user?.email ?? '';
+      let role: Awaited<ReturnType<typeof resolveRole>>;
+      try {
+        role = await resolveRole(userEmail);
+      } catch (resolveErr) {
+        if (isTimeoutError(resolveErr)) {
+          setTimedOut(true);
+        } else {
+          setError('Password set. Please sign in to continue.');
+          setScreenMode('login');
+          setEmail(userEmail);
+        }
+        return;
+      }
+
+      if (role === 'admin') {
+        setTimeout(() => router.replace('/(admin)/dashboard' as any), 100);
+        return;
+      }
+      if (role === 'not_found') {
+        setError('Password set. Please sign in to continue.');
+        setScreenMode('login');
+        setEmail(userEmail);
+        return;
+      }
+      setPendingRole(role as PendingRole);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Handle normal sign in ──────────────────────────────────────────────────
   async function handleSignIn() {
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
@@ -183,9 +283,6 @@ export default function LoginScreen() {
         return;
       }
 
-      // Admin routes immediately — no DailyQuote, no state indirection.
-      // setTimeout gives the web router one event-loop tick to finish
-      // processing the auth state change before navigation fires.
       if (role === 'admin') {
         console.log('[handleSignIn] resolved admin — scheduling navigation');
         setTimeout(() => {
@@ -201,6 +298,7 @@ export default function LoginScreen() {
     }
   }
 
+  // ── Render: splash screens ─────────────────────────────────────────────────
   if (pendingRole !== null && pendingGoals === null) {
     const quoteRole: 'manager' | 'staff' = pendingRole === 'staff' ? 'staff' : 'manager';
     return (
@@ -218,6 +316,121 @@ export default function LoginScreen() {
     );
   }
 
+  // ── Render: verifying invite token ─────────────────────────────────────────
+  if (screenMode === 'invite-loading') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centeredFull}>
+          <ActivityIndicator color={BLUE} size="large" />
+          <Text style={styles.loadingText}>Verifying your invite…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Render: set password ───────────────────────────────────────────────────
+  if (screenMode === 'set-password') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'height' : undefined}
+          keyboardVerticalOffset={StatusBar.currentHeight ?? 0}>
+          <ScrollView
+            contentContainerStyle={styles.inner}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}>
+
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoText}>Mise</Text>
+              <Text style={styles.welcomeHeadline}>Welcome to Mise</Text>
+              <Text style={styles.welcomeSub}>
+                Set a password to secure your account and get started.
+              </Text>
+            </View>
+
+            <View style={styles.formContainer}>
+              {/* Password */}
+              <View>
+                <Text style={styles.fieldLabel}>Password</Text>
+                <View style={styles.passwordWrap}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Min. 8 characters"
+                    placeholderTextColor="#4a5e56"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showNewPw}
+                    autoCapitalize="none"
+                    returnKeyType="next"
+                    editable={!loading}
+                  />
+                  <Pressable
+                    style={styles.eyeBtn}
+                    onPress={() => setShowNewPw(v => !v)}>
+                    <View pointerEvents="none">
+                      <Ionicons
+                        name={showNewPw ? 'eye-outline' : 'eye-off-outline'}
+                        size={20}
+                        color="#4a5e56"
+                      />
+                    </View>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Confirm password */}
+              <View>
+                <Text style={styles.fieldLabel}>Confirm Password</Text>
+                <View style={styles.passwordWrap}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Re-enter password"
+                    placeholderTextColor="#4a5e56"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPw}
+                    autoCapitalize="none"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSetPassword}
+                    editable={!loading}
+                  />
+                  <Pressable
+                    style={styles.eyeBtn}
+                    onPress={() => setShowConfirmPw(v => !v)}>
+                    <View pointerEvents="none">
+                      <Ionicons
+                        name={showConfirmPw ? 'eye-outline' : 'eye-off-outline'}
+                        size={20}
+                        color="#4a5e56"
+                      />
+                    </View>
+                  </Pressable>
+                </View>
+              </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <Pressable
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleSetPassword}
+                disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color={BG} />
+                ) : (
+                  <Text style={styles.buttonText}>Set Password & Sign In →</Text>
+                )}
+              </Pressable>
+            </View>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Render: login ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -330,6 +543,17 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     gap: 48,
   },
+  centeredFull: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    color: '#6b7a74',
+    fontSize: 15,
+    fontWeight: '500',
+  },
   logoContainer: {
     alignItems: 'center',
     gap: 10,
@@ -346,9 +570,30 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     letterSpacing: 0.5,
   },
+  welcomeHeadline: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#e8f0ec',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  welcomeSub: {
+    fontSize: 14,
+    color: '#6b7a74',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 8,
+  },
   formContainer: {
     width: '100%',
     gap: 14,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7a74',
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
   input: {
     backgroundColor: '#162019',
