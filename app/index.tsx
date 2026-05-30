@@ -260,39 +260,81 @@ export default function LoginScreen() {
         return;
       }
 
-      // 2. Set the password on the invited account
+      // 2. Refresh the session so the access token is as fresh as possible
+      //    before any password-update call.
+      console.log('[invite] refreshing session before password update');
+      const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+      console.log('[invite] refreshSession — user:', refreshData?.session?.user?.email ?? 'none', '| error:', refreshErr?.message ?? 'none');
+
+      // 3. Attempt updateUser first — log every detail so we can see what Supabase returns.
+      //    On projects with Secure Password Change enabled the invite session's AMR level
+      //    is too low and updateUser silently returns the user without saving the password.
+      console.log('[invite] about to call updateUser');
       const { data: updateData, error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
       console.log('[invite] updateUser full response:', JSON.stringify({ user: updateData?.user?.email, id: updateData?.user?.id, error: updateErr }));
+
+      const userEmail = updateData?.user?.email ?? refreshData?.session?.user?.email ?? inviteEmail;
+
       if (updateErr) {
-        throw new Error(updateErr.message ?? 'Password update failed — please try again.');
+        // updateUser returned an explicit error — surface it and fall through to
+        // the admin edge function below.
+        console.warn('[invite] updateUser returned error — will try admin edge function. Error:', JSON.stringify(updateErr));
       }
 
-      const userEmail = updateData.user?.email ?? inviteEmail;
-
-      // 3. Wait 1 second for Supabase to persist the new password before signing in
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 4. Sign in fresh with the new password to establish a proper session
-      console.log('[invite] signing in fresh with email:', userEmail);
-      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password: newPassword,
-      });
-      console.log('[invite] fresh signIn full response:', JSON.stringify({ user: signInData?.user?.email, error: signInErr }));
-
-      if (signInErr) {
-        // signInWithPassword failed even after updateUser reported success.
-        // The invite session is still valid — use it to navigate rather than
-        // leaving the user stranded. They can reset their password if needed.
-        console.warn('[invite] signInWithPassword failed after updateUser — falling back to invite session. Error:', JSON.stringify(signInErr));
-        const { data: { session: fallbackSession } } = await supabase.auth.getSession();
-        if (!fallbackSession) {
-          throw new Error(signInErr.message ?? 'Could not sign in — please try again or contact your manager.');
+      // 4. Regardless of whether updateUser reported an error, verify the password
+      //    was actually set by trying signInWithPassword immediately.
+      //    If updateUser silently failed (Secure Password Change policy), this 400
+      //    is the signal to fall back to the admin edge function.
+      let passwordSetViaUpdateUser = false;
+      if (!updateErr) {
+        console.log('[invite] about to call signInWithPassword to verify password was set, email:', userEmail);
+        const { data: verifyData, error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: userEmail,
+          password: newPassword,
+        });
+        console.log('[invite] verification signIn full response:', JSON.stringify({ user: verifyData?.user?.email, error: verifyErr }));
+        if (!verifyErr) {
+          passwordSetViaUpdateUser = true;
+        } else {
+          console.warn('[invite] updateUser appeared to succeed but signIn failed with:', JSON.stringify(verifyErr), '— falling back to admin edge function');
         }
-        console.log('[invite] fallback session still active — proceeding with invite session');
       }
 
-      // 5. Resolve role and navigate
+      // 5. If updateUser didn't work (either returned error or verification signIn
+      //    failed), use the server-side admin edge function which bypasses AMR restrictions.
+      if (!passwordSetViaUpdateUser) {
+        console.log('[invite] calling set-invite-password edge function');
+        const { data: fnData, error: fnErr } = await supabase.functions.invoke('set-invite-password', {
+          body: { password: newPassword },
+        });
+        console.log('[invite] set-invite-password response:', JSON.stringify({ data: fnData, error: fnErr }));
+
+        if (fnErr || fnData?.error) {
+          const msg = fnData?.error ?? fnErr?.message ?? 'Failed to set password. Please try again.';
+          throw new Error(msg);
+        }
+
+        // Password is now set via admin API — wait 1 second for it to propagate,
+        // then sign in to establish a normal session.
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('[invite] signing in after admin password set, email:', userEmail);
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: userEmail,
+          password: newPassword,
+        });
+        console.log('[invite] post-admin signIn full response:', JSON.stringify({ user: signInData?.user?.email, error: signInErr }));
+
+        if (signInErr) {
+          // Admin set the password but signIn still fails — use existing invite session.
+          console.warn('[invite] post-admin signIn failed, using invite session as fallback. Error:', JSON.stringify(signInErr));
+          const { data: { session: fallback } } = await supabase.auth.getSession();
+          if (!fallback) {
+            throw new Error(signInErr.message ?? 'Could not sign in — please contact your manager.');
+          }
+        }
+      }
+
+      // 6. Resolve role and navigate
       let role: Awaited<ReturnType<typeof resolveRole>>;
       try {
         role = await resolveRole(userEmail);
