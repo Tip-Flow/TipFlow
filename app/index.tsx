@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -82,23 +82,55 @@ export default function LoginScreen() {
   const [showConfirmPw, setShowConfirmPw]     = useState(false);
   const [inviteEmail, setInviteEmail]         = useState('');
 
+  // Ref survives re-renders; sessionStorage survives remounts caused by
+  // history.replaceState triggering Expo Router's URL listener.
+  const inviteEmailRef = useRef('');
+
+  function enterInviteSetup(email: string) {
+    inviteEmailRef.current = email;
+    setInviteEmail(email);
+    try { sessionStorage.setItem('mise_invite_email', email); } catch {}
+    setScreenMode('set-password');
+  }
+
+  function exitInviteSetup() {
+    inviteEmailRef.current = '';
+    try { sessionStorage.removeItem('mise_invite_email'); } catch {}
+    // Clear the URL now that we're navigating away
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/');
+    }
+  }
+
   // ── Detect invite token in URL on web ──────────────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
 
-    // Supabase redirects with params in the hash fragment:
-    // app.mise.ltd#access_token=...&refresh_token=...&type=invite
+    // (A) Restore invite state if a previous mount processed the token but
+    //     history.replaceState caused Expo Router to remount the component.
+    try {
+      const stored = sessionStorage.getItem('mise_invite_email');
+      if (stored) {
+        console.log('[invite] restoring invite state from sessionStorage — email:', stored);
+        enterInviteSetup(stored);
+        return;
+      }
+    } catch {}
+
+    // (B) Fresh invite link — parse the URL.
+
+    // Implicit flow: app.mise.ltd#access_token=...&refresh_token=...&type=invite
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
     const accessToken  = hashParams.get('access_token');
     const refreshToken = hashParams.get('refresh_token');
     const hashType     = hashParams.get('type');
 
-    // PKCE / OTP flow uses query params: ?token_hash=...&type=invite
+    // Email OTP flow: ?token_hash=...&type=invite
     const searchParams = new URLSearchParams(window.location.search);
     const tokenHash    = searchParams.get('token_hash');
     const searchType   = searchParams.get('type');
 
-    // PKCE OAuth code-exchange path: ?code=...
+    // PKCE OAuth code-exchange: ?code=...
     const searchCode = searchParams.get('code');
 
     console.log('[invite] URL hash:', window.location.hash);
@@ -106,11 +138,17 @@ export default function LoginScreen() {
     console.log('[invite] hashType:', hashType, '| accessToken:', !!accessToken, '| refreshToken:', !!refreshToken);
     console.log('[invite] searchType:', searchType, '| tokenHash:', !!tokenHash, '| code:', !!searchCode);
 
+    const hasInviteParams =
+      (hashType === 'invite' && !!accessToken && !!refreshToken) ||
+      (searchType === 'invite' && !!tokenHash) ||
+      !!searchCode;
+
+    if (!hasInviteParams) return;
+
     async function handleInviteToken() {
       setScreenMode('invite-loading');
 
       if (hashType === 'invite' && accessToken && refreshToken) {
-        // Implicit flow: Supabase put access_token in the hash fragment
         console.log('[invite] path: setSession (implicit flow)');
         const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -123,7 +161,6 @@ export default function LoginScreen() {
           return;
         }
       } else if (searchType === 'invite' && tokenHash) {
-        // Email OTP path: Supabase put token_hash in query params
         console.log('[invite] path: verifyOtp (email OTP flow)');
         const { data: otpData, error: otpErr } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
@@ -136,7 +173,6 @@ export default function LoginScreen() {
           return;
         }
       } else if (searchCode) {
-        // PKCE code-exchange path: ?code=...
         console.log('[invite] path: exchangeCodeForSession (PKCE flow)');
         const { data: codeData, error: codeErr } = await supabase.auth.exchangeCodeForSession(searchCode);
         console.log('[invite] exchangeCodeForSession full response:', JSON.stringify({ user: codeData?.user?.email, error: codeErr }));
@@ -145,33 +181,31 @@ export default function LoginScreen() {
           setScreenMode('login');
           return;
         }
-      } else {
-        setScreenMode('login');
-        return;
       }
 
-      // Confirm session is actually active before showing the password screen
+      // Confirm session is actually active
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[invite] getSession after token exchange — user:', session?.user?.email ?? 'NONE', '| expires_at:', session?.expires_at ?? 'N/A');
       if (!session) {
-        console.error('[invite] session is null after token exchange — link may be expired or already used');
+        console.error('[invite] session null after token exchange');
         setError('Invite link expired or already used. Ask your manager to resend it.');
         setScreenMode('login');
         return;
       }
 
-      setInviteEmail(session.user.email ?? '');
+      // Persist invite state BEFORE touching the URL.
+      // replaceState may trigger an Expo Router remount; sessionStorage + ref
+      // ensure the set-password screen is restored if that happens.
+      const email = session.user.email ?? '';
+      console.log('[invite] entering invite setup for:', email);
+      enterInviteSetup(email);
+
+      // Clean the URL — do this last so any remount sees a clean URL and
+      // falls through to the sessionStorage restore path above.
       window.history.replaceState({}, '', '/');
-      setScreenMode('set-password');
     }
 
-    if (
-      (hashType === 'invite' && accessToken && refreshToken) ||
-      (searchType === 'invite' && tokenHash) ||
-      searchCode
-    ) {
-      handleInviteToken();
-    }
+    handleInviteToken();
   }, []);
 
   // ── After DailyQuote dismissed ─────────────────────────────────────────────
@@ -279,7 +313,12 @@ export default function LoginScreen() {
       const { data: updateData, error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
       console.log('[invite] updateUser full response:', JSON.stringify({ user: updateData?.user?.email, id: updateData?.user?.id, error: updateErr }));
 
-      const userEmail = updateData?.user?.email ?? refreshData?.session?.user?.email ?? inviteEmail;
+      // inviteEmailRef persists through re-renders; fall back through state and
+      // the refreshed session in case ref was cleared by an unexpected remount.
+      const userEmail =
+        updateData?.user?.email ??
+        refreshData?.session?.user?.email ??
+        (inviteEmailRef.current || inviteEmail);
 
       if (updateErr) {
         // updateUser returned an explicit error — surface it and fall through to
@@ -348,12 +387,15 @@ export default function LoginScreen() {
         if (isTimeoutError(resolveErr)) {
           setTimedOut(true);
         } else {
+          exitInviteSetup();
           setError('Account created. Please sign in to continue.');
           setScreenMode('login');
           setEmail(userEmail);
         }
         return;
       }
+
+      exitInviteSetup();
 
       if (role === 'admin') {
         setTimeout(() => router.replace('/(admin)/dashboard' as any), 100);
