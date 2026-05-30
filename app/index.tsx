@@ -102,6 +102,7 @@ export default function LoginScreen() {
   // Ref survives re-renders; sessionStorage survives remounts caused by
   // history.replaceState triggering Expo Router's URL listener.
   const inviteEmailRef = useRef(inviteEmail);
+  const mountedAt = useRef(Date.now());
 
   function enterInviteSetup(emailArg: string) {
     console.log('[invite] enterInviteSetup called — email:', emailArg);
@@ -295,6 +296,12 @@ export default function LoginScreen() {
   // ── Handle set password (invite flow) ─────────────────────────────────────
   async function handleSetPassword() {
     console.log('[invite] handleSetPassword called — newPassword.length:', newPassword.length, '| confirmPassword.length:', confirmPassword.length, '| loading:', loading);
+
+    const elapsed = Date.now() - mountedAt.current;
+    if (elapsed < 500) {
+      console.log('[invite] early return: submit within 500ms of mount — likely autofill, elapsed:', elapsed, 'ms');
+      return;
+    }
 
     if (newPassword.length < 8) {
       console.log('[invite] early return: password too short');
@@ -556,6 +563,14 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.formContainer}>
+              {/* Honeypot: off-screen username field — tricks browser autofill into
+                  targeting this instead of the password fields below */}
+              <TextInput
+                style={{ height: 0, width: 0, opacity: 0, position: 'absolute' }}
+                autoComplete="username"
+                editable={false}
+              />
+
               {/* Password */}
               <View>
                 <Text style={styles.fieldLabel}>Password</Text>
