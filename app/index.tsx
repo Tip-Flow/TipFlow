@@ -544,6 +544,9 @@ export default function LoginScreen() {
     console.log('[invite] rendering set-password screen — inviteEmail:', inviteEmail, '| ref:', inviteEmailRef.current);
     return (
       <SafeAreaView style={styles.container}>
+        <View style={{ backgroundColor: 'red', padding: 12, alignItems: 'center' }}>
+          <Text style={{ color: 'white', fontWeight: '900', fontSize: 18 }}>SET PASSWORD SCREEN</Text>
+        </View>
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'height' : undefined}
