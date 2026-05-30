@@ -240,21 +240,27 @@ export default function LoginScreen() {
 
   // ── Handle set password (invite flow) ─────────────────────────────────────
   async function handleSetPassword() {
+    console.log('[invite] handleSetPassword called — newPassword.length:', newPassword.length, '| confirmPassword.length:', confirmPassword.length, '| loading:', loading);
+
     if (newPassword.length < 8) {
+      console.log('[invite] early return: password too short');
       setError('Password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
+      console.log('[invite] early return: passwords do not match');
       setError('Passwords do not match.');
       return;
     }
     setError('');
     setLoading(true);
+    console.log('[invite] validation passed — entering try block');
     try {
       // 1. Confirm the invite session is still active
       const { data: { session: preSession } } = await supabase.auth.getSession();
       console.log('[invite] pre-updateUser session — user:', preSession?.user?.email ?? 'NONE', '| expires_at:', preSession?.expires_at ?? 'N/A');
       if (!preSession) {
+        console.log('[invite] early return: no pre-session — redirecting to login');
         setError('Your invite session expired. Please contact your manager for a new invite link.');
         setScreenMode('login');
         return;
@@ -522,7 +528,10 @@ export default function LoginScreen() {
                     secureTextEntry={!showConfirmPw}
                     autoCapitalize="none"
                     returnKeyType="done"
-                    onSubmitEditing={handleSetPassword}
+                    onSubmitEditing={() => {
+                      console.log('[invite] confirm-password returnKey submitted');
+                      handleSetPassword();
+                    }}
                     editable={!loading}
                   />
                   <Pressable
@@ -543,7 +552,10 @@ export default function LoginScreen() {
 
               <Pressable
                 style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleSetPassword}
+                onPress={() => {
+                  console.log('[invite] Set Password button tapped — loading:', loading);
+                  handleSetPassword();
+                }}
                 disabled={loading}>
                 {loading ? (
                   <ActivityIndicator color={BG} />
