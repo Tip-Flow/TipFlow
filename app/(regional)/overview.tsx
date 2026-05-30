@@ -54,6 +54,23 @@ export default function RegionalOverview() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id ?? null);
 
+      // Check if this regional manager needs onboarding
+      const { data: managerRecord } = await supabase
+        .from('managers')
+        .select('onboarded_at, organisation_id, name')
+        .eq('email', user?.email ?? '')
+        .maybeSingle();
+
+      if (!managerRecord?.onboarded_at) {
+        const { count } = await supabase
+          .from('locations')
+          .select('id', { count: 'exact', head: true });
+        if ((count ?? 0) === 0) {
+          router.replace('/(regional)/welcome');
+          return;
+        }
+      }
+
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       const weekStartStr = weekStart.toISOString().split('T')[0];

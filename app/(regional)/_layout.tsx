@@ -36,6 +36,7 @@ export default function RegionalLayout() {
         <Tabs.Screen name="team" options={{ title: 'Team', tabBarIcon: TeamIcon }} />
         <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: SettingsIcon }} />
         <Tabs.Screen name="location-detail" options={{ href: null }} />
+        <Tabs.Screen name="welcome" options={{ href: null }} />
       </Tabs>
     </ErrorBoundary>
   );
