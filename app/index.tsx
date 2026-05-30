@@ -98,40 +98,54 @@ export default function LoginScreen() {
     const tokenHash    = searchParams.get('token_hash');
     const searchType   = searchParams.get('type');
 
+    // PKCE OAuth code-exchange path: ?code=...
+    const searchCode = searchParams.get('code');
+
     console.log('[invite] URL hash:', window.location.hash);
     console.log('[invite] URL search:', window.location.search);
-    console.log('[invite] hashType:', hashType, '| accessToken present:', !!accessToken, '| refreshToken present:', !!refreshToken);
-    console.log('[invite] searchType:', searchType, '| tokenHash present:', !!tokenHash);
+    console.log('[invite] hashType:', hashType, '| accessToken:', !!accessToken, '| refreshToken:', !!refreshToken);
+    console.log('[invite] searchType:', searchType, '| tokenHash:', !!tokenHash, '| code:', !!searchCode);
 
     async function handleInviteToken() {
       setScreenMode('invite-loading');
 
       if (hashType === 'invite' && accessToken && refreshToken) {
+        // Implicit flow: Supabase put access_token in the hash fragment
         console.log('[invite] path: setSession (implicit flow)');
         const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-        console.log('[invite] setSession — user:', sessionData?.user?.email ?? 'none', '| error:', sessionErr?.message ?? 'none');
+        console.log('[invite] setSession full response:', JSON.stringify({ user: sessionData?.user?.email, error: sessionErr }));
         if (sessionErr) {
           setError('Invite link expired or invalid. Ask your manager to resend it.');
           setScreenMode('login');
           return;
         }
       } else if (searchType === 'invite' && tokenHash) {
-        console.log('[invite] path: verifyOtp (PKCE flow)');
+        // Email OTP path: Supabase put token_hash in query params
+        console.log('[invite] path: verifyOtp (email OTP flow)');
         const { data: otpData, error: otpErr } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: 'invite',
         });
-        console.log('[invite] verifyOtp — user:', otpData?.user?.email ?? 'none', '| error:', otpErr?.message ?? 'none');
+        console.log('[invite] verifyOtp full response:', JSON.stringify({ user: otpData?.user?.email, error: otpErr }));
         if (otpErr) {
           setError('Invite link expired or invalid. Ask your manager to resend it.');
           setScreenMode('login');
           return;
         }
+      } else if (searchCode) {
+        // PKCE code-exchange path: ?code=...
+        console.log('[invite] path: exchangeCodeForSession (PKCE flow)');
+        const { data: codeData, error: codeErr } = await supabase.auth.exchangeCodeForSession(searchCode);
+        console.log('[invite] exchangeCodeForSession full response:', JSON.stringify({ user: codeData?.user?.email, error: codeErr }));
+        if (codeErr) {
+          setError('Invite link expired or invalid. Ask your manager to resend it.');
+          setScreenMode('login');
+          return;
+        }
       } else {
-        // No invite params found — normal load
         setScreenMode('login');
         return;
       }
@@ -153,7 +167,8 @@ export default function LoginScreen() {
 
     if (
       (hashType === 'invite' && accessToken && refreshToken) ||
-      (searchType === 'invite' && tokenHash)
+      (searchType === 'invite' && tokenHash) ||
+      searchCode
     ) {
       handleInviteToken();
     }
@@ -247,20 +262,37 @@ export default function LoginScreen() {
 
       // 2. Set the password on the invited account
       const { data: updateData, error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
-      console.log('[invite] updateUser — user:', updateData?.user?.email ?? 'none', '| error:', updateErr?.message ?? 'none');
-      if (updateErr) throw updateErr;
+      console.log('[invite] updateUser full response:', JSON.stringify({ user: updateData?.user?.email, id: updateData?.user?.id, error: updateErr }));
+      if (updateErr) {
+        throw new Error(updateErr.message ?? 'Password update failed — please try again.');
+      }
 
-      // 3. Sign in fresh with the new password — proves it was set and establishes a full session
       const userEmail = updateData.user?.email ?? inviteEmail;
+
+      // 3. Wait 1 second for Supabase to persist the new password before signing in
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 4. Sign in fresh with the new password to establish a proper session
       console.log('[invite] signing in fresh with email:', userEmail);
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
         email: userEmail,
         password: newPassword,
       });
-      console.log('[invite] fresh signIn — error:', signInErr?.message ?? 'none');
-      if (signInErr) throw signInErr;
+      console.log('[invite] fresh signIn full response:', JSON.stringify({ user: signInData?.user?.email, error: signInErr }));
 
-      // 4. Resolve role and navigate
+      if (signInErr) {
+        // signInWithPassword failed even after updateUser reported success.
+        // The invite session is still valid — use it to navigate rather than
+        // leaving the user stranded. They can reset their password if needed.
+        console.warn('[invite] signInWithPassword failed after updateUser — falling back to invite session. Error:', JSON.stringify(signInErr));
+        const { data: { session: fallbackSession } } = await supabase.auth.getSession();
+        if (!fallbackSession) {
+          throw new Error(signInErr.message ?? 'Could not sign in — please try again or contact your manager.');
+        }
+        console.log('[invite] fallback session still active — proceeding with invite session');
+      }
+
+      // 5. Resolve role and navigate
       let role: Awaited<ReturnType<typeof resolveRole>>;
       try {
         role = await resolveRole(userEmail);
