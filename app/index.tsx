@@ -74,22 +74,41 @@ export default function LoginScreen() {
   const [pendingRole, setPendingRole]   = useState<PendingRole>(null);
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
-  // Invite / set-password state
-  const [screenMode, setScreenMode]           = useState<ScreenMode>('login');
+  // Invite / set-password state.
+  // Lazy initialisers read sessionStorage synchronously so the VERY FIRST
+  // render already shows the set-password screen when a pending invite is
+  // detected — preventing the login form from flashing and being auto-submitted
+  // by browser credential managers (Google Smart Lock etc.) during the remount
+  // that history.replaceState triggers.
+  const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        if (sessionStorage.getItem('mise_invite_email')) return 'set-password';
+      } catch {}
+    }
+    return 'login';
+  });
   const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPw, setShowNewPw]             = useState(false);
   const [showConfirmPw, setShowConfirmPw]     = useState(false);
-  const [inviteEmail, setInviteEmail]         = useState('');
+  const [inviteEmail, setInviteEmail]         = useState<string>(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try { return sessionStorage.getItem('mise_invite_email') ?? ''; } catch {}
+    }
+    return '';
+  });
 
   // Ref survives re-renders; sessionStorage survives remounts caused by
   // history.replaceState triggering Expo Router's URL listener.
-  const inviteEmailRef = useRef('');
+  const inviteEmailRef = useRef(inviteEmail);
 
-  function enterInviteSetup(email: string) {
-    inviteEmailRef.current = email;
-    setInviteEmail(email);
-    try { sessionStorage.setItem('mise_invite_email', email); } catch {}
+  function enterInviteSetup(emailArg: string) {
+    console.log('[invite] enterInviteSetup called — email:', emailArg);
+    inviteEmailRef.current = emailArg;
+    setInviteEmail(emailArg);
+    try { sessionStorage.setItem('mise_invite_email', emailArg); } catch {}
+    console.log("[invite] calling setScreenMode('set-password')");
     setScreenMode('set-password');
   }
 
@@ -418,6 +437,13 @@ export default function LoginScreen() {
 
   // ── Handle normal sign in ──────────────────────────────────────────────────
   async function handleSignIn() {
+    // Safety guard: if a browser credential manager fires this while the
+    // set-password screen is active, block it — the user hasn't set a password yet.
+    if (screenMode !== 'login') {
+      console.log('[handleSignIn] blocked — screenMode is:', screenMode);
+      return;
+    }
+
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
       setError('Please enter your email and password.');
@@ -507,6 +533,7 @@ export default function LoginScreen() {
 
   // ── Render: set password ───────────────────────────────────────────────────
   if (screenMode === 'set-password') {
+    console.log('[invite] rendering set-password screen — inviteEmail:', inviteEmail, '| ref:', inviteEmailRef.current);
     return (
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
