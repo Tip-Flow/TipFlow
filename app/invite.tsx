@@ -35,14 +35,7 @@ export default function InviteScreen() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (sessionEstablished.current) {
-      console.log('[invite] effect re-ran but session already established — skipping');
-      return;
-    }
-
-    console.log('[invite] href:', window.location.href);
-    console.log('[invite] hash:', window.location.hash);
-    console.log('[invite] search:', window.location.search);
+    if (sessionEstablished.current) return;
 
     // 1. Check sessionStorage first — populated on a previous mount before any remount wiped state.
     let resolvedAccess  = '';
@@ -51,7 +44,6 @@ export default function InviteScreen() {
       const storedAccess  = sessionStorage.getItem('mise_invite_access_token');
       const storedRefresh = sessionStorage.getItem('mise_invite_refresh_token');
       if (storedAccess && storedRefresh) {
-        console.log('[invite] recovered tokens from sessionStorage');
         resolvedAccess  = storedAccess;
         resolvedRefresh = storedRefresh;
         sessionStorage.removeItem('mise_invite_access_token');
@@ -68,52 +60,43 @@ export default function InviteScreen() {
     const code         = search.get('code');
 
     if (accessToken && refreshToken) {
-      // Write to sessionStorage immediately before any async call.
       try {
         sessionStorage.setItem('mise_invite_access_token', accessToken);
         sessionStorage.setItem('mise_invite_refresh_token', refreshToken);
-        console.log('[invite] tokens written to sessionStorage');
       } catch {}
       resolvedAccess  = accessToken;
       resolvedRefresh = refreshToken;
     }
 
-    // 3. Also keep module-level cache as a final fallback.
+    // 3. Module-level cache as a final fallback.
     if (resolvedAccess)  cachedAccessToken  = resolvedAccess;
     if (resolvedRefresh) cachedRefreshToken = resolvedRefresh;
     if (!resolvedAccess)  resolvedAccess  = cachedAccessToken;
     if (!resolvedRefresh) resolvedRefresh = cachedRefreshToken;
 
     if (resolvedAccess && resolvedRefresh) {
-      console.log('[invite] path: setSession (implicit flow) — fromCache:', !accessToken);
       supabase.auth.setSession({ access_token: resolvedAccess, refresh_token: resolvedRefresh })
         .then(({ error }) => {
           if (error) {
-            console.log('[invite] setSession error:', error.message);
             setErrorMsg('Invite link expired or already used. Please ask your manager to resend it.');
             setPhase('error');
           } else {
-            console.log('[invite] setSession success');
             sessionEstablished.current = true;
             setPhase('set-password');
           }
         });
     } else if (code) {
-      console.log('[invite] path: exchangeCodeForSession (PKCE flow)');
       supabase.auth.exchangeCodeForSession(code)
         .then(({ error }) => {
           if (error) {
-            console.log('[invite] exchangeCodeForSession error:', error.message);
             setErrorMsg('Invite link expired or already used. Please ask your manager to resend it.');
             setPhase('error');
           } else {
-            console.log('[invite] exchangeCodeForSession success');
             sessionEstablished.current = true;
             setPhase('set-password');
           }
         });
     } else {
-      console.log('[invite] no recognised token params found');
       setErrorMsg('Invalid invite link. Please ask your manager to resend it.');
       setPhase('error');
     }
