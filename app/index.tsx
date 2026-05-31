@@ -153,6 +153,7 @@ export default function LoginScreen() {
 
   // ── Detect invite token in URL on web ──────────────────────────────────────
   useEffect(() => {
+    console.log('[effect] starting — sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A', '| pendingInviteEmail:', pendingInviteEmail);
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
 
     // (A) Restore invite state if a previous mount processed the token but
