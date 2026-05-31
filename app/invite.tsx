@@ -44,6 +44,22 @@ export default function InviteScreen() {
     console.log('[invite] hash:', window.location.hash);
     console.log('[invite] search:', window.location.search);
 
+    // 1. Check sessionStorage first — populated on a previous mount before any remount wiped state.
+    let resolvedAccess  = '';
+    let resolvedRefresh = '';
+    try {
+      const storedAccess  = sessionStorage.getItem('mise_invite_access_token');
+      const storedRefresh = sessionStorage.getItem('mise_invite_refresh_token');
+      if (storedAccess && storedRefresh) {
+        console.log('[invite] recovered tokens from sessionStorage');
+        resolvedAccess  = storedAccess;
+        resolvedRefresh = storedRefresh;
+        sessionStorage.removeItem('mise_invite_access_token');
+        sessionStorage.removeItem('mise_invite_refresh_token');
+      }
+    } catch {}
+
+    // 2. Parse the hash — overrides sessionStorage if fresh tokens are present.
     const hash   = new URLSearchParams(window.location.hash.slice(1));
     const search = new URLSearchParams(window.location.search);
 
@@ -51,13 +67,22 @@ export default function InviteScreen() {
     const refreshToken = hash.get('refresh_token');
     const code         = search.get('code');
 
-    // Cache tokens synchronously so a remount can recover them even if the
-    // hash has already been stripped from the URL.
-    if (accessToken)  cachedAccessToken  = accessToken;
-    if (refreshToken) cachedRefreshToken = refreshToken;
+    if (accessToken && refreshToken) {
+      // Write to sessionStorage immediately before any async call.
+      try {
+        sessionStorage.setItem('mise_invite_access_token', accessToken);
+        sessionStorage.setItem('mise_invite_refresh_token', refreshToken);
+        console.log('[invite] tokens written to sessionStorage');
+      } catch {}
+      resolvedAccess  = accessToken;
+      resolvedRefresh = refreshToken;
+    }
 
-    const resolvedAccess  = accessToken  || cachedAccessToken;
-    const resolvedRefresh = refreshToken || cachedRefreshToken;
+    // 3. Also keep module-level cache as a final fallback.
+    if (resolvedAccess)  cachedAccessToken  = resolvedAccess;
+    if (resolvedRefresh) cachedRefreshToken = resolvedRefresh;
+    if (!resolvedAccess)  resolvedAccess  = cachedAccessToken;
+    if (!resolvedRefresh) resolvedRefresh = cachedRefreshToken;
 
     if (resolvedAccess && resolvedRefresh) {
       console.log('[invite] path: setSession (implicit flow) — fromCache:', !accessToken);
