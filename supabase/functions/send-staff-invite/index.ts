@@ -242,7 +242,7 @@ Deno.serve(async (req: Request) => {
       email,
       options: {
         data: { name, role, location_id, organisation_id },
-        redirectTo: 'https://app.mise.ltd',
+        redirectTo: 'https://app.mise.ltd/invite',
       },
     });
 
