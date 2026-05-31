@@ -264,7 +264,19 @@ Deno.serve(async (req: Request) => {
       }
     } else {
       userId = linkData.user.id;
-      inviteUrl = linkData.properties.action_link;
+      console.log('[send-staff-invite] linkData.properties:', JSON.stringify(linkData.properties));
+
+      // Manually construct the redirect URL using the tokens directly so the
+      // invite lands on /invite with access_token+refresh_token in the hash —
+      // the format invite.tsx expects — regardless of what Supabase's action_link looks like.
+      const { access_token, refresh_token } = linkData.properties as any;
+      if (access_token && refresh_token) {
+        inviteUrl = `https://app.mise.ltd/invite#access_token=${access_token}&refresh_token=${refresh_token}&type=invite`;
+        console.log('[send-staff-invite] constructed inviteUrl:', inviteUrl);
+      } else {
+        inviteUrl = linkData.properties.action_link;
+        console.log('[send-staff-invite] falling back to action_link:', inviteUrl);
+      }
     }
 
     // Stamp invite_sent_at on the correct table
