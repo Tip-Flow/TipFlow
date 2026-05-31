@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -28,9 +28,14 @@ export default function InviteScreen() {
   const [confirm, setConfirm]     = useState('');
   const [loading, setLoading]     = useState(false);
   const [fieldError, setFieldError] = useState('');
+  const sessionEstablished = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (sessionEstablished.current) {
+      console.log('[invite] effect re-ran but session already established — skipping');
+      return;
+    }
 
     console.log('[invite] href:', window.location.href);
     console.log('[invite] hash:', window.location.hash);
@@ -53,6 +58,7 @@ export default function InviteScreen() {
             setPhase('error');
           } else {
             console.log('[invite] setSession success');
+            sessionEstablished.current = true;
             setPhase('set-password');
           }
         });
@@ -66,6 +72,7 @@ export default function InviteScreen() {
             setPhase('error');
           } else {
             console.log('[invite] exchangeCodeForSession success');
+            sessionEstablished.current = true;
             setPhase('set-password');
           }
         });
