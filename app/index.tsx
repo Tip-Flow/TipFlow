@@ -125,6 +125,12 @@ export default function LoginScreen() {
     }
   }
 
+  // ── Mount/unmount lifecycle logging ───────────────────────────────────────
+  useEffect(() => {
+    console.log('[mount] LoginScreen mounted');
+    return () => console.log('[unmount] LoginScreen unmounted');
+  }, []);
+
   // ── Detect invite token in URL on web ──────────────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
