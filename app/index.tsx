@@ -130,10 +130,6 @@ export default function LoginScreen() {
     pendingInviteEmail = '';
     inviteEmailRef.current = '';
     try { sessionStorage.removeItem('mise_invite_email'); } catch {}
-    // Clear the URL now that we're navigating away
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.history.replaceState({}, '', '/');
-    }
   }
 
   // ── Mount/unmount lifecycle logging ───────────────────────────────────────
@@ -249,10 +245,6 @@ export default function LoginScreen() {
       const email = session.user.email ?? '';
       console.log('[invite] entering invite setup for:', email);
       enterInviteSetup(email);
-
-      // Clean the URL — do this last so any remount sees a clean URL and
-      // falls through to the sessionStorage restore path above.
-      window.history.replaceState({}, '', '/');
     }
 
     handleInviteToken();
