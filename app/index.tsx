@@ -131,6 +131,15 @@ export default function LoginScreen() {
     return () => console.log('[unmount] LoginScreen unmounted');
   }, []);
 
+  // ── Detect when screenMode leaves 'set-password' ───────────────────────────
+  const prevScreenModeRef = useRef(screenMode);
+  useEffect(() => {
+    if (prevScreenModeRef.current === 'set-password' && screenMode !== 'set-password') {
+      console.log('[screenMode change] changed FROM set-password TO:', screenMode, '| stack trace:', new Error().stack);
+    }
+    prevScreenModeRef.current = screenMode;
+  }, [screenMode]);
+
   // ── Detect invite token in URL on web ──────────────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
