@@ -83,6 +83,7 @@ export default function LoginScreen() {
   // by browser credential managers (Google Smart Lock etc.) during the remount
   // that history.replaceState triggers.
   const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
+    console.log('[lazy-init] fired — sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A');
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         const stored = sessionStorage.getItem('mise_invite_email');
