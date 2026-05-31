@@ -17,6 +17,9 @@ import { supabase } from '../lib/supabase';
 const BLUE = '#4169E1';
 const BG   = '#09100e';
 
+let cachedAccessToken  = '';
+let cachedRefreshToken = '';
+
 type Phase = 'loading' | 'set-password' | 'error' | 'done';
 
 export default function InviteScreen() {
@@ -48,9 +51,17 @@ export default function InviteScreen() {
     const refreshToken = hash.get('refresh_token');
     const code         = search.get('code');
 
-    if (accessToken && refreshToken) {
-      console.log('[invite] path: setSession (implicit flow)');
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+    // Cache tokens synchronously so a remount can recover them even if the
+    // hash has already been stripped from the URL.
+    if (accessToken)  cachedAccessToken  = accessToken;
+    if (refreshToken) cachedRefreshToken = refreshToken;
+
+    const resolvedAccess  = accessToken  || cachedAccessToken;
+    const resolvedRefresh = refreshToken || cachedRefreshToken;
+
+    if (resolvedAccess && resolvedRefresh) {
+      console.log('[invite] path: setSession (implicit flow) — fromCache:', !accessToken);
+      supabase.auth.setSession({ access_token: resolvedAccess, refresh_token: resolvedRefresh })
         .then(({ error }) => {
           if (error) {
             console.log('[invite] setSession error:', error.message);
