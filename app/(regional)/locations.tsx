@@ -1,9 +1,13 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   Pressable,
   View,
   SafeAreaView,
@@ -43,6 +47,12 @@ export default function RegionalLocations() {
   const router = useRouter();
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName]           = useState('');
+  const [newCity, setNewCity]           = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [modalError, setModalError]     = useState('');
 
   const fetchLocations = useCallback(async () => {
     try {
@@ -84,6 +94,47 @@ export default function RegionalLocations() {
     }
   }, []);
 
+  async function handleAddLocation() {
+    const name = newName.trim();
+    const city = newCity.trim();
+    if (!name) { setModalError('Location name is required.'); return; }
+    if (!city) { setModalError('City is required.'); return; }
+    setModalError('');
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not signed in.');
+
+      const { data: manager } = await supabase
+        .from('managers')
+        .select('organisation_id')
+        .eq('auth_user_id', session.user.id)
+        .maybeSingle();
+
+      const { error } = await supabase
+        .from('locations')
+        .insert({ name, city, organisation_id: manager?.organisation_id ?? null });
+
+      if (error) throw error;
+
+      setModalVisible(false);
+      setNewName('');
+      setNewCity('');
+      await fetchLocations();
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Failed to add location.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openModal() {
+    setNewName('');
+    setNewCity('');
+    setModalError('');
+    setModalVisible(true);
+  }
+
   useFocusEffect(useCallback(() => { fetchLocations(); }, [fetchLocations]));
   useWebFocus(fetchLocations);
 
@@ -94,7 +145,56 @@ export default function RegionalLocations() {
         <View style={styles.countBadge}>
           <Text style={styles.countText}>{locations.length} location{locations.length !== 1 ? 's' : ''}</Text>
         </View>
+        <Pressable style={styles.addBtn} onPress={openModal}>
+          <Text style={styles.addBtnText}>+ Add Location</Text>
+        </Pressable>
       </View>
+
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
+        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Pressable style={styles.modalCard} onPress={e => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>Add Location</Text>
+
+              <Text style={styles.fieldLabel}>Location Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="e.g. The Elm Street Bar"
+                placeholderTextColor="#4a5e56"
+                value={newName}
+                onChangeText={setNewName}
+                autoCapitalize="words"
+                returnKeyType="next"
+                editable={!saving}
+              />
+
+              <Text style={styles.fieldLabel}>City</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="e.g. Toronto"
+                placeholderTextColor="#4a5e56"
+                value={newCity}
+                onChangeText={setNewCity}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={handleAddLocation}
+                editable={!saving}
+              />
+
+              {modalError ? <Text style={styles.modalError}>{modalError}</Text> : null}
+
+              <View style={styles.modalActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => setModalVisible(false)} disabled={saving}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleAddLocation} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Add Location</Text>}
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -272,4 +372,63 @@ const styles = StyleSheet.create({
     borderColor: BLUE,
   },
   viewBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
+
+  addBtn: {
+    marginLeft: 'auto',
+    backgroundColor: BLUE,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  addBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: '#162019',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1f3028',
+    padding: 24,
+    width: '100%',
+    maxWidth: 420,
+    gap: 10,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#e8f0ec', marginBottom: 4 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: MUTED, letterSpacing: 0.3 },
+  modalInput: {
+    backgroundColor: '#0f1a13',
+    borderWidth: 1,
+    borderColor: '#1f3028',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: '#e8f0ec',
+  },
+  modalError: { fontSize: 13, color: '#f87171', fontWeight: '500' },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1f3028',
+    alignItems: 'center',
+  },
+  cancelBtnText: { fontSize: 15, fontWeight: '600', color: MUTED },
+  saveBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 10,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
