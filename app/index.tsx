@@ -85,7 +85,9 @@ export default function LoginScreen() {
   const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
-        if (sessionStorage.getItem('mise_invite_email')) return 'set-password';
+        const stored = sessionStorage.getItem('mise_invite_email');
+        console.log('[lazy-init] sessionStorage value:', stored);
+        if (stored) return 'set-password';
       } catch {}
     }
     return 'login';
