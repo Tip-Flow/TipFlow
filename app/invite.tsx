@@ -32,25 +32,48 @@ export default function InviteScreen() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const hash = new URLSearchParams(window.location.hash.slice(1));
+    console.log('[invite] href:', window.location.href);
+    console.log('[invite] hash:', window.location.hash);
+    console.log('[invite] search:', window.location.search);
+
+    const hash   = new URLSearchParams(window.location.hash.slice(1));
+    const search = new URLSearchParams(window.location.search);
+
     const accessToken  = hash.get('access_token');
     const refreshToken = hash.get('refresh_token');
+    const code         = search.get('code');
 
-    if (!accessToken || !refreshToken) {
+    if (accessToken && refreshToken) {
+      console.log('[invite] path: setSession (implicit flow)');
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (error) {
+            console.log('[invite] setSession error:', error.message);
+            setErrorMsg('Invite link expired or already used. Please ask your manager to resend it.');
+            setPhase('error');
+          } else {
+            console.log('[invite] setSession success');
+            setPhase('set-password');
+          }
+        });
+    } else if (code) {
+      console.log('[invite] path: exchangeCodeForSession (PKCE flow)');
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) {
+            console.log('[invite] exchangeCodeForSession error:', error.message);
+            setErrorMsg('Invite link expired or already used. Please ask your manager to resend it.');
+            setPhase('error');
+          } else {
+            console.log('[invite] exchangeCodeForSession success');
+            setPhase('set-password');
+          }
+        });
+    } else {
+      console.log('[invite] no recognised token params found');
       setErrorMsg('Invalid invite link. Please ask your manager to resend it.');
       setPhase('error');
-      return;
     }
-
-    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error }) => {
-        if (error) {
-          setErrorMsg('Invite link expired or already used. Please ask your manager to resend it.');
-          setPhase('error');
-        } else {
-          setPhase('set-password');
-        }
-      });
   }, []);
 
   async function handleSubmit() {
