@@ -62,6 +62,8 @@ async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manag
 }
 
 export default function LoginScreen() {
+  console.log('[render] screenMode:', typeof window !== 'undefined' ? (sessionStorage.getItem('mise_invite_email') ? 'set-password (pre-init)' : 'login (pre-init)') : 'N/A', '| sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A');
+
   const router = useRouter();
 
   // Login state
