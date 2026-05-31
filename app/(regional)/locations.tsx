@@ -49,10 +49,20 @@ export default function RegionalLocations() {
   const [loading, setLoading] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [newName, setNewName]           = useState('');
-  const [newCity, setNewCity]           = useState('');
-  const [saving, setSaving]             = useState(false);
-  const [modalError, setModalError]     = useState('');
+  const [modalTab, setModalTab]         = useState<'manual' | 'csv'>('manual');
+
+  // Manual tab
+  const [newName, setNewName]     = useState('');
+  const [newCity, setNewCity]     = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [modalError, setModalError] = useState('');
+
+  // CSV tab
+  type CsvRow = { name: string; city: string };
+  const [csvRows, setCsvRows]         = useState<CsvRow[]>([]);
+  const [csvError, setCsvError]       = useState('');
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvSuccess, setCsvSuccess]   = useState('');
 
   const fetchLocations = useCallback(async () => {
     try {
@@ -128,10 +138,78 @@ export default function RegionalLocations() {
     }
   }
 
+  function parseCSV(text: string): CsvRow[] {
+    const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+    const nameIdx = headers.indexOf('name');
+    const cityIdx = headers.indexOf('city');
+    if (nameIdx === -1) throw new Error('CSV must have a "name" column.');
+    if (cityIdx === -1) throw new Error('CSV must have a "city" column.');
+    return lines.slice(1).map(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      return { name: cols[nameIdx] ?? '', city: cols[cityIdx] ?? '' };
+    }).filter(r => r.name);
+  }
+
+  function pickCSVFile() {
+    if (typeof document === 'undefined') return;
+    setCsvError('');
+    setCsvSuccess('');
+    setCsvRows([]);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,text/csv';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const rows = parseCSV(text);
+        if (rows.length === 0) throw new Error('No valid rows found in CSV.');
+        setCsvRows(rows);
+      } catch (err) {
+        setCsvError(err instanceof Error ? err.message : 'Failed to parse CSV.');
+      }
+    };
+    input.click();
+  }
+
+  async function handleImportCSV() {
+    if (csvRows.length === 0) return;
+    setCsvError('');
+    setCsvImporting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not signed in.');
+      const { data: manager } = await supabase
+        .from('managers')
+        .select('organisation_id')
+        .eq('auth_user_id', session.user.id)
+        .maybeSingle();
+      const orgId = manager?.organisation_id ?? null;
+      const rows = csvRows.map(r => ({ name: r.name, city: r.city, organisation_id: orgId }));
+      const { error } = await supabase.from('locations').insert(rows);
+      if (error) throw error;
+      const count = rows.length;
+      setCsvSuccess(`${count} location${count !== 1 ? 's' : ''} added successfully.`);
+      setCsvRows([]);
+      await fetchLocations();
+    } catch (err) {
+      setCsvError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setCsvImporting(false);
+    }
+  }
+
   function openModal() {
     setNewName('');
     setNewCity('');
     setModalError('');
+    setModalTab('manual');
+    setCsvRows([]);
+    setCsvError('');
+    setCsvSuccess('');
     setModalVisible(true);
   }
 
@@ -156,41 +234,106 @@ export default function RegionalLocations() {
             <Pressable style={styles.modalCard} onPress={e => e.stopPropagation()}>
               <Text style={styles.modalTitle}>Add Location</Text>
 
-              <Text style={styles.fieldLabel}>Location Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g. The Elm Street Bar"
-                placeholderTextColor="#4a5e56"
-                value={newName}
-                onChangeText={setNewName}
-                autoCapitalize="words"
-                returnKeyType="next"
-                editable={!saving}
-              />
-
-              <Text style={styles.fieldLabel}>City</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g. Toronto"
-                placeholderTextColor="#4a5e56"
-                value={newCity}
-                onChangeText={setNewCity}
-                autoCapitalize="words"
-                returnKeyType="done"
-                onSubmitEditing={handleAddLocation}
-                editable={!saving}
-              />
-
-              {modalError ? <Text style={styles.modalError}>{modalError}</Text> : null}
-
-              <View style={styles.modalActions}>
-                <Pressable style={styles.cancelBtn} onPress={() => setModalVisible(false)} disabled={saving}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+              {/* Tabs */}
+              <View style={styles.tabRow}>
+                <Pressable
+                  style={[styles.tab, modalTab === 'manual' && styles.tabActive]}
+                  onPress={() => setModalTab('manual')}>
+                  <Text style={[styles.tabText, modalTab === 'manual' && styles.tabTextActive]}>Manual</Text>
                 </Pressable>
-                <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleAddLocation} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Add Location</Text>}
+                <Pressable
+                  style={[styles.tab, modalTab === 'csv' && styles.tabActive]}
+                  onPress={() => setModalTab('csv')}>
+                  <Text style={[styles.tabText, modalTab === 'csv' && styles.tabTextActive]}>Import CSV</Text>
                 </Pressable>
               </View>
+
+              {/* Manual tab */}
+              {modalTab === 'manual' && (
+                <View style={styles.tabContent}>
+                  <Text style={styles.fieldLabel}>Location Name</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. The Elm Street Bar"
+                    placeholderTextColor="#4a5e56"
+                    value={newName}
+                    onChangeText={setNewName}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                    editable={!saving}
+                  />
+                  <Text style={styles.fieldLabel}>City</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. Toronto"
+                    placeholderTextColor="#4a5e56"
+                    value={newCity}
+                    onChangeText={setNewCity}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                    onSubmitEditing={handleAddLocation}
+                    editable={!saving}
+                  />
+                  {modalError ? <Text style={styles.modalError}>{modalError}</Text> : null}
+                  <View style={styles.modalActions}>
+                    <Pressable style={styles.cancelBtn} onPress={() => setModalVisible(false)} disabled={saving}>
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleAddLocation} disabled={saving}>
+                      {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Add Location</Text>}
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
+              {/* CSV tab */}
+              {modalTab === 'csv' && (
+                <View style={styles.tabContent}>
+                  <Text style={styles.csvHint}>
+                    CSV must have <Text style={styles.csvCode}>name</Text> and <Text style={styles.csvCode}>city</Text> columns.
+                  </Text>
+
+                  <Pressable style={styles.pickFileBtn} onPress={pickCSVFile}>
+                    <Text style={styles.pickFileBtnText}>Choose CSV File</Text>
+                  </Pressable>
+
+                  {csvError ? <Text style={styles.modalError}>{csvError}</Text> : null}
+                  {csvSuccess ? <Text style={styles.csvSuccessText}>{csvSuccess}</Text> : null}
+
+                  {csvRows.length > 0 && (
+                    <View style={styles.csvPreview}>
+                      <Text style={styles.csvPreviewLabel}>
+                        Preview — {csvRows.length} location{csvRows.length !== 1 ? 's' : ''}
+                      </Text>
+                      {csvRows.slice(0, 8).map((row, i) => (
+                        <View key={i} style={styles.csvPreviewRow}>
+                          <Text style={styles.csvPreviewName}>{row.name}</Text>
+                          <Text style={styles.csvPreviewCity}>{row.city}</Text>
+                        </View>
+                      ))}
+                      {csvRows.length > 8 && (
+                        <Text style={styles.csvMore}>+ {csvRows.length - 8} more</Text>
+                      )}
+                    </View>
+                  )}
+
+                  <View style={styles.modalActions}>
+                    <Pressable style={styles.cancelBtn} onPress={() => setModalVisible(false)} disabled={csvImporting}>
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.saveBtn, (csvRows.length === 0 || csvImporting) && styles.saveBtnDisabled]}
+                      onPress={handleImportCSV}
+                      disabled={csvRows.length === 0 || csvImporting}>
+                      {csvImporting
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <Text style={styles.saveBtnText}>
+                            {csvRows.length > 0 ? `Import ${csvRows.length}` : 'Import'}
+                          </Text>}
+                    </Pressable>
+                  </View>
+                </View>
+              )}
             </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
@@ -372,6 +515,61 @@ const styles = StyleSheet.create({
     borderColor: BLUE,
   },
   viewBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
+
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#0f1a13',
+    borderRadius: 10,
+    padding: 3,
+    gap: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  tabActive: { backgroundColor: BLUE },
+  tabText: { fontSize: 13, fontWeight: '600', color: MUTED },
+  tabTextActive: { color: '#fff' },
+  tabContent: { gap: 10 },
+
+  csvHint: { fontSize: 12, color: MUTED, lineHeight: 18 },
+  csvCode: { color: WHITE, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  pickFileBtn: {
+    borderWidth: 1,
+    borderColor: BLUE,
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  pickFileBtnText: { fontSize: 14, fontWeight: '600', color: BLUE },
+  csvSuccessText: { fontSize: 13, color: '#22c55e', fontWeight: '600', textAlign: 'center' },
+  csvPreview: {
+    backgroundColor: '#0f1a13',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1f3028',
+    overflow: 'hidden',
+  },
+  csvPreviewLabel: {
+    fontSize: 10, fontWeight: '700', color: MUTED,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: '#1f3028',
+  },
+  csvPreviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a2520',
+  },
+  csvPreviewName: { fontSize: 13, color: WHITE, fontWeight: '500' },
+  csvPreviewCity: { fontSize: 13, color: MUTED },
+  csvMore: { fontSize: 12, color: MUTED, textAlign: 'center', paddingVertical: 8 },
 
   addBtn: {
     marginLeft: 'auto',
