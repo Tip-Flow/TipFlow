@@ -21,6 +21,10 @@ import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 type PendingRole = 'regional' | 'manager' | 'staff' | null;
 type ScreenMode = 'login' | 'invite-loading' | 'set-password';
 
+// Module-level variable — survives component remounts (unlike useState/useRef)
+// without requiring async storage reads (unlike sessionStorage).
+let pendingInviteEmail = '';
+
 const BLUE = '#4169E1';
 const BG   = '#09100e';
 
@@ -83,7 +87,8 @@ export default function LoginScreen() {
   // by browser credential managers (Google Smart Lock etc.) during the remount
   // that history.replaceState triggers.
   const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
-    console.log('[lazy-init] fired — sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A');
+    console.log('[lazy-init] fired — pendingInviteEmail:', pendingInviteEmail, '| sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A');
+    if (pendingInviteEmail) return 'set-password';
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         const stored = sessionStorage.getItem('mise_invite_email');
@@ -98,6 +103,7 @@ export default function LoginScreen() {
   const [showNewPw, setShowNewPw]             = useState(false);
   const [showConfirmPw, setShowConfirmPw]     = useState(false);
   const [inviteEmail, setInviteEmail]         = useState<string>(() => {
+    if (pendingInviteEmail) return pendingInviteEmail;
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try { return sessionStorage.getItem('mise_invite_email') ?? ''; } catch {}
     }
@@ -111,6 +117,7 @@ export default function LoginScreen() {
 
   function enterInviteSetup(emailArg: string) {
     console.log('[invite] enterInviteSetup called — email:', emailArg);
+    pendingInviteEmail = emailArg;
     inviteEmailRef.current = emailArg;
     setInviteEmail(emailArg);
     try { sessionStorage.setItem('mise_invite_email', emailArg); } catch {}
@@ -120,6 +127,7 @@ export default function LoginScreen() {
   }
 
   function exitInviteSetup() {
+    pendingInviteEmail = '';
     inviteEmailRef.current = '';
     try { sessionStorage.removeItem('mise_invite_email'); } catch {}
     // Clear the URL now that we're navigating away
