@@ -19,107 +19,45 @@ import { useWebFocus } from '@/hooks/useWebFocus';
 
 const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
 
-const BG     = '#09100e';
-const CARD   = '#162019';
-const BLUE   = '#4169E1';
-const BLUE_DIM   = 'rgba(65,105,225,0.15)';
-const BLUE_BORDER = 'rgba(65,105,225,0.4)';
-const GREEN  = '#22c55e';
-const GREEN_DIM  = 'rgba(34,197,94,0.15)';
-const GREEN_BORDER = 'rgba(34,197,94,0.4)';
-const AMBER  = '#f59e0b';
-const AMBER_DIM  = 'rgba(245,158,11,0.15)';
+const BG           = '#09100e';
+const CARD         = '#162019';
+const BLUE         = '#4169E1';
+const BLUE_DIM     = 'rgba(65,105,225,0.15)';
+const BLUE_BORDER  = 'rgba(65,105,225,0.4)';
+const AMBER        = '#f59e0b';
+const AMBER_DIM    = 'rgba(245,158,11,0.15)';
 const AMBER_BORDER = 'rgba(245,158,11,0.35)';
-const RED    = '#ef4444';
-const RED_DIM    = 'rgba(239,68,68,0.15)';
-const RED_BORDER = 'rgba(239,68,68,0.4)';
-const MUTED  = '#6b7a74';
-const WHITE  = '#e8f0ec';
-const BORDER = '#1f3028';
+const RED          = '#ef4444';
+const RED_DIM      = 'rgba(239,68,68,0.15)';
+const RED_BORDER   = 'rgba(239,68,68,0.4)';
+const MUTED        = '#6b7a74';
+const WHITE        = '#e8f0ec';
+const BORDER       = '#1f3028';
 
 type Org = { id: string; name: string; city: string | null; country: string | null };
-type Loc = { id: string; name: string; organisation_id: string | null };
-type RegionalManager = { id: string; name: string; email: string; organisationId: string | null; orgName: string; inviteSentAt: string | null };
-
-function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
-    </View>
-  );
-}
-
-function Field({
-  label, value, onChange, placeholder, keyboardType,
-}: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; keyboardType?: 'default' | 'email-address';
-}) {
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput style={styles.input} value={value} onChangeText={onChange}
-        placeholder={placeholder ?? label} placeholderTextColor="#3d4f47"
-        autoCapitalize="none" keyboardType={keyboardType ?? 'default'} />
-    </View>
-  );
-}
-
-function Picker<T extends { id: string; label: string }>({
-  label, options, selectedId, onSelect,
-}: {
-  label: string; options: T[]; selectedId: string; onSelect: (id: string) => void;
-}) {
-  const selected = options.find(o => o.id === selectedId);
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>
-        {options.map(opt => (
-          <Pressable key={opt.id} style={[styles.chip, opt.id === selectedId && styles.chipActive]}
-            onPress={() => onSelect(opt.id)}>
-            <Text style={[styles.chipText, opt.id === selectedId && styles.chipTextActive]}>{opt.label}</Text>
-          </Pressable>
-        ))}
-        {options.length === 0 && <Text style={styles.emptyChip}>None yet</Text>}
-      </ScrollView>
-      {selected && <Text style={styles.selectedLabel}>Selected: {selected.label}</Text>}
-    </View>
-  );
-}
+type RegionalManager = { id: string; name: string; email: string; orgName: string; inviteSentAt: string | null };
 
 export default function AdminScreen() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
-  const [locs, setLocs] = useState<Loc[]>([]);
   const [regionalManagers, setRegionalManagers] = useState<RegionalManager[]>([]);
 
-  // Org form
-  const [orgName, setOrgName] = useState('');
-  const [orgCity, setOrgCity] = useState('');
+  // Combined onboarding form
+  const [orgName, setOrgName]   = useState('');
+  const [orgCity, setOrgCity]   = useState('');
   const [orgCountry, setOrgCountry] = useState('Canada');
-  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [rmName, setRmName]     = useState('');
+  const [rmEmail, setRmEmail]   = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError]   = useState('');
 
-  // Location form
-  const [locName, setLocName] = useState('');
-  const [locAddress, setLocAddress] = useState('');
-  const [locOrgId, setLocOrgId] = useState('');
-  const [creatingLoc, setCreatingLoc] = useState(false);
-
-  // Regional manager invite form
-  const [rmName, setRmName] = useState('');
-  const [rmEmail, setRmEmail] = useState('');
-  const [rmOrgId, setRmOrgId] = useState('');
-  const [inviting, setInviting] = useState(false);
-  const [inviteError, setInviteError] = useState('');
-
-  // Remove state
+  // Remove RM state
   const [confirmRemove, setConfirmRemove] = useState<RegionalManager | null>(null);
   const [removing, setRemoving] = useState(false);
 
   // Toast
   const toastOpacity = useRef(new Animated.Value(0)).current;
-  const [toastMsg, setToastMsg] = useState('');
+  const [toastMsg, setToastMsg]       = useState('');
   const [toastIsError, setToastIsError] = useState(false);
 
   function showToast(msg: string, isError = false) {
@@ -135,24 +73,21 @@ export default function AdminScreen() {
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     const email = (user?.email ?? '').toLowerCase();
-    console.log('[Admin] loadData — user email:', email, 'isAdmin:', ADMIN_EMAILS.includes(email));
     const admin = ADMIN_EMAILS.includes(email);
     setIsAdmin(admin);
     if (!admin) return;
 
-    const [orgRes, locRes, rmRes] = await Promise.all([
+    const [orgRes, rmRes] = await Promise.all([
       supabase.from('organisations').select('id, name, city, country').order('name'),
-      supabase.from('locations').select('id, name, organisation_id').order('name'),
       supabase.from('managers').select('id, name, email, organisation_id, invite_sent_at').eq('role', 'regional_manager').order('name'),
     ]);
-    setOrgs(orgRes.data ?? []);
-    setLocs(locRes.data ?? []);
+    const fetchedOrgs = orgRes.data ?? [];
+    setOrgs(fetchedOrgs);
 
-    const orgMap = Object.fromEntries((orgRes.data ?? []).map(o => [o.id, o.name]));
+    const orgMap = Object.fromEntries(fetchedOrgs.map(o => [o.id, o.name]));
     setRegionalManagers(
       (rmRes.data ?? []).map(m => ({
         id: m.id, name: m.name, email: m.email,
-        organisationId: m.organisation_id,
         orgName: orgMap[m.organisation_id ?? ''] ?? 'No org',
         inviteSentAt: m.invite_sent_at,
       }))
@@ -162,71 +97,47 @@ export default function AdminScreen() {
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
   useWebFocus(loadData);
 
-  async function handleCreateOrg() {
-    console.log('[Admin] handleCreateOrg tapped');
-    if (!orgName.trim()) { showToast('Organisation name is required', true); return; }
-    setCreatingOrg(true);
+  async function handleCreateAndInvite() {
+    if (!orgName.trim()) { setFormError('Organisation name is required.'); return; }
+    if (!rmName.trim())  { setFormError('Regional Manager name is required.'); return; }
+    if (!rmEmail.trim()) { setFormError('Regional Manager email is required.'); return; }
+    setFormError('');
+    setSubmitting(true);
     try {
-      const payload = { name: orgName.trim(), city: orgCity.trim() || null, country: orgCountry.trim() || null };
-      const { data, error } = await supabase.from('organisations').insert(payload).select();
-      console.log('[Admin] createOrg response — data:', JSON.stringify(data), 'error:', JSON.stringify(error));
-      if (error) throw new Error(`${error.message} (code: ${error.code})`);
-      setOrgName(''); setOrgCity(''); setOrgCountry('Canada');
-      await loadData();
-      showToast('Organisation created.');
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : String(err), true);
-    } finally {
-      setCreatingOrg(false);
-    }
-  }
+      // 1. Create organisation
+      const { data: orgData, error: orgErr } = await supabase
+        .from('organisations')
+        .insert({ name: orgName.trim(), city: orgCity.trim() || null, country: orgCountry.trim() || null })
+        .select('id')
+        .single();
+      if (orgErr) throw new Error(orgErr.message);
 
-  async function handleCreateLocation() {
-    console.log('[Admin] handleCreateLocation tapped');
-    if (!locName.trim()) { showToast('Location name is required', true); return; }
-    setCreatingLoc(true);
-    try {
-      const payload = { name: locName.trim(), city: locAddress.trim() || '', organisation_id: locOrgId || null, pos_type: 'manual', cra_tip_type: 'direct' };
-      const { data, error } = await supabase.from('locations').insert(payload).select();
-      console.log('[Admin] createLocation response — data:', JSON.stringify(data), 'error:', JSON.stringify(error));
-      if (error) throw new Error(`${error.message} (code: ${error.code})`);
-      setLocName(''); setLocAddress(''); setLocOrgId('');
-      await loadData();
-      showToast('Location created.');
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : String(err), true);
-    } finally {
-      setCreatingLoc(false);
-    }
-  }
-
-  async function handleInviteRegionalManager() {
-    console.log('[Admin] handleInviteRegionalManager tapped');
-    if (!rmName.trim() || !rmEmail.trim()) {
-      setInviteError('Name and email are required.');
-      return;
-    }
-    setInviteError('');
-    setInviting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-staff-invite', {
-        body: { email: rmEmail.trim().toLowerCase(), name: rmName.trim(), role: 'regional_manager', organisation_id: rmOrgId || null },
+      // 2. Invite RM — edge function creates the manager record and sends the email
+      const { data: inviteData, error: inviteErr } = await supabase.functions.invoke('send-staff-invite', {
+        body: {
+          email: rmEmail.trim().toLowerCase(),
+          name: rmName.trim(),
+          role: 'regional_manager',
+          organisation_id: orgData.id,
+        },
       });
-
-      if (error) {
-        let message = error.message;
-        try { const body = await (error as any).context?.json?.(); if (body?.error) message = body.error; } catch {}
-        setInviteError(message);
-        return;
+      if (inviteErr) {
+        let msg = inviteErr.message;
+        try { const b = await (inviteErr as any).context?.json?.(); if (b?.error) msg = b.error; } catch {}
+        throw new Error(msg);
       }
 
-      setRmName(''); setRmEmail(''); setRmOrgId('');
+      setOrgName(''); setOrgCity(''); setOrgCountry('Canada');
+      setRmName(''); setRmEmail('');
       await loadData();
-      showToast(data?.note ? `${rmEmail.trim()} already has an account.` : `Invite sent to ${rmEmail.trim()}.`);
-    } catch (err: unknown) {
-      setInviteError(err instanceof Error ? err.message : String(err));
+      showToast(inviteData?.note
+        ? `Organisation created. ${rmEmail.trim()} already has an account.`
+        : `Organisation created. Invite sent to ${rmEmail.trim()}.`
+      );
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
     } finally {
-      setInviting(false);
+      setSubmitting(false);
     }
   }
 
@@ -248,7 +159,7 @@ export default function AdminScreen() {
       if (data?.error) { showToast(`Failed to remove ${rm.name}: ${data.error}`, true); return; }
       await loadData();
       showToast(`${rm.name} removed from Mise.`);
-    } catch (err: unknown) {
+    } catch (err) {
       showToast(`Error: ${err instanceof Error ? err.message : String(err)}`, true);
     } finally {
       setRemoving(false);
@@ -274,9 +185,6 @@ export default function AdminScreen() {
     );
   }
 
-  const orgOptions = orgs.map(o => ({ id: o.id, label: `${o.name}${o.city ? ` · ${o.city}` : ''}` }));
-
-  // Confirm remove modal content
   const confirmRemoveContent = confirmRemove ? (
     <KeyboardAvoidingView style={styles.modalOverlay} behavior={undefined}>
       <Pressable style={styles.modalBackdrop} onPress={() => setConfirmRemove(null)} />
@@ -312,7 +220,7 @@ export default function AdminScreen() {
                 <Text style={[styles.adminBadgeText, { color: BLUE }]}>MISE ADMIN</Text>
               </View>
               <Text style={styles.pageTitle}>Onboarding</Text>
-              <Text style={styles.pageSubtitle}>Create organisations, locations, and invite regional managers.</Text>
+              <Text style={styles.pageSubtitle}>Create an organisation and invite its Regional Manager in one step.</Text>
             </View>
 
             {/* Summary chips */}
@@ -321,91 +229,78 @@ export default function AdminScreen() {
                 <Text style={[styles.summaryCount, { color: BLUE }]}>{orgs.length}</Text>
                 <Text style={[styles.summaryLabel, { color: BLUE }]}>Orgs</Text>
               </View>
-              <View style={[styles.summaryChip, { backgroundColor: GREEN_DIM, borderColor: GREEN_BORDER }]}>
-                <Text style={[styles.summaryCount, { color: GREEN }]}>{locs.length}</Text>
-                <Text style={[styles.summaryLabel, { color: GREEN }]}>Locations</Text>
-              </View>
               <View style={[styles.summaryChip, { backgroundColor: AMBER_DIM, borderColor: AMBER_BORDER }]}>
                 <Text style={[styles.summaryCount, { color: AMBER }]}>{regionalManagers.length}</Text>
                 <Text style={[styles.summaryLabel, { color: AMBER }]}>Reg. Managers</Text>
               </View>
             </View>
 
-            {/* Section 1: Create Organisation */}
+            {/* Create & Invite form */}
             <View style={styles.card}>
-              <SectionHeader title="1. Create Organisation" subtitle="A restaurant group or single-location brand." />
-              <Field label="Name" value={orgName} onChange={setOrgName} placeholder="e.g. Canteen Group" />
-              <Field label="City" value={orgCity} onChange={setOrgCity} placeholder="e.g. Toronto" />
-              <Field label="Country" value={orgCountry} onChange={setOrgCountry} placeholder="Canada" />
-              <Pressable style={[styles.btn, { backgroundColor: BLUE }, creatingOrg && styles.btnDisabled]}
-                onPress={handleCreateOrg} disabled={creatingOrg}>
-                {creatingOrg ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create Organisation</Text>}
-              </Pressable>
-              {orgs.length > 0 && (
-                <View style={styles.existingList}>
-                  <Text style={styles.existingLabel}>EXISTING ({orgs.length})</Text>
-                  {orgs.map(o => (
-                    <View key={o.id} style={styles.existingRow}>
-                      <Text style={styles.existingName}>{o.name}</Text>
-                      <Text style={styles.existingMeta}>{[o.city, o.country].filter(Boolean).join(', ')}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>New Organisation</Text>
+                <Text style={styles.sectionSubtitle}>Creates the org and sends the RM their invite in one step.</Text>
+              </View>
 
-            {/* Section 2: Create Location */}
-            <View style={styles.card}>
-              <SectionHeader title="2. Create Location" subtitle="A physical restaurant linked to an organisation." />
-              <Field label="Name" value={locName} onChange={setLocName} placeholder="e.g. Canteen King West" />
-              <Field label="Address" value={locAddress} onChange={setLocAddress} placeholder="e.g. 488 King St W, Toronto" />
-              <Picker label="Organisation (optional)" options={orgOptions} selectedId={locOrgId}
-                onSelect={id => setLocOrgId(prev => prev === id ? '' : id)} />
-              <Pressable style={[styles.btn, { backgroundColor: GREEN }, creatingLoc && styles.btnDisabled]}
-                onPress={handleCreateLocation} disabled={creatingLoc}>
-                {creatingLoc ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create Location</Text>}
-              </Pressable>
-              {locs.length > 0 && (
-                <View style={styles.existingList}>
-                  <Text style={styles.existingLabel}>EXISTING ({locs.length})</Text>
-                  {locs.map(l => (
-                    <View key={l.id} style={styles.existingRow}>
-                      <Text style={styles.existingName}>{l.name}</Text>
-                      <Text style={styles.existingMeta}>{orgs.find(o => o.id === l.organisation_id)?.name ?? 'No org'}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+              <Text style={styles.groupLabel}>ORGANISATION</Text>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>Name</Text>
+                <TextInput style={styles.input} value={orgName} onChangeText={setOrgName}
+                  placeholder="e.g. Canteen Group" placeholderTextColor="#3d4f47"
+                  autoCapitalize="words" editable={!submitting} />
+              </View>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>City</Text>
+                <TextInput style={styles.input} value={orgCity} onChangeText={setOrgCity}
+                  placeholder="e.g. Toronto" placeholderTextColor="#3d4f47"
+                  autoCapitalize="words" editable={!submitting} />
+              </View>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>Country</Text>
+                <TextInput style={styles.input} value={orgCountry} onChangeText={setOrgCountry}
+                  placeholder="Canada" placeholderTextColor="#3d4f47"
+                  autoCapitalize="words" editable={!submitting} />
+              </View>
 
-            {/* Section 3: Invite Regional Manager */}
-            <View style={styles.card}>
-              <SectionHeader title="3. Invite Regional Manager"
-                subtitle="They'll oversee a full organisation and can invite location managers." />
-              <Field label="Name" value={rmName} onChange={setRmName} placeholder="e.g. Jamie Chen" />
-              <Field label="Email" value={rmEmail} onChange={setRmEmail}
-                placeholder="e.g. jamie@canteen.ca" keyboardType="email-address" />
-              <Picker label="Organisation (optional)" options={orgOptions} selectedId={rmOrgId}
-                onSelect={id => setRmOrgId(prev => prev === id ? '' : id)} />
-              {inviteError ? (
-                <View style={styles.formErrorBox}>
-                  <Text style={styles.formErrorText}>{inviteError}</Text>
+              <View style={styles.divider} />
+
+              <Text style={styles.groupLabel}>REGIONAL MANAGER</Text>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>Name</Text>
+                <TextInput style={styles.input} value={rmName} onChangeText={setRmName}
+                  placeholder="e.g. Jamie Chen" placeholderTextColor="#3d4f47"
+                  autoCapitalize="words" editable={!submitting} />
+              </View>
+              <View style={styles.fieldWrap}>
+                <Text style={styles.fieldLabel}>Email</Text>
+                <TextInput style={styles.input} value={rmEmail} onChangeText={setRmEmail}
+                  placeholder="e.g. jamie@canteen.ca" placeholderTextColor="#3d4f47"
+                  autoCapitalize="none" keyboardType="email-address"
+                  returnKeyType="done" onSubmitEditing={handleCreateAndInvite}
+                  editable={!submitting} />
+              </View>
+
+              {formError ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{formError}</Text>
                 </View>
               ) : null}
-              <Pressable style={[styles.btn, { backgroundColor: AMBER }, inviting && styles.btnDisabled]}
-                onPress={handleInviteRegionalManager} disabled={inviting}>
-                {inviting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Send Invite →</Text>}
+
+              <Pressable style={[styles.btn, submitting && styles.btnDisabled]}
+                onPress={handleCreateAndInvite} disabled={submitting}>
+                {submitting
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnText}>Create & Invite →</Text>}
               </Pressable>
-              <Text style={styles.inviteNote}>
-                An invite email will be sent. They'll set their password and be routed to the Regional portal on first login.
-              </Text>
             </View>
 
-            {/* Section 4: Manage Regional Managers */}
+            {/* Regional Managers list */}
             {regionalManagers.length > 0 && (
               <View style={styles.card}>
-                <SectionHeader title="4. Regional Managers"
-                  subtitle="Remove access for regional managers who have left." />
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Regional Managers</Text>
+                  <Text style={styles.sectionSubtitle}>Remove access for managers who have left.</Text>
+                </View>
                 <View style={styles.rmList}>
                   {regionalManagers.map((rm, index) => (
                     <View key={rm.id} style={[styles.rmRow, index < regionalManagers.length - 1 && styles.rmRowBorder]}>
@@ -477,34 +372,20 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '800', color: WHITE },
   sectionSubtitle: { fontSize: 13, color: MUTED, lineHeight: 18 },
 
+  groupLabel: { fontSize: 10, fontWeight: '800', color: MUTED, letterSpacing: 1, textTransform: 'uppercase', marginBottom: -4 },
+  divider: { height: 1, backgroundColor: BORDER },
+
   fieldWrap: { gap: 6 },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { backgroundColor: '#0d1812', borderWidth: 1, borderColor: BORDER, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14, fontSize: 15, color: WHITE },
 
-  pickerRow: { gap: 8, flexDirection: 'row', paddingVertical: 2 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#0d1812', borderWidth: 1, borderColor: BORDER },
-  chipActive: { backgroundColor: BLUE_DIM, borderColor: BLUE_BORDER },
-  chipText: { fontSize: 13, fontWeight: '600', color: MUTED },
-  chipTextActive: { color: BLUE },
-  emptyChip: { fontSize: 13, color: MUTED, fontStyle: 'italic', paddingVertical: 7 },
-  selectedLabel: { fontSize: 12, color: MUTED, marginTop: 2 },
+  errorBox: { backgroundColor: RED_DIM, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: RED_BORDER },
+  errorText: { fontSize: 13, color: RED, fontWeight: '600' },
 
-  btn: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 4 },
+  btn: { backgroundColor: BLUE, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 4 },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  formErrorBox: { backgroundColor: RED_DIM, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: RED_BORDER },
-  formErrorText: { fontSize: 13, color: RED, fontWeight: '600' },
-
-  inviteNote: { fontSize: 12, color: MUTED, lineHeight: 18, textAlign: 'center' },
-
-  existingList: { borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12, gap: 8 },
-  existingLabel: { fontSize: 10, fontWeight: '700', color: MUTED, letterSpacing: 1, textTransform: 'uppercase' },
-  existingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  existingName: { fontSize: 14, fontWeight: '600', color: WHITE },
-  existingMeta: { fontSize: 12, color: MUTED },
-
-  // Regional managers list
   rmList: { gap: 0, borderRadius: 12, borderWidth: 1, borderColor: BORDER, overflow: 'hidden' },
   rmRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
   rmRowBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
