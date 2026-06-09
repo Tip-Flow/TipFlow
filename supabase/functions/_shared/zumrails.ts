@@ -65,6 +65,40 @@ async function getWalletId(token: string): Promise<string> {
   return walletId;
 }
 
+export async function addBankAccount(userId: string, bankDetails: {
+  institutionNumber: string;
+  transitNumber: string;
+  accountNumber: string;
+}): Promise<void> {
+  const token = await getToken();
+  const payload = {
+    BankAccountInformation: {
+      InstitutionNumber: bankDetails.institutionNumber,
+      TransitNumber: bankDetails.transitNumber,
+      AccountNumber: bankDetails.accountNumber,
+    },
+  };
+  console.log('[zumrails] addBankAccount — userId:', userId, '| payload:', JSON.stringify(payload));
+
+  const res = await fetch(`${BASE_URL}/api/user/${userId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const rawText = await res.text();
+  console.log('[zumrails] addBankAccount status:', res.status);
+  console.log('[zumrails] addBankAccount response:', rawText);
+
+  if (!res.ok) {
+    throw new Error(`Zum Rails addBankAccount failed (${res.status}): ${rawText}`);
+  }
+  console.log('[zumrails] addBankAccount success');
+}
+
 export async function createUser(params: {
   firstName: string;
   lastName: string;

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createUser, createTransaction } from '../_shared/zumrails.ts';
+import { createUser, addBankAccount, createTransaction } from '../_shared/zumrails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,7 +81,8 @@ Deno.serve(async (req: Request) => {
 
     // ── Get or create Zum Rails user ────────────────────────────────────────
     let zumUserId: string = staff.zumrails_user_id ?? '';
-    if (!zumUserId) {
+    const isNewZumUser = !zumUserId;
+    if (isNewZumUser) {
       const parts = (staff.name as string).trim().split(' ');
       const firstName = parts[0];
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
@@ -91,6 +92,21 @@ Deno.serve(async (req: Request) => {
       await admin.from('staff_members').update({ zumrails_user_id: zumUserId }).eq('id', staff_member_id);
     } else {
       console.log('[eft] reusing Zum Rails user:', zumUserId);
+    }
+
+    // ── Add sandbox bank account (new users only) ───────────────────────────
+    // In production, staff link their real bank account via Flinks.
+    // For sandbox testing we patch in RBC test account details.
+    if (isNewZumUser) {
+      console.log('[eft] adding sandbox bank account to Zum Rails user:', zumUserId);
+      await addBankAccount(zumUserId, {
+        institutionNumber: '003',
+        transitNumber: '00002',
+        accountNumber: '3456789',
+      });
+      console.log('[eft] sandbox bank account added');
+    } else {
+      console.log('[eft] skipping bank account — user already existed');
     }
 
     // ── Create transaction ──────────────────────────────────────────────────
