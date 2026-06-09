@@ -97,7 +97,12 @@ Deno.serve(async (req: Request) => {
     const netAmountCents = (amount_cents as number) - EFT_FEE_CENTS;
     if (netAmountCents <= 0) throw new Error('Amount too small to cover $0.99 fee');
     console.log('[eft] creating transaction — net cents:', netAmountCents);
-    const zumTransactionId = await createTransaction({ userId: zumUserId, amountCents: netAmountCents, memo: 'Mise tip payout' });
+    const zumTransactionId = await createTransaction({
+      userId: zumUserId,
+      amountCents: netAmountCents,
+      memo: 'Mise tip payout',
+      comment: `Mise tip payout for ${staff.name}`,
+    });
     console.log('[eft] transaction id:', zumTransactionId);
 
     const eftRef = `ZR-${zumTransactionId}`;

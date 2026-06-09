@@ -30,6 +30,42 @@ async function getToken(): Promise<string> {
   return token;
 }
 
+// Fetches the first wallet from the account — used as the funding source for AccountsPayable.
+// Result is cached in ZUMRAILS_WALLET_ID env var if set, otherwise fetched dynamically.
+async function getWalletId(token: string): Promise<string> {
+  const envWalletId = Deno.env.get('ZUMRAILS_WALLET_ID') ?? '';
+  if (envWalletId) {
+    console.log('[zumrails] using ZUMRAILS_WALLET_ID from env:', envWalletId);
+    return envWalletId;
+  }
+
+  console.log('[zumrails] GET', `${BASE_URL}/api/wallet`);
+  const res = await fetch(`${BASE_URL}/api/wallet`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const rawText = await res.text();
+  console.log('[zumrails] getWallet status:', res.status);
+  console.log('[zumrails] getWallet response:', rawText.slice(0, 500));
+
+  if (!res.ok) {
+    throw new Error(`Zum Rails getWallet failed (${res.status}): ${rawText}`);
+  }
+
+  const result = JSON.parse(rawText);
+  // result.result may be an array or a single object
+  const wallets = Array.isArray(result.result) ? result.result : [result.result];
+  const walletId: string = wallets[0]?.Id ?? wallets[0]?.id ?? '';
+  if (!walletId) {
+    throw new Error(`Zum Rails getWallet returned no wallet id — result: ${JSON.stringify(result).slice(0, 300)}`);
+  }
+  console.log('[zumrails] wallet id:', walletId);
+  return walletId;
+}
+
 export async function createUser(params: {
   firstName: string;
   lastName: string;
@@ -74,14 +110,19 @@ export async function createTransaction(params: {
   userId: string;
   amountCents: number;
   memo?: string;
+  comment?: string;
 }): Promise<string> {
   const token = await getToken();
+  const walletId = await getWalletId(token);
+
   const payload = {
-    ZumRailsType: 'IntraTransaction',
-    TransactionType: 'Credit',
+    ZumRailsType: 'AccountsPayable',
+    TransactionMethod: 'Eft',
     Amount: parseFloat((params.amountCents / 100).toFixed(2)),
     UserId: params.userId,
+    WalletId: walletId,
     Memo: params.memo ?? 'Mise tip payout',
+    Comment: params.comment ?? 'Mise tip payout',
   };
   console.log('[zumrails] createTransaction payload:', JSON.stringify(payload));
 
