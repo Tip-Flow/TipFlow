@@ -148,7 +148,7 @@ export default function PayoutsScreen() {
         supabase
           .from('shifts')
           .select(
-            'id, name, date, tip_allocations(id, calculated_amount, paid_at, staff_members(name, payout_method))'
+            'id, name, date, tip_allocations(id, staff_id, calculated_amount, paid_at, staff_members(name, payout_method))'
           )
           .eq('status', 'paid')
           .order('date', { ascending: false })
