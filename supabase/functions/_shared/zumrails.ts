@@ -39,7 +39,7 @@ async function getWalletId(token: string): Promise<string> {
     return envWalletId;
   }
 
-  console.log('[zumrails] GET', `${BASE_URL}/api/wallet`);
+  console.log('[zumrails] getWalletId — fetching wallet');
   const res = await fetch(`${BASE_URL}/api/wallet`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -49,20 +49,19 @@ async function getWalletId(token: string): Promise<string> {
 
   const rawText = await res.text();
   console.log('[zumrails] getWallet status:', res.status);
-  console.log('[zumrails] getWallet response:', rawText.slice(0, 500));
+  console.log('[zumrails] wallet response:', rawText);
 
   if (!res.ok) {
     throw new Error(`Zum Rails getWallet failed (${res.status}): ${rawText}`);
   }
 
   const result = JSON.parse(rawText);
-  // result.result may be an array or a single object
   const wallets = Array.isArray(result.result) ? result.result : [result.result];
   const walletId: string = wallets[0]?.Id ?? wallets[0]?.id ?? '';
   if (!walletId) {
-    throw new Error(`Zum Rails getWallet returned no wallet id — result: ${JSON.stringify(result).slice(0, 300)}`);
+    throw new Error(`Zum Rails getWallet returned no wallet id — result: ${JSON.stringify(result)}`);
   }
-  console.log('[zumrails] wallet id:', walletId);
+  console.log('[zumrails] walletId:', walletId);
   return walletId;
 }
 
@@ -137,7 +136,7 @@ export async function createTransaction(params: {
 
   const rawText = await res.text();
   console.log('[zumrails] createTransaction status:', res.status);
-  console.log('[zumrails] createTransaction response:', rawText.slice(0, 500));
+  console.log('[zumrails] createTransaction response:', rawText);
 
   if (!res.ok) {
     throw new Error(`Zum Rails createTransaction failed (${res.status}): ${rawText}`);
