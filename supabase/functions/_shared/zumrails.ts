@@ -62,9 +62,9 @@ export async function createUser(params: {
   }
 
   const result = JSON.parse(rawText);
-  const id: string = result.Id ?? result.id ?? result.data?.Id ?? result.data?.id ?? '';
+  const id: string = result.result?.Id ?? result.result?.id ?? '';
   if (!id) {
-    throw new Error(`Zum Rails createUser returned no id — keys: ${Object.keys(result).join(', ')}`);
+    throw new Error(`Zum Rails createUser returned no id — result keys: ${result.result ? Object.keys(result.result).join(', ') : 'no result field'}`);
   }
   console.log('[zumrails] createUser success id:', id);
   return id;
@@ -103,9 +103,9 @@ export async function createTransaction(params: {
   }
 
   const result = JSON.parse(rawText);
-  const id: string = result.Id ?? result.id ?? result.data?.Id ?? result.data?.id ?? '';
+  const id: string = result.result?.Id ?? result.result?.id ?? '';
   if (!id) {
-    throw new Error(`Zum Rails createTransaction returned no id — keys: ${Object.keys(result).join(', ')}`);
+    throw new Error(`Zum Rails createTransaction returned no id — result keys: ${result.result ? Object.keys(result.result).join(', ') : 'no result field'}`);
   }
   console.log('[zumrails] createTransaction success id:', id);
   return id;
