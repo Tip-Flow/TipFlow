@@ -74,27 +74,35 @@ export async function createUser(params: {
   lastName: string;
   email: string;
 }): Promise<string> {
-  const payload = { FirstName: params.firstName, LastName: params.lastName, Email: params.email };
+  const reqHeaders = await headers();
+  console.log('[zumrails] createUser — Authorization header present:', !!reqHeaders['Authorization'],
+    '| starts with Bearer:', reqHeaders['Authorization']?.startsWith('Bearer ') ?? false);
+
+  const payload = {
+    FirstName: params.firstName,
+    LastName: params.lastName,
+    Email: params.email,
+    CustomerType: 'individual',
+  };
   console.log('[zumrails] POST', `${BASE}/api/user`, '| payload:', JSON.stringify(payload));
 
   const res = await fetch(`${BASE}/api/user`, {
     method: 'POST',
-    headers: await headers(),
+    headers: reqHeaders,
     body: JSON.stringify(payload),
   });
 
   console.log('[zumrails] createUser status:', res.status);
+  const resText = await res.text();
+  console.log('[zumrails] createUser response body:', resText.slice(0, 1000));
   if (!res.ok) {
-    const body = await res.text();
-    console.error('[zumrails] createUser failed — body:', body);
-    throw new Error(`Zum Rails createUser failed (${res.status}): ${body}`);
+    throw new Error(`Zum Rails createUser failed (${res.status}): ${resText}`);
   }
 
-  const json = await res.json();
-  console.log('[zumrails] createUser response keys:', Object.keys(json).join(', '));
+  const json = JSON.parse(resText);
   const id = json.id ?? json.Id ?? json.data?.id ?? json.Data?.Id;
   if (!id) {
-    console.error('[zumrails] createUser — no id in response:', JSON.stringify(json).slice(0, 500));
+    console.error('[zumrails] createUser — no id in response. Keys:', Object.keys(json).join(', '));
     throw new Error('Zum Rails createUser returned no id');
   }
   console.log('[zumrails] createUser success — id:', id);
