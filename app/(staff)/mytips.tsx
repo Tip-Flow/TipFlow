@@ -209,17 +209,19 @@ export default function MyTipsScreen() {
     }
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('process-eft-payout', {
-        body: {
-          staff_member_id: hero.staffId,
-          amount_cents: unpaidCents,
+      const netAmount = unpaidCents - EFT_FEE_CENTS;
+      const { error } = await supabase
+        .from('payout_requests')
+        .insert({
+          staff_id: hero.staffId,
           location_id: hero.locationId,
-        },
-      });
-
-      if (error) throw new Error(error.message ?? 'EFT request failed');
-      if (!data?.success) throw new Error(data?.error ?? 'EFT request failed');
-
+          amount: unpaidCents,
+          fee: EFT_FEE_CENTS,
+          net_amount: netAmount,
+          status: 'pending',
+          requested_at: new Date().toISOString(),
+        });
+      if (error) throw error;
       setConfirmVisible(false);
       setSuccessVisible(true);
       loadData();

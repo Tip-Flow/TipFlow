@@ -162,9 +162,8 @@ export default function PayoutsScreen() {
 
       if (pendingRes.error) throw pendingRes.error;
       if (paidRes.error) throw paidRes.error;
-      // Ignore payout_requests error — table may not exist yet in dev
 
-      console.log('[Payouts] pendingRes.data:', JSON.stringify(pendingRes.data, null, 2));
+      console.log('[Payouts] requestsRes — data:', JSON.stringify(requestsRes.data), '| error:', requestsRes.error?.message ?? null, '| count:', requestsRes.data?.length ?? 0);
 
       const pending: PendingShift[] = (pendingRes.data ?? []).map((shift: any) => ({
         id: shift.id,
