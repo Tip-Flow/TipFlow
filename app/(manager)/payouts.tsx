@@ -33,6 +33,7 @@ const PURPLE_BORDER = 'rgba(167,139,250,0.3)';
 
 type StaffChip = {
   id: string;
+  staff_id: string;
   staff_name: string;
   payout_method: string | null;
   calculated_amount: number;
@@ -43,6 +44,7 @@ type PendingShift = {
   name: string;
   date: string;
   total_tips: number;
+  location_id: string;
   location_name: string;
   allocations: StaffChip[];
 };
@@ -59,6 +61,8 @@ type HistoryAllocation = {
 
 type PayoutRequest = {
   id: string;
+  staff_id: string;
+  location_id: string;
   staff_name: string;
   amount: number;
   fee: number;
@@ -137,7 +141,7 @@ export default function PayoutsScreen() {
         supabase
           .from('shifts')
           .select(
-            'id, name, date, total_tips, locations(name), tip_allocations(id, calculated_amount, staff_members(name, payout_method))'
+            'id, name, date, total_tips, locations(id, name), tip_allocations(id, staff_id, calculated_amount, staff_members(name, payout_method))'
           )
           .in('status', ['calculated', 'pending'])
           .order('date', { ascending: false }),
@@ -151,7 +155,7 @@ export default function PayoutsScreen() {
           .limit(20),
         supabase
           .from('payout_requests')
-          .select('id, amount, fee, net_amount, status, requested_at, staff_members(name)')
+          .select('id, staff_id, location_id, amount, fee, net_amount, status, requested_at, staff_members(name)')
           .eq('status', 'pending')
           .order('requested_at', { ascending: false }),
       ]);
@@ -167,9 +171,11 @@ export default function PayoutsScreen() {
         name: shift.name,
         date: shift.date,
         total_tips: shift.total_tips,
+        location_id: shift.locations?.id ?? '',
         location_name: shift.locations?.name ?? '',
         allocations: (shift.tip_allocations ?? []).map((a: any) => ({
           id: a.id,
+          staff_id: a.staff_id ?? '',
           staff_name: a.staff_members?.name ?? 'Unknown',
           payout_method: a.staff_members?.payout_method ?? null,
           calculated_amount: a.calculated_amount,
@@ -193,6 +199,8 @@ export default function PayoutsScreen() {
 
       const requests: PayoutRequest[] = (requestsRes.data ?? []).map((r: any) => ({
         id: r.id,
+        staff_id: r.staff_id ?? '',
+        location_id: r.location_id ?? '',
         staff_name: r.staff_members?.name ?? 'Unknown',
         amount: r.amount,
         fee: r.fee,
@@ -230,8 +238,22 @@ export default function PayoutsScreen() {
     setPayingShiftId(shift.id);
     setPendingShifts((prev) => prev.filter((s) => s.id !== shift.id));
     try {
-      const eftRef = 'EFT-' + Date.now();
-      const paidAt = new Date().toISOString();
+      // Call process-eft-payout for each allocation; collect refs
+      const eftRefs: Record<string, string> = {};
+      for (const chip of shift.allocations) {
+        if (!chip.staff_id) continue;
+        const { data, error } = await supabase.functions.invoke('process-eft-payout', {
+          body: {
+            staff_member_id: chip.staff_id,
+            amount_cents: chip.calculated_amount,
+            location_id: shift.location_id,
+            tip_allocation_id: chip.id,
+          },
+        });
+        if (error) throw new Error(error.message ?? `EFT failed for ${chip.staff_name}`);
+        if (!data?.success) throw new Error(data?.error ?? `EFT failed for ${chip.staff_name}`);
+        eftRefs[chip.id] = data.eft_ref;
+      }
 
       const { error: shiftError } = await supabase
         .from('shifts')
@@ -239,18 +261,11 @@ export default function PayoutsScreen() {
         .eq('id', shift.id);
       if (shiftError) throw shiftError;
 
-      const { error: allocError } = await supabase
-        .from('tip_allocations')
-        .update({ eft_ref: eftRef, paid_at: paidAt })
-        .eq('shift_id', shift.id);
-      if (allocError) throw allocError;
-
       fetchData();
       triggerBanner('EFT payout processed successfully!', true);
     } catch (err: unknown) {
       setPendingShifts((prev) => [shift, ...prev]);
-      const msg = err instanceof Error ? err.message : (err as any)?.message ? String((err as any).message) : 'Unknown error';
-      console.log('[Payouts] payout error:', JSON.stringify(err));
+      const msg = err instanceof Error ? err.message : String((err as any)?.message ?? 'Unknown error');
       triggerBanner(`Payout failed — ${msg}`, false);
     } finally {
       setPayingShiftId(null);
@@ -261,15 +276,21 @@ export default function PayoutsScreen() {
     setProcessingRequestId(req.id);
     setPayoutRequests((prev) => prev.filter((r) => r.id !== req.id));
     try {
-      const { error } = await supabase
-        .from('payout_requests')
-        .update({ status: 'processed', processed_at: new Date().toISOString() })
-        .eq('id', req.id);
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke('process-eft-payout', {
+        body: {
+          staff_member_id: req.staff_id,
+          amount_cents: req.amount,
+          location_id: req.location_id,
+          payout_request_id: req.id,
+        },
+      });
+      if (error) throw new Error(error.message ?? 'EFT processing failed');
+      if (!data?.success) throw new Error(data?.error ?? 'EFT processing failed');
       fetchData();
+      triggerBanner('EFT payout sent!', true);
     } catch (err: unknown) {
       setPayoutRequests((prev) => [req, ...prev]);
-      const msg = err instanceof Error ? err.message : (err as any)?.message ? String((err as any).message) : 'Unknown error';
+      const msg = err instanceof Error ? err.message : String((err as any)?.message ?? 'Unknown error');
       triggerBanner(`Processing failed — ${msg}`, false);
     } finally {
       setProcessingRequestId(null);

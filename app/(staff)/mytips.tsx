@@ -203,39 +203,28 @@ export default function MyTipsScreen() {
 
   async function handleConfirmEFT() {
     if (!hero) return;
+    if (!hero.locationId) {
+      Alert.alert('Error', 'No location assigned — contact your manager.');
+      return;
+    }
     setSubmitting(true);
     try {
-      const netAmount = unpaidCents - EFT_FEE_CENTS;
+      const { data, error } = await supabase.functions.invoke('process-eft-payout', {
+        body: {
+          staff_member_id: hero.staffId,
+          amount_cents: unpaidCents,
+          location_id: hero.locationId,
+        },
+      });
 
-      if (!hero.locationId) {
-        throw new Error('location_id is empty — staff member has no location assigned');
-      }
+      if (error) throw new Error(error.message ?? 'EFT request failed');
+      if (!data?.success) throw new Error(data?.error ?? 'EFT request failed');
 
-      const payload = {
-        staff_id: hero.staffId,
-        location_id: hero.locationId,
-        amount: unpaidCents,
-        fee: EFT_FEE_CENTS,
-        net_amount: netAmount,
-        status: 'pending',
-        requested_at: new Date().toISOString(),
-      };
-      console.log('[MyTips] EFT insert payload:', JSON.stringify(payload));
-
-      const { data: insertData, error } = await supabase
-        .from('payout_requests')
-        .insert(payload)
-        .select();
-
-      console.log('[MyTips] EFT insert result — data:', JSON.stringify(insertData), '| error:', error?.message ?? null, '| code:', error?.code ?? null, '| details:', error?.details ?? null, '| hint:', error?.hint ?? null);
-
-      if (error) throw error;
       setConfirmVisible(false);
       setSuccessVisible(true);
       loadData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.log('[MyTips] EFT insert exception:', msg);
       Alert.alert('Request failed', msg);
     } finally {
       setSubmitting(false);
