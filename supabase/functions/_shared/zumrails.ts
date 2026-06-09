@@ -1,29 +1,42 @@
+// Zum Rails sandbox API client
+// Base URL: https://gateway.sandbox.zumrails.com  (sandbox — never use production URL here)
 const BASE = 'https://gateway.sandbox.zumrails.com';
 
 let cachedToken = '';
 let tokenExpiresAt = 0;
 
 async function getToken(): Promise<string> {
-  if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken;
+  if (cachedToken && Date.now() < tokenExpiresAt) {
+    console.log('[zumrails] using cached token (expires in', Math.round((tokenExpiresAt - Date.now()) / 1000), 's)');
+    return cachedToken;
+  }
+
+  const username = Deno.env.get('ZUMRAILS_USERNAME') ?? '';
+  const password = Deno.env.get('ZUMRAILS_PASSWORD') ?? '';
+  console.log('[zumrails] getToken — username present:', !!username, '| password present:', !!password);
+  console.log('[zumrails] POST', `${BASE}/api/authorize`);
 
   const res = await fetch(`${BASE}/api/authorize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      Username: Deno.env.get('ZUMRAILS_USERNAME') ?? '',
-      Password: Deno.env.get('ZUMRAILS_PASSWORD') ?? '',
-    }),
+    body: JSON.stringify({ Username: username, Password: password }),
   });
 
+  console.log('[zumrails] authorize status:', res.status);
   if (!res.ok) {
     const body = await res.text();
+    console.error('[zumrails] authorize failed — body:', body);
     throw new Error(`Zum Rails auth failed (${res.status}): ${body}`);
   }
 
   const json = await res.json();
   cachedToken = json.token ?? json.Token ?? '';
-  if (!cachedToken) throw new Error('Zum Rails auth returned no token');
+  if (!cachedToken) {
+    console.error('[zumrails] authorize response keys:', Object.keys(json).join(', '));
+    throw new Error('Zum Rails auth returned no token');
+  }
   tokenExpiresAt = Date.now() + 55 * 60 * 1000;
+  console.log('[zumrails] token acquired, expires in 55 min');
   return cachedToken;
 }
 
@@ -39,22 +52,30 @@ export async function createUser(params: {
   lastName: string;
   email: string;
 }): Promise<string> {
+  const payload = { FirstName: params.firstName, LastName: params.lastName, Email: params.email };
+  console.log('[zumrails] POST', `${BASE}/api/user`, '| payload:', JSON.stringify(payload));
+
   const res = await fetch(`${BASE}/api/user`, {
     method: 'POST',
     headers: await headers(),
-    body: JSON.stringify({
-      FirstName: params.firstName,
-      LastName: params.lastName,
-      Email: params.email,
-    }),
+    body: JSON.stringify(payload),
   });
+
+  console.log('[zumrails] createUser status:', res.status);
   if (!res.ok) {
     const body = await res.text();
+    console.error('[zumrails] createUser failed — body:', body);
     throw new Error(`Zum Rails createUser failed (${res.status}): ${body}`);
   }
+
   const json = await res.json();
-  const id = json.id ?? json.Id ?? json.data?.id;
-  if (!id) throw new Error('Zum Rails createUser returned no id');
+  console.log('[zumrails] createUser response keys:', Object.keys(json).join(', '));
+  const id = json.id ?? json.Id ?? json.data?.id ?? json.Data?.Id;
+  if (!id) {
+    console.error('[zumrails] createUser — no id in response:', JSON.stringify(json).slice(0, 500));
+    throw new Error('Zum Rails createUser returned no id');
+  }
+  console.log('[zumrails] createUser success — id:', id);
   return id;
 }
 
@@ -63,35 +84,51 @@ export async function createTransaction(params: {
   amountCents: number;
   memo?: string;
 }): Promise<string> {
+  const amountDollars = parseFloat((params.amountCents / 100).toFixed(2));
+  const payload = {
+    ZumRailsType: 'IntraTransaction',
+    TransactionType: 'Credit',
+    Amount: amountDollars,
+    UserId: params.userId,
+    Memo: params.memo ?? 'Mise tip payout',
+  };
+  console.log('[zumrails] POST', `${BASE}/api/transaction`, '| payload:', JSON.stringify(payload));
+
   const res = await fetch(`${BASE}/api/transaction`, {
     method: 'POST',
     headers: await headers(),
-    body: JSON.stringify({
-      ZumRailsType: 'IntraTransaction',
-      TransactionType: 'Credit',
-      Amount: parseFloat((params.amountCents / 100).toFixed(2)),
-      UserId: params.userId,
-      Memo: params.memo ?? 'Mise tip payout',
-    }),
+    body: JSON.stringify(payload),
   });
+
+  console.log('[zumrails] createTransaction status:', res.status);
   if (!res.ok) {
     const body = await res.text();
+    console.error('[zumrails] createTransaction failed — body:', body);
     throw new Error(`Zum Rails createTransaction failed (${res.status}): ${body}`);
   }
+
   const json = await res.json();
-  const id = json.id ?? json.Id ?? json.data?.id;
-  if (!id) throw new Error('Zum Rails createTransaction returned no id');
+  console.log('[zumrails] createTransaction response keys:', Object.keys(json).join(', '));
+  const id = json.id ?? json.Id ?? json.data?.id ?? json.Data?.Id;
+  if (!id) {
+    console.error('[zumrails] createTransaction — no id in response:', JSON.stringify(json).slice(0, 500));
+    throw new Error('Zum Rails createTransaction returned no id');
+  }
+  console.log('[zumrails] createTransaction success — id:', id);
   return id;
 }
 
 export async function getTransaction(id: string): Promise<{ id: string; status: string }> {
-  const res = await fetch(`${BASE}/api/transaction/${id}`, {
-    headers: await headers(),
-  });
+  console.log('[zumrails] GET', `${BASE}/api/transaction/${id}`);
+  const res = await fetch(`${BASE}/api/transaction/${id}`, { headers: await headers() });
+
+  console.log('[zumrails] getTransaction status:', res.status);
   if (!res.ok) {
     const body = await res.text();
+    console.error('[zumrails] getTransaction failed — body:', body);
     throw new Error(`Zum Rails getTransaction failed (${res.status}): ${body}`);
   }
+
   const json = await res.json();
   return { id: json.id ?? json.Id, status: json.status ?? json.Status ?? 'unknown' };
 }

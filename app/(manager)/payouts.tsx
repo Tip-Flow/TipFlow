@@ -137,6 +137,19 @@ export default function PayoutsScreen() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      // Diagnostic: confirm auth identity and manager row
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[Payouts] auth email:', user?.email ?? 'null', '| uid:', user?.id ?? 'null');
+      const { data: mgrRows, error: mgrErr } = await supabase
+        .from('managers')
+        .select('id, email, location_id, organisation_id, role');
+      console.log('[Payouts] managers visible:', JSON.stringify(mgrRows), '| error:', mgrErr?.message ?? null);
+      const { data: prRaw, error: prRawErr } = await supabase
+        .from('payout_requests')
+        .select('id, staff_id, location_id, status, amount')
+        .limit(10);
+      console.log('[Payouts] payout_requests (no filter):', JSON.stringify(prRaw), '| error:', prRawErr?.message ?? null);
+
       const [pendingRes, paidRes, requestsRes] = await Promise.all([
         supabase
           .from('shifts')
@@ -284,7 +297,15 @@ export default function PayoutsScreen() {
           payout_request_id: req.id,
         },
       });
-      if (error) throw new Error(error.message ?? 'EFT processing failed');
+      if (error) {
+        let msg = error.message ?? 'EFT processing failed';
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) msg = body.error;
+        } catch {}
+        console.error('[Payouts] handleProcessEFT error body:', msg);
+        throw new Error(msg);
+      }
       if (!data?.success) throw new Error(data?.error ?? 'EFT processing failed');
       fetchData();
       triggerBanner('EFT payout sent!', true);
