@@ -81,7 +81,7 @@ export async function addBankAccount(userId: string, bankDetails: {
   console.log('[zumrails] addBankAccount — userId:', userId, '| payload:', JSON.stringify(payload));
 
   const res = await fetch(`${BASE_URL}/api/user/${userId}`, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
