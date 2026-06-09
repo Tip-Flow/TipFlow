@@ -21,8 +21,7 @@ import ShiftGoalsSplash, { ShiftGoal } from './components/ShiftGoalsSplash';
 type PendingRole = 'regional' | 'manager' | 'staff' | null;
 type ScreenMode = 'login' | 'invite-loading' | 'set-password';
 
-// Module-level variable — survives component remounts (unlike useState/useRef)
-// without requiring async storage reads (unlike sessionStorage).
+// Module-level variable — survives component remounts on both mobile and web.
 let pendingInviteEmail = '';
 
 const BLUE = '#4169E1';
@@ -66,8 +65,6 @@ async function resolveRole(email: string): Promise<'admin' | 'regional' | 'manag
 }
 
 export default function LoginScreen() {
-  console.log('[render] screenMode:', typeof window !== 'undefined' ? (sessionStorage.getItem('mise_invite_email') ? 'set-password (pre-init)' : 'login (pre-init)') : 'N/A', '| sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A');
-
   const router = useRouter();
 
   // Login state
@@ -80,38 +77,18 @@ export default function LoginScreen() {
   const [pendingRole, setPendingRole]   = useState<PendingRole>(null);
   const [pendingGoals, setPendingGoals] = useState<ShiftGoal[] | null>(null);
 
-  // Invite / set-password state.
-  // Lazy initialisers read sessionStorage synchronously so the VERY FIRST
-  // render already shows the set-password screen when a pending invite is
-  // detected — preventing the login form from flashing and being auto-submitted
-  // by browser credential managers (Google Smart Lock etc.) during the remount
-  // that history.replaceState triggers.
-  const [screenMode, setScreenMode] = useState<ScreenMode>(() => {
-    console.log('[lazy-init] fired — pendingInviteEmail:', pendingInviteEmail, '| sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A');
-    if (pendingInviteEmail) return 'set-password';
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        const stored = sessionStorage.getItem('mise_invite_email');
-        console.log('[lazy-init] sessionStorage value:', stored);
-        if (stored) return 'set-password';
-      } catch {}
-    }
-    return 'login';
-  });
+  // Invite / set-password state — lazy initialisers read the module-level var
+  // so the first render already shows the correct screen without any flash.
+  const [screenMode, setScreenMode] = useState<ScreenMode>(() =>
+    pendingInviteEmail ? 'set-password' : 'login'
+  );
   const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPw, setShowNewPw]             = useState(false);
   const [showConfirmPw, setShowConfirmPw]     = useState(false);
-  const [inviteEmail, setInviteEmail]         = useState<string>(() => {
-    if (pendingInviteEmail) return pendingInviteEmail;
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try { return sessionStorage.getItem('mise_invite_email') ?? ''; } catch {}
-    }
-    return '';
-  });
+  const [inviteEmail, setInviteEmail]         = useState<string>(() => pendingInviteEmail);
 
-  // Ref survives re-renders; sessionStorage survives remounts caused by
-  // history.replaceState triggering Expo Router's URL listener.
+  // Ref survives re-renders; module-level var survives remounts.
   const inviteEmailRef = useRef(inviteEmail);
   const mountedAt = useRef(Date.now());
 
@@ -120,16 +97,12 @@ export default function LoginScreen() {
     pendingInviteEmail = emailArg;
     inviteEmailRef.current = emailArg;
     setInviteEmail(emailArg);
-    try { sessionStorage.setItem('mise_invite_email', emailArg); } catch {}
-    console.log('[invite] sessionStorage written — value:', sessionStorage.getItem('mise_invite_email'));
-    console.log("[invite] calling setScreenMode('set-password')");
     setScreenMode('set-password');
   }
 
   function exitInviteSetup() {
     pendingInviteEmail = '';
     inviteEmailRef.current = '';
-    try { sessionStorage.removeItem('mise_invite_email'); } catch {}
   }
 
   // ── Mount/unmount lifecycle logging ───────────────────────────────────────
@@ -149,19 +122,16 @@ export default function LoginScreen() {
 
   // ── Detect invite token in URL on web ──────────────────────────────────────
   useEffect(() => {
-    console.log('[effect] starting — sessionStorage:', typeof window !== 'undefined' ? sessionStorage.getItem('mise_invite_email') : 'N/A', '| pendingInviteEmail:', pendingInviteEmail);
+    console.log('[effect] starting — pendingInviteEmail:', pendingInviteEmail);
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
 
     // (A) Restore invite state if a previous mount processed the token but
-    //     history.replaceState caused Expo Router to remount the component.
-    try {
-      const stored = sessionStorage.getItem('mise_invite_email');
-      if (stored) {
-        console.log('[invite] restoring invite state from sessionStorage — email:', stored);
-        enterInviteSetup(stored);
-        return;
-      }
-    } catch {}
+    //     Expo Router remounted the component — module-level var survives.
+    if (pendingInviteEmail) {
+      console.log('[invite] restoring invite state from module var — email:', pendingInviteEmail);
+      enterInviteSetup(pendingInviteEmail);
+      return;
+    }
 
     // (B) Fresh invite link — parse the URL.
 
@@ -239,9 +209,7 @@ export default function LoginScreen() {
         return;
       }
 
-      // Persist invite state BEFORE touching the URL.
-      // replaceState may trigger an Expo Router remount; sessionStorage + ref
-      // ensure the set-password screen is restored if that happens.
+      // Persist invite state — module-level var survives any Expo Router remount.
       const email = session.user.email ?? '';
       console.log('[invite] entering invite setup for:', email);
       enterInviteSetup(email);
@@ -565,9 +533,6 @@ export default function LoginScreen() {
     console.log('[invite] rendering set-password screen — inviteEmail:', inviteEmail, '| ref:', inviteEmailRef.current);
     return (
       <SafeAreaView style={styles.container}>
-        <View style={{ backgroundColor: 'red', padding: 12, alignItems: 'center' }}>
-          <Text style={{ color: 'white', fontWeight: '900', fontSize: 18 }}>SET PASSWORD SCREEN</Text>
-        </View>
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'height' : undefined}
