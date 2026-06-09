@@ -210,7 +210,8 @@ export default function MyTipsScreen() {
     setSubmitting(true);
     try {
       const netAmount = unpaidCents - EFT_FEE_CENTS;
-      const { error } = await supabase
+      console.log('[MyTips] EFT insert — staff_id:', hero.staffId, '| location_id:', hero.locationId, '| amount_cents:', unpaidCents);
+      const { data: insertedRow, error } = await supabase
         .from('payout_requests')
         .insert({
           staff_id: hero.staffId,
@@ -220,7 +221,9 @@ export default function MyTipsScreen() {
           net_amount: netAmount,
           status: 'pending',
           requested_at: new Date().toISOString(),
-        });
+        })
+        .select('id, status');
+      console.log('[MyTips] EFT insert result — id:', insertedRow?.[0]?.id ?? 'null', '| status:', insertedRow?.[0]?.status ?? 'null', '| error:', error?.message ?? null, '| code:', error?.code ?? null);
       if (error) throw error;
       setConfirmVisible(false);
       setSuccessVisible(true);

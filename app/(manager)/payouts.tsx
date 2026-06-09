@@ -162,8 +162,9 @@ export default function PayoutsScreen() {
 
       if (pendingRes.error) throw pendingRes.error;
       if (paidRes.error) throw paidRes.error;
+      if (requestsRes.error) throw requestsRes.error;
 
-      console.log('[Payouts] requestsRes — data:', JSON.stringify(requestsRes.data), '| error:', requestsRes.error?.message ?? null, '| count:', requestsRes.data?.length ?? 0);
+      console.log('[Payouts] payout_requests query — count:', requestsRes.data?.length ?? 0, '| rows:', JSON.stringify(requestsRes.data));
 
       const pending: PendingShift[] = (pendingRes.data ?? []).map((shift: any) => ({
         id: shift.id,
