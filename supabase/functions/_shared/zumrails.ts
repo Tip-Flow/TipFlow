@@ -20,10 +20,12 @@ async function getToken(): Promise<string> {
   }
 
   const result = JSON.parse(rawText);
-  const token: string = result.Token ?? result.token ?? '';
+  console.log('[zumrails] authorize top-level keys:', Object.keys(result).join(', '));
+  console.log('[zumrails] authorize result keys:', result.result ? Object.keys(result.result).join(', ') : 'no result field');
+  const token: string = result.result?.Token ?? result.result?.token ?? '';
   console.log('[zumrails] token length:', token.length);
   if (!token) {
-    throw new Error(`Zum Rails returned no token — keys: ${Object.keys(result).join(', ')}`);
+    throw new Error(`Zum Rails returned no token — top-level keys: ${Object.keys(result).join(', ')}`);
   }
   return token;
 }
