@@ -30,10 +30,32 @@ async function getToken(): Promise<string> {
   }
 
   const json = await res.json();
-  cachedToken = json.token ?? json.Token ?? '';
+  // Log full response body so we can see the exact shape (token value omitted for security)
+  console.log('[zumrails] authorize response keys:', Object.keys(json).join(', '));
+  console.log('[zumrails] authorize response (token redacted):', JSON.stringify(
+    Object.fromEntries(Object.entries(json).map(([k, v]) =>
+      [k, typeof v === 'string' && v.length > 8 ? v.slice(0, 4) + '...' : v]
+    ))
+  ).slice(0, 500));
+
+  // Zum Rails may return the token under various field names
+  cachedToken =
+    json.token ??
+    json.Token ??
+    json.accessToken ??
+    json.AccessToken ??
+    json.access_token ??
+    json.result ??
+    json.Result ??
+    json.data?.token ??
+    json.data?.Token ??
+    json.Data?.token ??
+    json.Data?.Token ??
+    '';
+
   if (!cachedToken) {
-    console.error('[zumrails] authorize response keys:', Object.keys(json).join(', '));
-    throw new Error('Zum Rails auth returned no token');
+    console.error('[zumrails] authorize — could not find token in response. Full body:', JSON.stringify(json).slice(0, 1000));
+    throw new Error(`Zum Rails auth returned no token — response keys: ${Object.keys(json).join(', ')}`);
   }
   tokenExpiresAt = Date.now() + 55 * 60 * 1000;
   console.log('[zumrails] token acquired, expires in 55 min');
