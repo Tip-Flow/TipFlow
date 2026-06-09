@@ -2,15 +2,8 @@
 // Base URL: https://api-sandbox.zumrails.com  (sandbox — never use production URL here)
 const BASE = 'https://api-sandbox.zumrails.com';
 
-let cachedToken = '';
-let tokenExpiresAt = 0;
-
+// Token cache disabled for debugging — fetching fresh token on every call
 async function getToken(): Promise<string> {
-  if (cachedToken && Date.now() < tokenExpiresAt) {
-    console.log('[zumrails] using cached token (expires in', Math.round((tokenExpiresAt - Date.now()) / 1000), 's)');
-    return cachedToken;
-  }
-
   const username = Deno.env.get('ZUMRAILS_USERNAME') ?? '';
   const password = Deno.env.get('ZUMRAILS_PASSWORD') ?? '';
   console.log('[zumrails] getToken — username present:', !!username, '| password present:', !!password);
@@ -30,16 +23,14 @@ async function getToken(): Promise<string> {
   }
 
   const json = await res.json();
-  // Log full response body so we can see the exact shape (token value omitted for security)
   console.log('[zumrails] authorize response keys:', Object.keys(json).join(', '));
   console.log('[zumrails] authorize response (token redacted):', JSON.stringify(
     Object.fromEntries(Object.entries(json).map(([k, v]) =>
-      [k, typeof v === 'string' && v.length > 8 ? v.slice(0, 4) + '...' : v]
+      [k, typeof v === 'string' && v.length > 8 ? v.slice(0, 4) + '...(len=' + (v as string).length + ')' : v]
     ))
   ).slice(0, 500));
 
-  // Zum Rails may return the token under various field names
-  cachedToken =
+  const token: string =
     json.token ??
     json.Token ??
     json.accessToken ??
@@ -53,20 +44,14 @@ async function getToken(): Promise<string> {
     json.Data?.Token ??
     '';
 
-  if (!cachedToken) {
-    console.error('[zumrails] authorize — could not find token in response. Full body:', JSON.stringify(json).slice(0, 1000));
+  console.log('[zumrails] token length:', token.length);
+
+  if (!token) {
+    console.error('[zumrails] authorize — could not find token. Full body:', JSON.stringify(json).slice(0, 1000));
     throw new Error(`Zum Rails auth returned no token — response keys: ${Object.keys(json).join(', ')}`);
   }
-  tokenExpiresAt = Date.now() + 55 * 60 * 1000;
-  console.log('[zumrails] token acquired, expires in 55 min');
-  return cachedToken;
-}
 
-async function headers(): Promise<Record<string, string>> {
-  return {
-    Authorization: `Bearer ${await getToken()}`,
-    'Content-Type': 'application/json',
-  };
+  return token;
 }
 
 export async function createUser(params: {
@@ -74,9 +59,8 @@ export async function createUser(params: {
   lastName: string;
   email: string;
 }): Promise<string> {
-  const reqHeaders = await headers();
-  console.log('[zumrails] createUser — Authorization header present:', !!reqHeaders['Authorization'],
-    '| starts with Bearer:', reqHeaders['Authorization']?.startsWith('Bearer ') ?? false);
+  const token = await getToken();
+  console.log('[zumrails] createUser — token length:', token.length);
 
   const payload = {
     FirstName: params.firstName,
@@ -86,15 +70,22 @@ export async function createUser(params: {
   };
   console.log('[zumrails] POST', `${BASE}/api/user`, '| payload:', JSON.stringify(payload));
 
+  // Try primary header format: Authorization: Bearer <token>
   const res = await fetch(`${BASE}/api/user`, {
     method: 'POST',
-    headers: reqHeaders,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      // Some APIs also accept a bare token header — include both
+      'token': token,
+    },
     body: JSON.stringify(payload),
   });
 
   console.log('[zumrails] createUser status:', res.status);
   const resText = await res.text();
   console.log('[zumrails] createUser response body:', resText.slice(0, 1000));
+
   if (!res.ok) {
     throw new Error(`Zum Rails createUser failed (${res.status}): ${resText}`);
   }
@@ -114,6 +105,9 @@ export async function createTransaction(params: {
   amountCents: number;
   memo?: string;
 }): Promise<string> {
+  const token = await getToken();
+  console.log('[zumrails] createTransaction — token length:', token.length);
+
   const amountDollars = parseFloat((params.amountCents / 100).toFixed(2));
   const payload = {
     ZumRailsType: 'IntraTransaction',
@@ -126,22 +120,26 @@ export async function createTransaction(params: {
 
   const res = await fetch(`${BASE}/api/transaction`, {
     method: 'POST',
-    headers: await headers(),
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'token': token,
+    },
     body: JSON.stringify(payload),
   });
 
   console.log('[zumrails] createTransaction status:', res.status);
+  const resText = await res.text();
+  console.log('[zumrails] createTransaction response body:', resText.slice(0, 1000));
+
   if (!res.ok) {
-    const body = await res.text();
-    console.error('[zumrails] createTransaction failed — body:', body);
-    throw new Error(`Zum Rails createTransaction failed (${res.status}): ${body}`);
+    throw new Error(`Zum Rails createTransaction failed (${res.status}): ${resText}`);
   }
 
-  const json = await res.json();
-  console.log('[zumrails] createTransaction response keys:', Object.keys(json).join(', '));
+  const json = JSON.parse(resText);
   const id = json.id ?? json.Id ?? json.data?.id ?? json.Data?.Id;
   if (!id) {
-    console.error('[zumrails] createTransaction — no id in response:', JSON.stringify(json).slice(0, 500));
+    console.error('[zumrails] createTransaction — no id in response. Keys:', Object.keys(json).join(', '));
     throw new Error('Zum Rails createTransaction returned no id');
   }
   console.log('[zumrails] createTransaction success — id:', id);
@@ -149,8 +147,17 @@ export async function createTransaction(params: {
 }
 
 export async function getTransaction(id: string): Promise<{ id: string; status: string }> {
+  const token = await getToken();
+  console.log('[zumrails] getTransaction — token length:', token.length);
   console.log('[zumrails] GET', `${BASE}/api/transaction/${id}`);
-  const res = await fetch(`${BASE}/api/transaction/${id}`, { headers: await headers() });
+
+  const res = await fetch(`${BASE}/api/transaction/${id}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'token': token,
+    },
+  });
 
   console.log('[zumrails] getTransaction status:', res.status);
   if (!res.ok) {
