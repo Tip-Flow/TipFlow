@@ -1,11 +1,30 @@
 const BASE_URL = 'https://api-sandbox.zumrails.com';
+const TIMEOUT_MS = 10_000;
+
+// Wraps fetch with a hard 10-second timeout. Throws a clear error on hang.
+async function timedFetch(url: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  console.log('[zumrails] fetch →', init?.method ?? 'GET', url);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    return res;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Zum Rails request timed out after ${TIMEOUT_MS}ms: ${init?.method ?? 'GET'} ${url}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function getToken(): Promise<string> {
   const username = Deno.env.get('ZUMRAILS_USERNAME') ?? '';
   const password = Deno.env.get('ZUMRAILS_PASSWORD') ?? '';
   console.log('[zumrails] getToken — username present:', !!username, 'password present:', !!password);
 
-  const res = await fetch(`${BASE_URL}/api/authorize`, {
+  const res = await timedFetch(`${BASE_URL}/api/authorize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ Username: username, Password: password }),
@@ -30,8 +49,8 @@ async function getToken(): Promise<string> {
   return token;
 }
 
-// Fetches the first wallet from the account — used as the funding source for AccountsPayable.
-// Result is cached in ZUMRAILS_WALLET_ID env var if set, otherwise fetched dynamically.
+// Fetches the first wallet — funding source for AccountsPayable.
+// Logs balance so we can catch unfunded sandbox wallets early.
 async function getWalletId(token: string): Promise<string> {
   const envWalletId = Deno.env.get('ZUMRAILS_WALLET_ID') ?? '';
   if (envWalletId) {
@@ -40,7 +59,7 @@ async function getWalletId(token: string): Promise<string> {
   }
 
   console.log('[zumrails] getWalletId — fetching wallet');
-  const res = await fetch(`${BASE_URL}/api/wallet`, {
+  const res = await timedFetch(`${BASE_URL}/api/wallet`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -57,11 +76,18 @@ async function getWalletId(token: string): Promise<string> {
 
   const result = JSON.parse(rawText);
   const wallets = Array.isArray(result.result) ? result.result : [result.result];
-  const walletId: string = wallets[0]?.Id ?? wallets[0]?.id ?? '';
+  const wallet = wallets[0];
+  const walletId: string = wallet?.Id ?? wallet?.id ?? '';
   if (!walletId) {
     throw new Error(`Zum Rails getWallet returned no wallet id — result: ${JSON.stringify(result)}`);
   }
-  console.log('[zumrails] walletId:', walletId);
+
+  const balance = wallet?.Balance ?? wallet?.balance ?? wallet?.AvailableBalance ?? 'unknown';
+  console.log('[zumrails] walletId:', walletId, '| balance:', balance);
+  if (balance === 0 || balance === '0' || balance === '0.00') {
+    console.warn('[zumrails] WARNING: wallet balance is 0 — AccountsPayable transaction may fail. Fund the sandbox wallet first.');
+  }
+
   return walletId;
 }
 
@@ -89,18 +115,25 @@ export async function createUser(params: {
   }
   console.log('[zumrails] createUser payload:', JSON.stringify(payload));
 
-  const res = await fetch(`${BASE_URL}/api/user`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+  try {
+    res = await timedFetch(`${BASE_URL}/api/user`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[zumrails] createUser fetch threw:', msg);
+    throw err;
+  }
 
   const rawText = await res.text();
   console.log('[zumrails] createUser status:', res.status);
-  console.log('[zumrails] createUser response:', rawText.slice(0, 500));
+  console.log('[zumrails] createUser response:', rawText);
 
   if (!res.ok) {
     throw new Error(`Zum Rails createUser failed (${res.status}): ${rawText}`);
@@ -135,7 +168,7 @@ export async function createTransaction(params: {
   };
   console.log('[zumrails] createTransaction payload:', JSON.stringify(payload));
 
-  const res = await fetch(`${BASE_URL}/api/transaction`, {
+  const res = await timedFetch(`${BASE_URL}/api/transaction`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
