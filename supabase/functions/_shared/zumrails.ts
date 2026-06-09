@@ -1,6 +1,6 @@
 // Zum Rails sandbox API client
-// Base URL: https://gateway.sandbox.zumrails.com  (sandbox — never use production URL here)
-const BASE = 'https://gateway.sandbox.zumrails.com';
+// Base URL: https://api-sandbox.zumrails.com  (sandbox — never use production URL here)
+const BASE = 'https://api-sandbox.zumrails.com';
 
 let cachedToken = '';
 let tokenExpiresAt = 0;
