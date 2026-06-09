@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createUser, addBankAccount, createTransaction } from '../_shared/zumrails.ts';
+import { createUser, createTransaction } from '../_shared/zumrails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,32 +81,25 @@ Deno.serve(async (req: Request) => {
 
     // ── Get or create Zum Rails user ────────────────────────────────────────
     let zumUserId: string = staff.zumrails_user_id ?? '';
-    const isNewZumUser = !zumUserId;
-    if (isNewZumUser) {
+    if (!zumUserId) {
       const parts = (staff.name as string).trim().split(' ');
       const firstName = parts[0];
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
       console.log('[eft] calling createUser — firstName:', firstName, '| lastName:', lastName);
-      zumUserId = await createUser({ firstName, lastName, email: staff.email as string });
-      console.log('[eft] Zum Rails user id:', zumUserId);
-      await admin.from('staff_members').update({ zumrails_user_id: zumUserId }).eq('id', staff_member_id);
-    } else {
-      console.log('[eft] reusing Zum Rails user:', zumUserId);
-    }
-
-    // ── Add sandbox bank account (new users only) ───────────────────────────
-    // In production, staff link their real bank account via Flinks.
-    // For sandbox testing we patch in RBC test account details.
-    if (isNewZumUser) {
-      console.log('[eft] adding sandbox bank account to Zum Rails user:', zumUserId);
-      await addBankAccount(zumUserId, {
+      // Sandbox: include RBC test bank account at creation time.
+      // Production: staff link their real account via Flinks before first payout.
+      zumUserId = await createUser({
+        firstName,
+        lastName,
+        email: staff.email as string,
         institutionNumber: '003',
         transitNumber: '00002',
         accountNumber: '3456789',
       });
-      console.log('[eft] sandbox bank account added');
+      console.log('[eft] Zum Rails user id:', zumUserId);
+      await admin.from('staff_members').update({ zumrails_user_id: zumUserId }).eq('id', staff_member_id);
     } else {
-      console.log('[eft] skipping bank account — user already existed');
+      console.log('[eft] reusing Zum Rails user:', zumUserId);
     }
 
     // ── Create transaction ──────────────────────────────────────────────────
