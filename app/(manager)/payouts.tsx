@@ -297,18 +297,27 @@ export default function PayoutsScreen() {
           payout_request_id: req.id,
         },
       });
+
       if (error) {
         let msg = error.message ?? 'EFT processing failed';
         try {
           const body = await (error as any).context?.json?.();
           if (body?.error) msg = body.error;
         } catch {}
-        console.error('[Payouts] handleProcessEFT error body:', msg);
+        console.error('[Payouts] handleProcessEFT error:', msg);
         throw new Error(msg);
       }
-      if (!data?.success) throw new Error(data?.error ?? 'EFT processing failed');
+
+      // Explicit error field in a 2xx body means the function surfaced a failure
+      if (data?.error) throw new Error(data.error);
+
+      // Any 2xx without an error field = success
+      const netCents: number = data?.net_amount_cents ?? req.net_amount;
+      const netDollars = (netCents / 100).toFixed(2);
+      console.log('[Payouts] handleProcessEFT success — transaction:', data?.zumrails_transaction_id, '| net:', netDollars);
+
       fetchData();
-      triggerBanner('EFT payout sent!', true);
+      triggerBanner(`EFT processed — $${netDollars} sent to ${req.staff_name}`, true);
     } catch (err: unknown) {
       setPayoutRequests((prev) => [req, ...prev]);
       const msg = err instanceof Error ? err.message : String((err as any)?.message ?? 'Unknown error');
