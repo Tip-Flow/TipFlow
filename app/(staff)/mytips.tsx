@@ -90,6 +90,7 @@ export default function MyTipsScreen() {
   // EFT modal state
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [payoutProcessing, setPayoutProcessing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Banner
   const bannerOpacity = useRef(new Animated.Value(0)).current;
