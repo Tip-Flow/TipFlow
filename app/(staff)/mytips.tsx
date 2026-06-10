@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -89,8 +89,23 @@ export default function MyTipsScreen() {
 
   // EFT modal state
   const [confirmVisible, setConfirmVisible] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [successVisible, setSuccessVisible] = useState(false);
+  const [payoutProcessing, setPayoutProcessing] = useState(false);
+
+  // Banner
+  const bannerOpacity = useRef(new Animated.Value(0)).current;
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerSuccess, setBannerSuccess] = useState(true);
+
+  function triggerBanner(msg: string, success: boolean) {
+    setBannerMessage(msg);
+    setBannerSuccess(success);
+    bannerOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(bannerOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(3500),
+      Animated.timing(bannerOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }
 
   useEffect(() => {
     getDailyQuote('staff').then(setStaffQuote);
@@ -204,19 +219,26 @@ export default function MyTipsScreen() {
   async function handleConfirmEFT() {
     if (!hero) return;
     if (!hero.locationId) {
-      Alert.alert('Error', 'No location assigned — contact your manager.');
+      setConfirmVisible(false);
+      triggerBanner('No location assigned — contact your manager.', false);
       return;
     }
-    setSubmitting(true);
+
+    // Close modal immediately, show inline loading state
+    const previousUnpaidCents = unpaidCents;
+    setConfirmVisible(false);
+    setUnpaidCents(0);
+    setPayoutProcessing(true);
+
     try {
-      const netAmount = unpaidCents - EFT_FEE_CENTS;
-      console.log('[MyTips] EFT insert — staff_id:', hero.staffId, '| location_id:', hero.locationId, '| amount_cents:', unpaidCents);
+      const netAmount = previousUnpaidCents - EFT_FEE_CENTS;
+      console.log('[MyTips] EFT insert — staff_id:', hero.staffId, '| location_id:', hero.locationId, '| amount_cents:', previousUnpaidCents);
       const { data: insertedRow, error } = await supabase
         .from('payout_requests')
         .insert({
           staff_id: hero.staffId,
           location_id: hero.locationId,
-          amount: unpaidCents,
+          amount: previousUnpaidCents,
           fee: EFT_FEE_CENTS,
           net_amount: netAmount,
           status: 'pending',
@@ -225,14 +247,14 @@ export default function MyTipsScreen() {
         .select('id, status');
       console.log('[MyTips] EFT insert result — id:', insertedRow?.[0]?.id ?? 'null', '| status:', insertedRow?.[0]?.status ?? 'null', '| error:', error?.message ?? null, '| code:', error?.code ?? null);
       if (error) throw error;
-      setConfirmVisible(false);
-      setSuccessVisible(true);
-      loadData();
+      await loadData();
+      triggerBanner('Your payout is on its way! Funds will arrive within 1 business day.', true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Request failed', msg);
+      setUnpaidCents(previousUnpaidCents);
+      triggerBanner(`Request failed — ${msg}`, false);
     } finally {
-      setSubmitting(false);
+      setPayoutProcessing(false);
     }
   }
 
@@ -357,7 +379,13 @@ export default function MyTipsScreen() {
             {/* EFT Payout Tab */}
             {activeTab === 'eft' && (
               <>
-                {!hero.bankLinked ? (
+                {payoutProcessing ? (
+                  <View style={styles.processingCard}>
+                    <ActivityIndicator size="large" color={BLUE} />
+                    <Text style={styles.processingText}>Processing your payout...</Text>
+                    <Text style={styles.processingSubtext}>You're free to navigate away</Text>
+                  </View>
+                ) : !hero.bankLinked ? (
                   /* No bank linked */
                   <View style={styles.noBankCard}>
                     <Text style={styles.noBankIcon}>🏦</Text>
@@ -501,46 +529,30 @@ export default function MyTipsScreen() {
             <View style={styles.modalBtns}>
               <Pressable
                 style={styles.modalCancelBtn}
-                onPress={() => setConfirmVisible(false)}
-                disabled={submitting}>
+                onPress={() => setConfirmVisible(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalConfirmBtn, submitting && { opacity: 0.6 }]}
-                onPress={handleConfirmEFT}
-                disabled={submitting}>
-                {submitting ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.modalConfirmText}>Confirm Transfer</Text>
-                )}
+                style={styles.modalConfirmBtn}
+                onPress={handleConfirmEFT}>
+                <Text style={styles.modalConfirmText}>Confirm Transfer</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Success Modal */}
-      <Modal
-        visible={successVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSuccessVisible(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.modal}>
-            <Text style={styles.successIcon}>✓</Text>
-            <Text style={styles.modalTitle}>Transfer Requested</Text>
-            <Text style={styles.modalSubtitle}>
-              Your transfer has been requested. Funds will arrive in your bank account shortly.
-            </Text>
-            <Pressable
-              style={styles.modalConfirmBtn}
-              onPress={() => setSuccessVisible(false)}>
-              <Text style={styles.modalConfirmText}>Done</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* Banner */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.banner,
+          bannerSuccess ? styles.bannerSuccess : styles.bannerError,
+          { opacity: bannerOpacity },
+        ]}>
+        <Text style={styles.bannerText}>{bannerMessage}</Text>
+      </Animated.View>
+
     </SafeAreaView>
   );
 }
@@ -809,9 +821,35 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  successIcon: {
-    fontSize: 40,
-    color: GREEN,
-    textAlign: 'center',
+  // Processing inline state
+  processingCard: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+    gap: 14,
   },
+  processingText: { fontSize: 16, fontWeight: '700', color: WHITE },
+  processingSubtext: { fontSize: 13, color: MUTED },
+
+  // Banner
+  banner: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bannerSuccess: { backgroundColor: '#14532d', borderWidth: 1, borderColor: '#166534' },
+  bannerError: { backgroundColor: '#450a0a', borderWidth: 1, borderColor: '#7f1d1d' },
+  bannerText: { fontSize: 14, fontWeight: '600', color: '#fff', lineHeight: 20 },
 });
