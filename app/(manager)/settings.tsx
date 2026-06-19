@@ -508,24 +508,38 @@ function FundingAccountTab() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { data: loc } = await supabase
+        const { data: loc, error } = await supabase
           .from('locations')
           .select('id, zumrails_funding_source_id')
           .order('created_at', { ascending: true })
           .limit(1)
           .single();
-        if (loc) {
+        if (error) {
+          console.error('[Settings] location load error:', error.message);
+          setLinkError('Could not load location. Please refresh and try again.');
+        } else if (loc) {
+          console.log('[Settings] location loaded:', loc.id);
           setLocationId(loc.id);
           setFundingLinked(!!loc.zumrails_funding_source_id);
+        } else {
+          setLinkError('No location found for this account.');
         }
-      } catch (_) {}
-      finally { setLoading(false); }
+      } catch (err: unknown) {
+        console.error('[Settings] location load threw:', err);
+        setLinkError('Could not load location. Please refresh and try again.');
+      } finally {
+        setLoading(false);
+      }
     }
     loadData();
   }, []);
 
   async function handleLinkFunding() {
-    if (!locationId) return;
+    console.log('[Settings] Link bank account tapped');
+    if (!locationId) {
+      setLinkError('No location loaded — please refresh the page.');
+      return;
+    }
     setLinkError('');
     setConnecting(true);
     try {
@@ -595,9 +609,9 @@ function FundingAccountTab() {
         {linkError ? <Text style={fund.errorText}>{linkError}</Text> : null}
 
         <Pressable
-          style={[fund.linkBtn, (connecting || !locationId) && { opacity: 0.6 }]}
+          style={[fund.linkBtn, connecting && { opacity: 0.6 }]}
           onPress={handleLinkFunding}
-          disabled={connecting || !locationId}>
+          disabled={connecting}>
           {connecting
             ? <ActivityIndicator color="#fff" />
             : <Text style={fund.linkBtnText}>
