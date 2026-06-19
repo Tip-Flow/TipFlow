@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { ZumConnectModal } from '../../components/ZumConnectModal';
+import { useLocationId } from '../../hooks/useLocationId';
 
 const BG      = '#09100e';
 const CARD    = '#162019';
@@ -496,43 +497,33 @@ function HousePoolTab() {
 // ─── Tab 3: Funding Account ───────────────────────────────────────────────────
 
 function FundingAccountTab() {
-  const [locationId,     setLocationId]     = useState<string | null>(null);
+  const { locationId, locationLoading } = useLocationId();
   const [fundingLinked,  setFundingLinked]  = useState(false);
-  const [loading,        setLoading]        = useState(true);
+  const [fundingChecked, setFundingChecked] = useState(false);
   const [connecting,     setConnecting]     = useState(false);
   const [connectToken,   setConnectToken]   = useState('');
   const [showConnect,    setShowConnect]    = useState(false);
   const [linkError,      setLinkError]      = useState('');
   const [linkSuccess,    setLinkSuccess]    = useState(false);
 
+  // Once locationId resolves, fetch the funding link status for that location.
   useEffect(() => {
-    async function loadData() {
-      try {
-        const { data: loc, error } = await supabase
-          .from('locations')
-          .select('id, zumrails_funding_source_id')
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .single();
-        if (error) {
-          console.error('[Settings] location load error:', error.message);
-          setLinkError('Could not load location. Please refresh and try again.');
-        } else if (loc) {
-          console.log('[Settings] location loaded:', loc.id);
-          setLocationId(loc.id);
-          setFundingLinked(!!loc.zumrails_funding_source_id);
-        } else {
-          setLinkError('No location found for this account.');
-        }
-      } catch (err: unknown) {
-        console.error('[Settings] location load threw:', err);
-        setLinkError('Could not load location. Please refresh and try again.');
-      } finally {
-        setLoading(false);
+    if (!locationId || fundingChecked) return;
+    async function checkFundingStatus() {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('zumrails_funding_source_id')
+        .eq('id', locationId)
+        .single();
+      if (error) {
+        console.error('[Settings/Funding] funding status fetch error:', error.message);
+      } else {
+        setFundingLinked(!!data?.zumrails_funding_source_id);
       }
+      setFundingChecked(true);
     }
-    loadData();
-  }, []);
+    checkFundingStatus();
+  }, [locationId, fundingChecked]);
 
   async function handleLinkFunding() {
     console.log('[Settings] Link bank account tapped');
@@ -574,7 +565,7 @@ function FundingAccountTab() {
     }
   }
 
-  if (loading) return <ActivityIndicator size="large" color={BLUE} style={{ marginTop: 40 }} />;
+  if (locationLoading) return <ActivityIndicator size="large" color={BLUE} style={{ marginTop: 40 }} />;
 
   return (
     <>
