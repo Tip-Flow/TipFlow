@@ -497,7 +497,11 @@ function HousePoolTab() {
 // ─── Tab 3: Funding Account ───────────────────────────────────────────────────
 
 function FundingAccountTab() {
-  const { locationId, locationLoading } = useLocationId();
+  const { locationId, locationName, locationLoading, refetchLocation } = useLocationId();
+
+  // Render-level diagnostic — visible in browser/RN console on every re-render.
+  console.log('[FundingTab] render — locationId:', locationId, '| locationName:', locationName, '| locationLoading:', locationLoading);
+
   const [fundingLinked,  setFundingLinked]  = useState(false);
   const [fundingChecked, setFundingChecked] = useState(false);
   const [connecting,     setConnecting]     = useState(false);
@@ -526,7 +530,7 @@ function FundingAccountTab() {
   }, [locationId, fundingChecked]);
 
   async function handleLinkFunding() {
-    console.log('[Settings] Link bank account tapped');
+    console.log('[Settings] Link bank account tapped — locationId:', locationId, '| locationLoading:', locationLoading);
     if (!locationId) {
       setLinkError('No location loaded — please refresh the page.');
       return;
@@ -566,6 +570,20 @@ function FundingAccountTab() {
   }
 
   if (locationLoading) return <ActivityIndicator size="large" color={BLUE} style={{ marginTop: 40 }} />;
+
+  if (!locationId) {
+    return (
+      <View style={{ gap: 12, paddingTop: 16 }}>
+        <Text style={s.heading}>Funding Account</Text>
+        <Text style={{ color: '#f87171', fontSize: 14, lineHeight: 20 }}>
+          Could not load your location. Check your connection and try again.
+        </Text>
+        <Pressable style={s.saveBtn} onPress={refetchLocation}>
+          <Text style={s.saveBtnText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <>
