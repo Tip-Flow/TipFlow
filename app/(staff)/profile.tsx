@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
+import { ZumConnectModal } from '../../components/ZumConnectModal';
 
 const BG     = '#09100e';
 const CARD   = '#162019';
@@ -90,6 +91,66 @@ const pwStyles = StyleSheet.create({
 export default function ProfileScreen() {
   const router = useRouter();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+
+  // ── Bank linking ──────────────────────────────────────────────────────────
+  const [bankLinked,    setBankLinked]    = useState(false);
+  const [bankLoading,   setBankLoading]   = useState(true);
+  const [connectToken,  setConnectToken]  = useState('');
+  const [showConnect,   setShowConnect]   = useState(false);
+  const [linkingBank,   setLinkingBank]   = useState(false);
+  const [linkError,     setLinkError]     = useState('');
+  const [linkSuccess,   setLinkSuccess]   = useState(false);
+
+  useEffect(() => {
+    async function loadBankStatus() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.email) return;
+        const { data: staff } = await supabase
+          .from('staff_members')
+          .select('bank_linked')
+          .eq('email', user.email)
+          .maybeSingle();
+        if (staff) setBankLinked(staff.bank_linked ?? false);
+      } catch (_) {}
+      finally { setBankLoading(false); }
+    }
+    loadBankStatus();
+  }, []);
+
+  async function handleLinkBank() {
+    setLinkError('');
+    setLinkingBank(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-zumconnect-token', {
+        body: { entity_type: 'staff' },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setConnectToken(data.token);
+      setShowConnect(true);
+    } catch (err: unknown) {
+      setLinkError(err instanceof Error ? err.message : 'Failed to start bank linking');
+    } finally {
+      setLinkingBank(false);
+    }
+  }
+
+  async function handleConnectSuccess(zumrailsUserId: string) {
+    setShowConnect(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('save-zumconnect-result', {
+        body: { entity_type: 'staff', zumrails_user_id: zumrailsUserId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setBankLinked(true);
+      setLinkSuccess(true);
+      setTimeout(() => setLinkSuccess(false), 3000);
+    } catch (err: unknown) {
+      setLinkError(err instanceof Error ? err.message : 'Failed to save bank link');
+    }
+  }
 
   // ── Notification preferences ──────────────────────────────────────────────
   const [notifShiftGoal, setNotifShiftGoal] = useState(true);
@@ -257,19 +318,53 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>🏦 Bank Account</Text>
-            <View style={styles.linkedBadge}>
-              <Text style={styles.linkedText}>✓ Linked</Text>
-            </View>
+            {!bankLoading && bankLinked && (
+              <View style={styles.linkedBadge}>
+                <Text style={styles.linkedText}>✓ Linked</Text>
+              </View>
+            )}
           </View>
-          <Text style={styles.bankName}>RBC Royal Bank</Text>
-          <Text style={styles.bankAccount}>Chequing ···4821</Text>
-          <Text style={styles.bankSub}>via Flinks</Text>
+
+          {bankLoading ? (
+            <ActivityIndicator color={BLUE} style={{ marginVertical: 8 }} />
+          ) : bankLinked ? (
+            <>
+              {linkSuccess && (
+                <View style={styles.successBanner}>
+                  <Text style={styles.successText}>Bank Account Linked ✅</Text>
+                </View>
+              )}
+              <Text style={styles.bankName}>Bank Account Linked</Text>
+              <Text style={styles.bankSub}>via Zum Connect</Text>
+              <Pressable
+                style={[styles.relinkBtn, linkingBank && { opacity: 0.6 }]}
+                onPress={handleLinkBank}
+                disabled={linkingBank}>
+                {linkingBank
+                  ? <ActivityIndicator color={BLUE} size="small" />
+                  : <Text style={styles.relinkBtnText}>Relink Bank Account</Text>}
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.bankSub}>No bank account linked yet</Text>
+              {linkError ? <Text style={styles.bankError}>{linkError}</Text> : null}
+              <Pressable
+                style={[styles.linkBtn, linkingBank && { opacity: 0.6 }]}
+                onPress={handleLinkBank}
+                disabled={linkingBank}>
+                {linkingBank
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.linkBtnText}>Link Bank Account</Text>}
+              </Pressable>
+            </>
+          )}
         </View>
 
         {/* Payout Method Card */}
         <View style={styles.card}>
-          <Text style={styles.payoutMethod}>📱 Interac e-Transfer</Text>
-          <Text style={styles.payoutDetails}>alex@tip.ca · Instant · 24/7 via EFT</Text>
+          <Text style={styles.payoutMethod}>💸 EFT Payout</Text>
+          <Text style={styles.payoutDetails}>Direct to your linked bank · via Zum Rails</Text>
         </View>
 
         {/* Settings List */}
@@ -465,6 +560,14 @@ export default function ProfileScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* ── Zum Connect Modal ───────────────────────────────────────────────── */}
+      <ZumConnectModal
+        visible={showConnect}
+        token={connectToken}
+        onSuccess={handleConnectSuccess}
+        onClose={() => setShowConnect(false)}
+      />
+
       {/* ── Help & Support Modal ────────────────────────────────────────────── */}
       <Modal
         visible={activeModal === 'help'}
@@ -541,7 +644,7 @@ const FAQ = [
   },
   {
     q: 'Why do I need to link my bank?',
-    a: 'Linking your bank via Flinks lets Mise send your tips directly to your account. Mise never sees your credentials.',
+    a: 'Linking your bank via Zum Connect lets Mise send your tips directly to your account. Mise never sees your banking credentials — only a secure token is stored.',
   },
   {
     q: 'Is my data safe?',
@@ -601,8 +704,35 @@ const styles = StyleSheet.create({
   },
   linkedText: { fontSize: 12, fontWeight: '700', color: '#4ade80' },
   bankName:   { fontSize: 16, fontWeight: '700', color: '#e8f5ef' },
-  bankAccount:{ fontSize: 14, color: LABEL, fontWeight: '500' },
-  bankSub:    { fontSize: 12, color: MUTED, marginTop: 2 },
+  bankSub:    { fontSize: 13, color: MUTED, marginTop: 2, marginBottom: 12 },
+  bankError:  { fontSize: 13, color: RED, fontWeight: '500', marginBottom: 8 },
+  linkBtn: {
+    backgroundColor: BLUE,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  linkBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  relinkBtn: {
+    borderWidth: 1,
+    borderColor: BLUE,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  relinkBtnText: { fontSize: 14, fontWeight: '600', color: BLUE },
+  successBanner: {
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.3)',
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  successText: { fontSize: 14, fontWeight: '700', color: GREEN },
   payoutMethod: { fontSize: 16, fontWeight: '700', color: BLUE },
   payoutDetails:{ fontSize: 13, color: LABEL, marginTop: 2 },
 

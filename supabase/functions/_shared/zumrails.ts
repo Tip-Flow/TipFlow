@@ -148,6 +148,51 @@ export async function createUser(params: {
   return id;
 }
 
+export async function createConnectToken(params: {
+  userId?: string;
+}): Promise<string> {
+  const apiToken = await getToken();
+
+  const payload: Record<string, unknown> = {
+    ConnectTokenType: 'AddPaymentProfile',
+    Configuration: {
+      allowEft: true,
+      allowInterac: false,
+      allowVisaDirect: false,
+      allowCreditCard: false,
+    },
+  };
+
+  if (params.userId) {
+    payload.UserId = params.userId;
+  }
+
+  const res = await timedFetch(`${BASE_URL}/api/connect/createtoken`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const rawText = await res.text();
+  console.log('[zumrails] createConnectToken status:', res.status);
+  console.log('[zumrails] createConnectToken response:', rawText.slice(0, 500));
+
+  if (!res.ok) {
+    throw new Error(`Zum Rails createConnectToken failed (${res.status}): ${rawText}`);
+  }
+
+  const result = JSON.parse(rawText);
+  const token: string = result.result?.Token ?? result.result?.token ?? '';
+  if (!token) {
+    throw new Error(`Zum Rails createConnectToken returned no token — result: ${JSON.stringify(result.result ?? {})}`);
+  }
+
+  return token;
+}
+
 export async function createTransaction(params: {
   userId: string;
   amountCents: number;

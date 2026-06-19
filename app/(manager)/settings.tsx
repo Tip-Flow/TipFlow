@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { ZumConnectModal } from '../../components/ZumConnectModal';
 
 const BG      = '#09100e';
 const CARD    = '#162019';
@@ -66,12 +67,14 @@ function nextPayoutDate(period: PayPeriod): string {
 
 // ─── Tab Switcher ────────────────────────────────────────────────────────────
 
+type SettingsTab = 'tipout' | 'house' | 'funding';
+
 function TabSwitcher({
   active,
   onChange,
 }: {
-  active: 'tipout' | 'house';
-  onChange: (t: 'tipout' | 'house') => void;
+  active: SettingsTab;
+  onChange: (t: SettingsTab) => void;
 }) {
   return (
     <View style={ts.wrapper}>
@@ -79,7 +82,7 @@ function TabSwitcher({
         style={[ts.tab, active === 'tipout' && ts.tabActive]}
         onPress={() => onChange('tipout')}>
         <Text style={[ts.label, active === 'tipout' && ts.labelActive]}>
-          Tip Out Rules
+          Tip Out
         </Text>
       </Pressable>
       <Pressable
@@ -87,6 +90,13 @@ function TabSwitcher({
         onPress={() => onChange('house')}>
         <Text style={[ts.label, active === 'house' && ts.labelActive]}>
           House Pool
+        </Text>
+      </Pressable>
+      <Pressable
+        style={[ts.tab, active === 'funding' && ts.tabActive]}
+        onPress={() => onChange('funding')}>
+        <Text style={[ts.label, active === 'funding' && ts.labelActive]}>
+          Funding
         </Text>
       </Pressable>
     </View>
@@ -483,10 +493,144 @@ function HousePoolTab() {
   );
 }
 
+// ─── Tab 3: Funding Account ───────────────────────────────────────────────────
+
+function FundingAccountTab() {
+  const [locationId,     setLocationId]     = useState<string | null>(null);
+  const [fundingLinked,  setFundingLinked]  = useState(false);
+  const [loading,        setLoading]        = useState(true);
+  const [connecting,     setConnecting]     = useState(false);
+  const [connectToken,   setConnectToken]   = useState('');
+  const [showConnect,    setShowConnect]    = useState(false);
+  const [linkError,      setLinkError]      = useState('');
+  const [linkSuccess,    setLinkSuccess]    = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const { data: loc } = await supabase
+          .from('locations')
+          .select('id, zumrails_funding_source_id')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+        if (loc) {
+          setLocationId(loc.id);
+          setFundingLinked(!!loc.zumrails_funding_source_id);
+        }
+      } catch (_) {}
+      finally { setLoading(false); }
+    }
+    loadData();
+  }, []);
+
+  async function handleLinkFunding() {
+    if (!locationId) return;
+    setLinkError('');
+    setConnecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-zumconnect-token', {
+        body: { entity_type: 'restaurant', location_id: locationId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setConnectToken(data.token);
+      setShowConnect(true);
+    } catch (err: unknown) {
+      setLinkError(err instanceof Error ? err.message : 'Failed to start bank linking');
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function handleConnectSuccess(zumrailsUserId: string) {
+    setShowConnect(false);
+    if (!locationId) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('save-zumconnect-result', {
+        body: { entity_type: 'restaurant', zumrails_user_id: zumrailsUserId, location_id: locationId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setFundingLinked(true);
+      setLinkSuccess(true);
+      setTimeout(() => setLinkSuccess(false), 3000);
+    } catch (err: unknown) {
+      setLinkError(err instanceof Error ? err.message : 'Failed to save bank link');
+    }
+  }
+
+  if (loading) return <ActivityIndicator size="large" color={BLUE} style={{ marginTop: 40 }} />;
+
+  return (
+    <>
+      <Text style={s.heading}>Funding Account</Text>
+      <Text style={s.subtitle}>
+        Link your restaurant's bank account to fund EFT tip payouts for staff via Zum Rails.
+      </Text>
+
+      <View style={fund.card}>
+        <View style={fund.iconRow}>
+          <Text style={fund.icon}>🏦</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={fund.cardTitle}>Restaurant Bank Account</Text>
+            <Text style={fund.cardSub}>
+              {fundingLinked
+                ? 'Funding account connected via Zum Connect'
+                : 'No funding account linked yet'}
+            </Text>
+          </View>
+          {fundingLinked && (
+            <View style={fund.linkedBadge}>
+              <Text style={fund.linkedText}>✓ Linked</Text>
+            </View>
+          )}
+        </View>
+
+        {linkSuccess && (
+          <View style={fund.successBanner}>
+            <Text style={fund.successText}>Funding Account Linked ✅</Text>
+          </View>
+        )}
+        {linkError ? <Text style={fund.errorText}>{linkError}</Text> : null}
+
+        <Pressable
+          style={[fund.linkBtn, (connecting || !locationId) && { opacity: 0.6 }]}
+          onPress={handleLinkFunding}
+          disabled={connecting || !locationId}>
+          {connecting
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={fund.linkBtnText}>
+                {fundingLinked ? 'Relink Bank Account' : 'Link Restaurant Bank Account'}
+              </Text>}
+        </Pressable>
+      </View>
+
+      <View style={fund.infoCard}>
+        <Text style={fund.infoTitle}>How it works</Text>
+        <Text style={fund.infoText}>
+          Securely connect your restaurant's bank account through Zum Connect. Mise never stores banking credentials — only a Zum Rails token is kept on file.
+        </Text>
+        <Text style={[fund.infoText, { marginTop: 8 }]}>
+          Once linked, staff EFT payouts are debited from this account automatically.
+        </Text>
+      </View>
+
+      <ZumConnectModal
+        visible={showConnect}
+        token={connectToken}
+        title="Link Restaurant Bank"
+        onSuccess={handleConnectSuccess}
+        onClose={() => setShowConnect(false)}
+      />
+    </>
+  );
+}
+
 // ─── Root Screen ──────────────────────────────────────────────────────────────
 
 export default function TipPoolSettings() {
-  const [activeTab, setActiveTab] = useState<'tipout' | 'house'>('tipout');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('tipout');
 
   return (
     <SafeAreaView style={s.safe}>
@@ -500,7 +644,7 @@ export default function TipPoolSettings() {
           showsVerticalScrollIndicator={false}>
 
           <TabSwitcher active={activeTab} onChange={setActiveTab} />
-          {activeTab === 'tipout' ? <TipOutTab /> : <HousePoolTab />}
+          {activeTab === 'tipout' ? <TipOutTab /> : activeTab === 'house' ? <HousePoolTab /> : <FundingAccountTab />}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -672,4 +816,59 @@ const s = StyleSheet.create({
   staffInfo: { flex: 1 },
   staffName: { fontSize: 14, fontWeight: '700', color: WHITE, marginBottom: 2 },
   staffRole: { fontSize: 12, color: MUTED, fontWeight: '600' },
+});
+
+// ─── Funding Account Styles ───────────────────────────────────────────────────
+
+const fund = StyleSheet.create({
+  card: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 18,
+    gap: 10,
+    marginBottom: 16,
+  },
+  iconRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  icon:    { fontSize: 28, lineHeight: 34 },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: WHITE, marginBottom: 3 },
+  cardSub:   { fontSize: 13, color: MUTED, lineHeight: 18 },
+  linkedBadge: {
+    backgroundColor: '#0d3324',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#1a5c3a',
+    alignSelf: 'flex-start',
+  },
+  linkedText: { fontSize: 12, fontWeight: '700', color: '#4ade80' },
+  successBanner: {
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.3)',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  successText: { fontSize: 14, fontWeight: '700', color: '#4ade80' },
+  errorText:   { fontSize: 13, color: RED, fontWeight: '500' },
+  linkBtn: {
+    backgroundColor: BLUE,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  linkBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  infoCard: {
+    backgroundColor: CARD,
+    borderLeftWidth: 3,
+    borderLeftColor: BLUE,
+    borderRadius: 12,
+    padding: 16,
+    gap: 4,
+  },
+  infoTitle: { fontSize: 13, fontWeight: '700', color: WHITE, marginBottom: 6 },
+  infoText:  { fontSize: 13, color: MUTED, lineHeight: 19 },
 });
