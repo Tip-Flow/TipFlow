@@ -41,12 +41,38 @@ export function useLocationId(): UseLocationIdResult {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('locations')
-        .select('id, name')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
+      // Step 1: resolve the manager's directly-linked location_id.
+      // This is more reliable than ORDER BY created_at LIMIT 1, which breaks
+      // in multi-location setups and when locations.organisation_id is null
+      // (causing the org-based RLS policy to return 0 rows).
+      const { data: mgr, error: mgrErr } = await supabase
+        .from('managers')
+        .select('location_id')
+        .eq('auth_user_id', session.user.id)
+        .maybeSingle();
+
+      console.log('[useLocationId] manager row — location_id:', mgr?.location_id ?? null, '| mgrErr:', mgrErr?.message ?? null);
+
+      let locationQuery;
+      if (mgr?.location_id) {
+        // Manager has a directly-linked location — use it.
+        locationQuery = supabase
+          .from('locations')
+          .select('id, name')
+          .eq('id', mgr.location_id)
+          .single();
+      } else {
+        // Fallback for admins or users not in the managers table.
+        console.log('[useLocationId] no manager row — falling back to first location');
+        locationQuery = supabase
+          .from('locations')
+          .select('id, name')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+      }
+
+      const { data, error } = await locationQuery;
 
       console.log('[useLocationId] query result — data:', data, '| error:', error?.message ?? null, '| code:', error?.code ?? null);
 
