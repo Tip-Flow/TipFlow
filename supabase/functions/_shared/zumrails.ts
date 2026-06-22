@@ -117,13 +117,13 @@ export async function getFundingSources(userId: string): Promise<string> {
   const token = await getToken();
 
   console.log('[zumrails] getFundingSources — userId:', userId);
-  const res = await timedFetch(`${BASE_URL}/api/fundingsource/search`, {
+  const res = await timedFetch(`${BASE_URL}/api/fundingsource/filter`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ CustomerId: userId, CurrentPage: 1, PageSize: 10 }),
+    body: JSON.stringify({ CustomerId: userId, BillingAccount: false, ItemsPerPage: 10, PageNumber: 1 }),
   });
 
   const rawText = await res.text();
