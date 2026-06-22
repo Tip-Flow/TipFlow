@@ -122,7 +122,7 @@ export async function fundWallet(params: {
   const walletId = await getWalletId(token);
 
   const payload = {
-    ZumRailsType: 'FundWallet',
+    ZumRailsType: 'FundZumWallet',
     TransactionMethod: 'Eft',
     Amount: parseFloat(params.amountDollars.toFixed(2)),
     FundingSourceId: params.fundingSourceId,
