@@ -116,7 +116,31 @@ export async function getWalletBalance(): Promise<{ walletId: string; balance: n
 export async function getFundingSources(userId: string): Promise<string> {
   const token = await getToken();
 
-  console.log('[zumrails] getFundingSources — userId:', userId);
+  // ── Step 1: fetch ALL funding sources (no CustomerId) to see what exists ──
+  console.log('[zumrails] getFundingSources DEBUG — querying ALL funding sources (no CustomerId filter)');
+  const allRes = await timedFetch(`${BASE_URL}/api/fundingsource/filter`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ BillingAccount: false, ItemsPerPage: 50, PageNumber: 1 }),
+  });
+  const allRaw = await allRes.text();
+  console.log('[zumrails] getFundingSources ALL status:', allRes.status);
+  console.log('[zumrails] getFundingSources ALL raw response:', allRaw);
+
+  if (allRes.ok) {
+    const allResult = JSON.parse(allRaw);
+    const allItems: Record<string, unknown>[] = allResult.result?.Items ?? [];
+    console.log('[zumrails] getFundingSources ALL items count:', allItems.length);
+    allItems.forEach((item, i) => {
+      console.log(`[zumrails] getFundingSources item[${i}] — Id:`, item.Id, '| CustomerId:', item.CustomerId, '| FundingSourceType:', item.FundingSourceType, '| Status:', item.FundingSourceStatus ?? item.Status);
+    });
+  }
+
+  // ── Step 2: filter by the specific CustomerId (userId from Zum Connect) ───
+  console.log('[zumrails] getFundingSources — filtering by CustomerId:', userId);
   const res = await timedFetch(`${BASE_URL}/api/fundingsource/filter`, {
     method: 'POST',
     headers: {
@@ -127,22 +151,33 @@ export async function getFundingSources(userId: string): Promise<string> {
   });
 
   const rawText = await res.text();
-  console.log('[zumrails] getFundingSources status:', res.status);
-  console.log('[zumrails] getFundingSources response:', rawText);
+  console.log('[zumrails] getFundingSources filtered status:', res.status);
+  console.log('[zumrails] getFundingSources filtered raw response:', rawText);
 
   if (!res.ok) {
     throw new Error(`Zum Rails getFundingSources failed (${res.status}): ${rawText}`);
   }
 
   const result = JSON.parse(rawText);
-  console.log('[zumrails] getFundingSources result:', JSON.stringify(result));
-
   const items: Record<string, unknown>[] = result.result?.Items ?? [];
-  const bankAccount = items.find((i) => i.FundingSourceType === 'BankAccount') ?? items[0];
-  const fundingSourceId: string = (bankAccount?.Id as string) ?? '';
+  console.log('[zumrails] getFundingSources filtered items count:', items.length);
 
+  // If filtered is empty, fall back to any BankAccount from the unfiltered list
+  let bankAccount: Record<string, unknown> | undefined = items.find((i) => i.FundingSourceType === 'BankAccount') ?? items[0];
+
+  if (!bankAccount && allRes.ok) {
+    console.log('[zumrails] getFundingSources — CustomerId filter returned 0 items, falling back to ALL items');
+    const allResult = JSON.parse(allRaw);
+    const allItems: Record<string, unknown>[] = allResult.result?.Items ?? [];
+    bankAccount = allItems.find((i) => i.FundingSourceType === 'BankAccount') ?? allItems[0];
+    if (bankAccount) {
+      console.log('[zumrails] getFundingSources — fallback found item Id:', bankAccount.Id, '| CustomerId:', bankAccount.CustomerId);
+    }
+  }
+
+  const fundingSourceId: string = (bankAccount?.Id as string) ?? '';
   if (!fundingSourceId) {
-    throw new Error(`Zum Rails getFundingSources returned no BankAccount funding source — items: ${JSON.stringify(items)}`);
+    throw new Error(`Zum Rails getFundingSources returned no funding sources at all — check Zum Rails dashboard`);
   }
 
   console.log('[zumrails] getFundingSources resolved fundingSourceId:', fundingSourceId);
