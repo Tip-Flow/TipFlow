@@ -32,9 +32,7 @@ Deno.serve(async (req: Request) => {
     };
 
     const { location_id, amount_dollars, balance_only } = body as typeof body & { balance_only?: boolean };
-    console.log('[fund-wallet] location_id:', location_id ?? 'MISSING', '| amount_dollars:', amount_dollars ?? 'MISSING', '| balance_only:', balance_only ?? false);
-
-    if (!location_id) throw new Error('location_id is required');
+    console.log('[fund-wallet] location_id:', location_id ?? 'none', '| amount_dollars:', amount_dollars ?? 'none', '| balance_only:', balance_only ?? false);
 
     // ── Supabase admin client ────────────────────────────────────────────────
     const admin = createClient(
@@ -73,7 +71,8 @@ Deno.serve(async (req: Request) => {
       return respond({ wallet_balance: balance });
     }
 
-    // ── Validate amount ──────────────────────────────────────────────────────
+    // ── Validate required fields for funding ────────────────────────────────
+    if (!location_id) throw new Error('location_id is required');
     if (amount_dollars === undefined || amount_dollars === null) throw new Error('amount_dollars is required');
     if (typeof amount_dollars !== 'number' || isNaN(amount_dollars)) throw new Error('amount_dollars must be a number');
     if (amount_dollars < MIN_AMOUNT_DOLLARS) throw new Error(`Minimum funding amount is $${MIN_AMOUNT_DOLLARS.toFixed(2)}`);

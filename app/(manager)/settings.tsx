@@ -522,15 +522,19 @@ function FundingAccountTab() {
   useEffect(() => {
     if (!locationId || fundingChecked) return;
     async function checkFundingStatus() {
+      console.log('[FundingTab] checkFundingStatus — querying for locationId:', locationId);
       const { data, error } = await supabase
         .from('locations')
         .select('zumrails_funding_source_id')
         .eq('id', locationId)
         .single();
+      console.log('[FundingTab] funding status result — zumrails_funding_source_id:', data?.zumrails_funding_source_id ?? null, '| error:', error?.message ?? null);
       if (error) {
         console.error('[Settings/Funding] funding status fetch error:', error.message);
       } else {
-        setFundingLinked(!!data?.zumrails_funding_source_id);
+        const linked = !!data?.zumrails_funding_source_id;
+        console.log('[FundingTab] setting fundingLinked:', linked);
+        setFundingLinked(linked);
       }
       setFundingChecked(true);
     }
@@ -588,18 +592,22 @@ function FundingAccountTab() {
 
   // Fetch wallet balance whenever the funding account is confirmed linked.
   useEffect(() => {
+    console.log('[FundingTab] balance effect fired — fundingLinked:', fundingLinked, '| locationId:', locationId);
     if (!fundingLinked || !locationId) return;
     async function loadBalance() {
+      console.log('[FundingTab] fetching wallet balance');
       setBalanceLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke('fund-wallet', {
-          body: { location_id: locationId, amount_dollars: 0, balance_only: true },
+          body: { location_id: locationId, balance_only: true },
         });
+        console.log('[FundingTab] wallet balance response — data:', JSON.stringify(data), '| error:', error?.message ?? null);
         if (!error && data?.wallet_balance !== undefined && data.wallet_balance !== null) {
           setWalletBalance(data.wallet_balance);
         }
-      } catch (_) {}
-      finally { setBalanceLoading(false); }
+      } catch (err: unknown) {
+        console.error('[FundingTab] wallet balance fetch threw:', err instanceof Error ? err.message : String(err));
+      } finally { setBalanceLoading(false); }
     }
     loadBalance();
   }, [fundingLinked, locationId]);
@@ -704,6 +712,7 @@ function FundingAccountTab() {
       </View>
 
       {/* ── Fund Wallet ──────────────────────────────────────────────────────── */}
+      {console.log('[FundingTab] checking fundingLinked status:', fundingLinked) as unknown as null}
       {fundingLinked && (
         <View style={fund.walletCard}>
           <View style={fund.walletHeader}>
