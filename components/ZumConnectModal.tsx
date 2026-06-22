@@ -174,43 +174,50 @@ export function ZumConnectModal({ visible, token, title = 'Link Bank Account', o
   function handleRawMessage(raw: unknown) {
     console.log('[ZumConnectModal] handleRawMessage — raw:', JSON.stringify(raw));
 
-    if (raw && typeof raw === 'object') {
-      const d = raw as Record<string, unknown>;
-
-      // Native Zum Rails postMessage format: {step, userId, origin: 'ZUM_RAILS', ...}
-      // The SDK posts this directly to window.parent; it does NOT go through our send() wrapper.
-      if (d.origin === 'ZUM_RAILS') {
-        console.log('[ZumConnectModal] native ZUM_RAILS message — step:', d.step, '| userId:', d.userId);
-        if (d.step === 'SUCCESS') {
-          const userId = (d.userId as string) ?? '';
-          console.log('[ZumConnectModal] SUCCESS — userId:', userId || '(empty)');
-          if (userId) { onSuccess(userId); return; }
-          else { onClose(); return; }
-        }
-        // Other ZUM_RAILS steps (e.g. LOADING, REDIRECT) — ignore
+    // Normalize to a plain object — handle both string and object input.
+    let d: Record<string, unknown>;
+    try {
+      if (typeof raw === 'string') {
+        d = JSON.parse(raw);
+      } else if (raw && typeof raw === 'object') {
+        d = raw as Record<string, unknown>;
+      } else {
+        console.log('[ZumConnectModal] unexpected raw type:', typeof raw, '— ignoring');
         return;
       }
-
-      // Our wrapped format from the SDK onSuccess callback: {type: 'success', data: {...}}
-      const msg = parseMessage(raw);
-      if (!msg) {
-        console.log('[ZumConnectModal] could not parse message, ignoring');
-        return;
-      }
-      console.log('[ZumConnectModal] wrapped message — type:', msg.type, '| data:', JSON.stringify(msg.data));
-      if (msg.type === 'success') {
-        const userId: string =
-          (msg.data?.userId as string) ??
-          (msg.data?.UserId as string) ??
-          '';
-        console.log('[ZumConnectModal] success — userId:', userId || '(empty — check data keys above)');
-        if (userId) onSuccess(userId);
-        else onClose();
-      } else if (msg.type === 'close' || msg.type === 'error') {
-        console.log('[ZumConnectModal] close/error — type:', msg.type);
-        onClose();
-      }
+    } catch {
+      console.log('[ZumConnectModal] JSON.parse failed — ignoring');
+      return;
     }
+
+    console.log('[ZumConnectModal] normalized — step:', d.step, '| type:', d.type, '| origin:', d.origin, '| userId:', d.userId);
+
+    // Native Zum Rails format: {step: 'SUCCESS', userId: '<uuid>', origin: 'ZUM_RAILS', ...}
+    // Key off step+userId directly — avoids any string comparison issue with origin.
+    if (d.step === 'SUCCESS') {
+      const userId = typeof d.userId === 'string' ? d.userId : '';
+      console.log('[ZumConnectModal] step=SUCCESS — userId:', userId || '(empty)');
+      if (userId) { onSuccess(userId); return; }
+      else { onClose(); return; }
+    }
+
+    // Our SDK wrapper format: {type: 'success', data: {userId, ...}}
+    if (d.type === 'success') {
+      const inner = d.data as Record<string, unknown> | undefined;
+      const userId = typeof inner?.userId === 'string' ? inner.userId
+        : typeof inner?.UserId === 'string' ? inner.UserId : '';
+      console.log('[ZumConnectModal] type=success — userId:', userId || '(empty)');
+      if (userId) { onSuccess(userId); return; }
+      else { onClose(); return; }
+    }
+
+    if (d.type === 'close' || d.type === 'error') {
+      console.log('[ZumConnectModal] type=close/error — closing');
+      onClose();
+      return;
+    }
+
+    console.log('[ZumConnectModal] unrecognized message shape — ignoring (step:', d.step, ', type:', d.type, ')');
   }
 
   if (Platform.OS === 'web') {
