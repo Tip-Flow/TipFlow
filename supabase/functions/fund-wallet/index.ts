@@ -96,7 +96,7 @@ Deno.serve(async (req: Request) => {
     const transactionId = await fundWallet({
       fundingSourceId: loc.zumrails_funding_source_id,
       amountDollars: amount_dollars,
-      memo: `Mise wallet top-up — ${loc.name}`,
+      memo: 'Wallet-Top-Up',
     });
 
     // ── Fetch updated balance ────────────────────────────────────────────────
