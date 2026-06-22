@@ -117,11 +117,13 @@ export async function getFundingSources(userId: string): Promise<string> {
   const token = await getToken();
 
   console.log('[zumrails] getFundingSources — userId:', userId);
-  const res = await timedFetch(`${BASE_URL}/api/user/${encodeURIComponent(userId)}/fundingsource`, {
+  const res = await timedFetch(`${BASE_URL}/api/fundingsource/search`, {
+    method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ CustomerId: userId, CurrentPage: 1, PageSize: 10 }),
   });
 
   const rawText = await res.text();
@@ -133,16 +135,14 @@ export async function getFundingSources(userId: string): Promise<string> {
   }
 
   const result = JSON.parse(rawText);
-  // Log full result so we can see the exact field names returned
   console.log('[zumrails] getFundingSources result:', JSON.stringify(result));
 
-  const sources = Array.isArray(result.result) ? result.result : [result.result];
-  const source = sources[0];
-  const fundingSourceId: string =
-    source?.Id ?? source?.id ?? source?.FundingSourceId ?? source?.fundingSourceId ?? '';
+  const items: Record<string, unknown>[] = result.result?.Items ?? [];
+  const bankAccount = items.find((i) => i.FundingSourceType === 'BankAccount') ?? items[0];
+  const fundingSourceId: string = (bankAccount?.Id as string) ?? '';
 
   if (!fundingSourceId) {
-    throw new Error(`Zum Rails getFundingSources returned no funding source id — result: ${JSON.stringify(result.result ?? {})}`);
+    throw new Error(`Zum Rails getFundingSources returned no BankAccount funding source — items: ${JSON.stringify(items)}`);
   }
 
   console.log('[zumrails] getFundingSources resolved fundingSourceId:', fundingSourceId);
