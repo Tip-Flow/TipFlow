@@ -17,12 +17,15 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    console.log('[save-zumconnect-result] raw body:', rawBody);
+    const body = JSON.parse(rawBody);
     const { entity_type, zumrails_user_id, location_id } = body as {
       entity_type: 'staff' | 'restaurant';
       zumrails_user_id: string;
       location_id?: string;
     };
+    console.log('[save-zumconnect-result] parsed — entity_type:', entity_type, '| zumrails_user_id:', zumrails_user_id, '| location_id:', location_id ?? 'none');
 
     if (!entity_type || !zumrails_user_id) {
       throw new Error('entity_type and zumrails_user_id are required');
@@ -64,10 +67,13 @@ Deno.serve(async (req: Request) => {
       }
       if (!location_id) throw new Error('location_id required for restaurant');
 
-      const { error } = await admin
+      console.log('[save-zumconnect-result] updating locations.zumrails_funding_source_id — location_id:', location_id, '| value:', zumrails_user_id);
+      const { error, count } = await admin
         .from('locations')
         .update({ zumrails_funding_source_id: zumrails_user_id })
-        .eq('id', location_id);
+        .eq('id', location_id)
+        .select();
+      console.log('[save-zumconnect-result] update result — error:', error?.message ?? null, '| rows affected count:', count);
       if (error) throw new Error(`Failed to update location: ${error.message}`);
       console.log('[save-zumconnect-result] restaurant funding source linked:', location_id);
       return respond({ success: true });

@@ -553,19 +553,28 @@ function FundingAccountTab() {
   }
 
   async function handleConnectSuccess(zumrailsUserId: string) {
+    console.log('[Settings/Funding] handleConnectSuccess — zumrailsUserId:', zumrailsUserId, '| locationId:', locationId);
     setShowConnect(false);
-    if (!locationId) return;
+    if (!locationId) {
+      console.error('[Settings/Funding] locationId is null at success time — cannot save');
+      return;
+    }
     try {
+      const payload = { entity_type: 'restaurant', zumrails_user_id: zumrailsUserId, location_id: locationId };
+      console.log('[Settings/Funding] calling save-zumconnect-result with payload:', JSON.stringify(payload));
       const { data, error } = await supabase.functions.invoke('save-zumconnect-result', {
-        body: { entity_type: 'restaurant', zumrails_user_id: zumrailsUserId, location_id: locationId },
+        body: payload,
       });
+      console.log('[Settings/Funding] save-zumconnect-result response — data:', JSON.stringify(data), '| error:', error);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setFundingLinked(true);
       setLinkSuccess(true);
       setTimeout(() => setLinkSuccess(false), 3000);
     } catch (err: unknown) {
-      setLinkError(err instanceof Error ? err.message : 'Failed to save bank link');
+      const msg = err instanceof Error ? err.message : 'Failed to save bank link';
+      console.error('[Settings/Funding] save-zumconnect-result threw:', msg);
+      setLinkError(msg);
     }
   }
 

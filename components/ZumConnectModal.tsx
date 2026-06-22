@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const BG     = '#09100e';
@@ -113,16 +114,26 @@ function WebIframeModal({ visible, html, title, onMessage, onClose }: {
   onMessage: (data: unknown) => void;
   onClose: () => void;
 }) {
-  // Listen for postMessage from the iframe
-  if (typeof window !== 'undefined' && visible) {
-    const handler = (e: MessageEvent) => {
-      if (e.data && e.data.origin === 'ZUM_RAILS') onMessage(e.data);
-      if (e.data && typeof e.data.type === 'string') onMessage(e.data);
-    };
+  // Register the postMessage listener once when the modal becomes visible,
+  // and clean it up when it hides or unmounts. The previous inline approach
+  // added the listener on every render and removed it on the next tick via
+  // setTimeout, so the listener was always gone by the time the iframe fired.
+  useEffect(() => {
+    if (!visible) return;
+    function handler(e: MessageEvent) {
+      console.log('[ZumConnectModal] postMessage received — origin:', e.origin, '| data:', JSON.stringify(e.data));
+      if (!e.data) return;
+      if (e.data.origin === 'ZUM_RAILS' || typeof e.data.type === 'string') {
+        onMessage(e.data);
+      }
+    }
+    console.log('[ZumConnectModal] attaching postMessage listener');
     window.addEventListener('message', handler);
-    // Cleanup on next render — intentional inline listener for simplicity
-    setTimeout(() => window.removeEventListener('message', handler), 0);
-  }
+    return () => {
+      console.log('[ZumConnectModal] removing postMessage listener');
+      window.removeEventListener('message', handler);
+    };
+  }, [visible, onMessage]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -161,16 +172,23 @@ export function ZumConnectModal({ visible, token, title = 'Link Bank Account', o
   const html = buildSdkHtml(token);
 
   function handleRawMessage(raw: unknown) {
+    console.log('[ZumConnectModal] handleRawMessage — raw:', JSON.stringify(raw));
     const msg = parseMessage(raw);
-    if (!msg) return;
+    if (!msg) {
+      console.log('[ZumConnectModal] could not parse message, ignoring');
+      return;
+    }
+    console.log('[ZumConnectModal] parsed — type:', msg.type, '| data:', JSON.stringify(msg.data));
     if (msg.type === 'success') {
       const userId: string =
         (msg.data?.userId as string) ??
         (msg.data?.UserId as string) ??
         '';
+      console.log('[ZumConnectModal] success — userId:', userId || '(empty — check data keys above)');
       if (userId) onSuccess(userId);
       else onClose();
     } else if (msg.type === 'close' || msg.type === 'error') {
+      console.log('[ZumConnectModal] close/error — type:', msg.type);
       onClose();
     }
   }
