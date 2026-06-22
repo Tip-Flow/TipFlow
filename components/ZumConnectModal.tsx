@@ -173,23 +173,43 @@ export function ZumConnectModal({ visible, token, title = 'Link Bank Account', o
 
   function handleRawMessage(raw: unknown) {
     console.log('[ZumConnectModal] handleRawMessage — raw:', JSON.stringify(raw));
-    const msg = parseMessage(raw);
-    if (!msg) {
-      console.log('[ZumConnectModal] could not parse message, ignoring');
-      return;
-    }
-    console.log('[ZumConnectModal] parsed — type:', msg.type, '| data:', JSON.stringify(msg.data));
-    if (msg.type === 'success') {
-      const userId: string =
-        (msg.data?.userId as string) ??
-        (msg.data?.UserId as string) ??
-        '';
-      console.log('[ZumConnectModal] success — userId:', userId || '(empty — check data keys above)');
-      if (userId) onSuccess(userId);
-      else onClose();
-    } else if (msg.type === 'close' || msg.type === 'error') {
-      console.log('[ZumConnectModal] close/error — type:', msg.type);
-      onClose();
+
+    if (raw && typeof raw === 'object') {
+      const d = raw as Record<string, unknown>;
+
+      // Native Zum Rails postMessage format: {step, userId, origin: 'ZUM_RAILS', ...}
+      // The SDK posts this directly to window.parent; it does NOT go through our send() wrapper.
+      if (d.origin === 'ZUM_RAILS') {
+        console.log('[ZumConnectModal] native ZUM_RAILS message — step:', d.step, '| userId:', d.userId);
+        if (d.step === 'SUCCESS') {
+          const userId = (d.userId as string) ?? '';
+          console.log('[ZumConnectModal] SUCCESS — userId:', userId || '(empty)');
+          if (userId) { onSuccess(userId); return; }
+          else { onClose(); return; }
+        }
+        // Other ZUM_RAILS steps (e.g. LOADING, REDIRECT) — ignore
+        return;
+      }
+
+      // Our wrapped format from the SDK onSuccess callback: {type: 'success', data: {...}}
+      const msg = parseMessage(raw);
+      if (!msg) {
+        console.log('[ZumConnectModal] could not parse message, ignoring');
+        return;
+      }
+      console.log('[ZumConnectModal] wrapped message — type:', msg.type, '| data:', JSON.stringify(msg.data));
+      if (msg.type === 'success') {
+        const userId: string =
+          (msg.data?.userId as string) ??
+          (msg.data?.UserId as string) ??
+          '';
+        console.log('[ZumConnectModal] success — userId:', userId || '(empty — check data keys above)');
+        if (userId) onSuccess(userId);
+        else onClose();
+      } else if (msg.type === 'close' || msg.type === 'error') {
+        console.log('[ZumConnectModal] close/error — type:', msg.type);
+        onClose();
+      }
     }
   }
 
