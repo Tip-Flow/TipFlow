@@ -113,6 +113,42 @@ export async function getWalletBalance(): Promise<{ walletId: string; balance: n
   return { walletId, balance };
 }
 
+export async function getFundingSources(userId: string): Promise<string> {
+  const token = await getToken();
+
+  console.log('[zumrails] getFundingSources — userId:', userId);
+  const res = await timedFetch(`${BASE_URL}/api/user/${encodeURIComponent(userId)}/fundingsource`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const rawText = await res.text();
+  console.log('[zumrails] getFundingSources status:', res.status);
+  console.log('[zumrails] getFundingSources response:', rawText);
+
+  if (!res.ok) {
+    throw new Error(`Zum Rails getFundingSources failed (${res.status}): ${rawText}`);
+  }
+
+  const result = JSON.parse(rawText);
+  // Log full result so we can see the exact field names returned
+  console.log('[zumrails] getFundingSources result:', JSON.stringify(result));
+
+  const sources = Array.isArray(result.result) ? result.result : [result.result];
+  const source = sources[0];
+  const fundingSourceId: string =
+    source?.Id ?? source?.id ?? source?.FundingSourceId ?? source?.fundingSourceId ?? '';
+
+  if (!fundingSourceId) {
+    throw new Error(`Zum Rails getFundingSources returned no funding source id — result: ${JSON.stringify(result.result ?? {})}`);
+  }
+
+  console.log('[zumrails] getFundingSources resolved fundingSourceId:', fundingSourceId);
+  return fundingSourceId;
+}
+
 export async function fundWallet(params: {
   fundingSourceId: string;
   amountDollars: number;
