@@ -185,7 +185,7 @@ export async function getFundingSources(userId: string): Promise<string> {
 }
 
 export async function fundWallet(params: {
-  fundingSourceId: string;
+  userId: string;
   amountDollars: number;
   memo?: string;
 }): Promise<string> {
@@ -193,13 +193,13 @@ export async function fundWallet(params: {
   const walletId = await getWalletId(token);
 
   const payload = {
-    ZumRailsType: 'FundZumWallet',
+    ZumRailsType: 'AccountsReceivable',
     TransactionMethod: 'Eft',
     Amount: parseFloat(params.amountDollars.toFixed(2)),
-    FundingSourceId: params.fundingSourceId,
+    UserId: params.userId,
     WalletId: walletId,
-    Memo: params.memo ?? 'Wallet-Fund',
-    Comment: 'Mise wallet top-up from restaurant account',
+    Memo: params.memo ?? 'Wallet-Top-Up',
+    Comment: 'Mise wallet funding',
   };
   console.log('[zumrails] fundWallet payload:', JSON.stringify(payload));
 

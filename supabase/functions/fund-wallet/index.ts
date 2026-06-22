@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { fundWallet, getWalletBalance, getFundingSources } from '../_shared/zumrails.ts';
+import { fundWallet, getWalletBalance } from '../_shared/zumrails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,17 +91,12 @@ Deno.serve(async (req: Request) => {
       throw new Error('Restaurant bank account not linked. Please link a bank account in Settings → Funding first.');
     }
 
-    // ── Resolve the real FundingSourceId from the saved Zum Rails userId ────
-    // zumrails_funding_source_id stores the userId returned by Zum Connect.
-    // The actual FundingSourceId for transactions is a child object on the user.
-    console.log('[fund-wallet] resolving real fundingSourceId from userId:', loc.zumrails_funding_source_id);
-    const realFundingSourceId = await getFundingSources(loc.zumrails_funding_source_id);
-    console.log('[fund-wallet] real fundingSourceId:', realFundingSourceId);
-
     // ── Fund the wallet ──────────────────────────────────────────────────────
-    console.log('[fund-wallet] calling fundWallet — amount:', amount_dollars, '| fundingSourceId:', realFundingSourceId);
+    // zumrails_funding_source_id IS the Zum Rails userId (created by Zum Connect).
+    // AccountsReceivable takes UserId directly — no separate FundingSource lookup needed.
+    console.log('[fund-wallet] calling fundWallet — amount:', amount_dollars, '| userId:', loc.zumrails_funding_source_id);
     const transactionId = await fundWallet({
-      fundingSourceId: realFundingSourceId,
+      userId: loc.zumrails_funding_source_id,
       amountDollars: amount_dollars,
       memo: 'Wallet-Top-Up',
     });
