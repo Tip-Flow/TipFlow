@@ -91,6 +91,73 @@ async function getWalletId(token: string): Promise<string> {
   return walletId;
 }
 
+export async function getWalletBalance(): Promise<{ walletId: string; balance: number }> {
+  const token = await getToken();
+  const walletId = await getWalletId(token);
+
+  const res = await timedFetch(`${BASE_URL}/api/wallet`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const rawText = await res.text();
+  if (!res.ok) throw new Error(`Zum Rails getWallet failed (${res.status}): ${rawText}`);
+
+  const result = JSON.parse(rawText);
+  const wallets = Array.isArray(result.result) ? result.result : [result.result];
+  const wallet = wallets[0];
+  const balance = parseFloat(String(wallet?.Balance ?? wallet?.balance ?? wallet?.AvailableBalance ?? '0')) || 0;
+  console.log('[zumrails] getWalletBalance — walletId:', walletId, '| balance:', balance);
+  return { walletId, balance };
+}
+
+export async function fundWallet(params: {
+  fundingSourceId: string;
+  amountDollars: number;
+  memo?: string;
+}): Promise<string> {
+  const token = await getToken();
+  const walletId = await getWalletId(token);
+
+  const payload = {
+    ZumRailsType: 'FundWallet',
+    TransactionMethod: 'Eft',
+    Amount: parseFloat(params.amountDollars.toFixed(2)),
+    FundingSourceId: params.fundingSourceId,
+    WalletId: walletId,
+    Memo: params.memo ?? 'Mise wallet top-up',
+    Comment: 'Mise wallet top-up from restaurant account',
+  };
+  console.log('[zumrails] fundWallet payload:', JSON.stringify(payload));
+
+  const res = await timedFetch(`${BASE_URL}/api/transaction`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const rawText = await res.text();
+  console.log('[zumrails] fundWallet status:', res.status);
+  console.log('[zumrails] fundWallet response:', rawText);
+
+  if (!res.ok) {
+    throw new Error(`Zum Rails fundWallet failed (${res.status}): ${rawText}`);
+  }
+
+  const result = JSON.parse(rawText);
+  const id: string = result.result?.Id ?? result.result?.id ?? '';
+  if (!id) {
+    throw new Error(`Zum Rails fundWallet returned no transaction id — result: ${JSON.stringify(result.result ?? {})}`);
+  }
+  console.log('[zumrails] fundWallet success transaction id:', id);
+  return id;
+}
+
 export async function createUser(params: {
   firstName: string;
   lastName: string;

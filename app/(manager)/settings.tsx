@@ -510,6 +510,14 @@ function FundingAccountTab() {
   const [linkError,      setLinkError]      = useState('');
   const [linkSuccess,    setLinkSuccess]    = useState(false);
 
+  // ── Wallet funding ──────────────────────────────────────────────────────
+  const [walletBalance,  setWalletBalance]  = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [fundAmount,     setFundAmount]     = useState('');
+  const [funding,        setFunding]        = useState(false);
+  const [fundError,      setFundError]      = useState('');
+  const [fundSuccess,    setFundSuccess]    = useState('');
+
   // Once locationId resolves, fetch the funding link status for that location.
   useEffect(() => {
     if (!locationId || fundingChecked) return;
@@ -575,6 +583,53 @@ function FundingAccountTab() {
       const msg = err instanceof Error ? err.message : 'Failed to save bank link';
       console.error('[Settings/Funding] save-zumconnect-result threw:', msg);
       setLinkError(msg);
+    }
+  }
+
+  // Fetch wallet balance whenever the funding account is confirmed linked.
+  useEffect(() => {
+    if (!fundingLinked || !locationId) return;
+    async function loadBalance() {
+      setBalanceLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('fund-wallet', {
+          body: { location_id: locationId, amount_dollars: 0, balance_only: true },
+        });
+        if (!error && data?.wallet_balance !== undefined && data.wallet_balance !== null) {
+          setWalletBalance(data.wallet_balance);
+        }
+      } catch (_) {}
+      finally { setBalanceLoading(false); }
+    }
+    loadBalance();
+  }, [fundingLinked, locationId]);
+
+  async function handleFundWallet() {
+    const dollars = parseFloat(fundAmount);
+    if (!fundAmount || isNaN(dollars) || dollars <= 0) {
+      setFundError('Enter a valid amount greater than $0.');
+      return;
+    }
+    if (!locationId) { setFundError('Location not loaded.'); return; }
+    setFundError('');
+    setFundSuccess('');
+    setFunding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fund-wallet', {
+        body: { location_id: locationId, amount_dollars: dollars },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setFundAmount('');
+      if (data.wallet_balance !== null && data.wallet_balance !== undefined) {
+        setWalletBalance(data.wallet_balance);
+      }
+      setFundSuccess(`$${dollars.toFixed(2)} funding initiated — transaction ID: ${data.transaction_id}`);
+      setTimeout(() => setFundSuccess(''), 6000);
+    } catch (err: unknown) {
+      setFundError(err instanceof Error ? err.message : 'Funding failed. Please try again.');
+    } finally {
+      setFunding(false);
     }
   }
 
@@ -644,9 +699,65 @@ function FundingAccountTab() {
           Securely connect your restaurant's bank account through Zum Connect. Mise never stores banking credentials — only a Zum Rails token is kept on file.
         </Text>
         <Text style={[fund.infoText, { marginTop: 8 }]}>
-          Once linked, staff EFT payouts are debited from this account automatically.
+          Once linked, top up your Mise wallet below and staff EFT payouts are debited from it automatically.
         </Text>
       </View>
+
+      {/* ── Fund Wallet ──────────────────────────────────────────────────────── */}
+      {fundingLinked && (
+        <View style={fund.walletCard}>
+          <View style={fund.walletHeader}>
+            <Text style={fund.walletTitle}>💳 Mise Wallet Balance</Text>
+            {balanceLoading
+              ? <ActivityIndicator size="small" color={BLUE} />
+              : <Text style={fund.walletBalance}>
+                  {walletBalance !== null ? `$${walletBalance.toFixed(2)}` : '—'}
+                </Text>}
+          </View>
+
+          <View style={fund.walletDivider} />
+
+          <Text style={fund.walletLabel}>Top Up Amount</Text>
+          <View style={fund.amountRow}>
+            <Text style={fund.dollarSign}>$</Text>
+            <TextInput
+              style={fund.amountInput}
+              value={fundAmount}
+              onChangeText={(t) => {
+                if (/^\d{0,6}(\.\d{0,2})?$/.test(t)) setFundAmount(t);
+              }}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={MUTED}
+              selectTextOnFocus
+            />
+          </View>
+
+          <View style={fund.quickAmounts}>
+            {['50', '100', '250', '500'].map((amt) => (
+              <Pressable key={amt} style={fund.quickBtn} onPress={() => setFundAmount(amt)}>
+                <Text style={fund.quickBtnText}>${amt}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {fundSuccess ? (
+            <View style={fund.successBanner}>
+              <Text style={fund.successText}>{fundSuccess}</Text>
+            </View>
+          ) : null}
+          {fundError ? <Text style={fund.errorText}>{fundError}</Text> : null}
+
+          <Pressable
+            style={[fund.fundBtn, (funding || !fundAmount) && { opacity: 0.5 }]}
+            onPress={handleFundWallet}
+            disabled={funding || !fundAmount}>
+            {funding
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={fund.fundBtnText}>Fund Wallet Now</Text>}
+          </Pressable>
+        </View>
+      )}
 
       <ZumConnectModal
         visible={showConnect}
@@ -903,4 +1014,51 @@ const fund = StyleSheet.create({
   },
   infoTitle: { fontSize: 13, fontWeight: '700', color: WHITE, marginBottom: 6 },
   infoText:  { fontSize: 13, color: MUTED, lineHeight: 19 },
+
+  // Wallet funding card
+  walletCard: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 18,
+    gap: 12,
+    marginTop: 4,
+  },
+  walletHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  walletTitle:  { fontSize: 15, fontWeight: '700', color: WHITE },
+  walletBalance:{ fontSize: 22, fontWeight: '800', color: BLUE, letterSpacing: -0.5 },
+  walletDivider:{ height: 1, backgroundColor: BORDER },
+  walletLabel:  { fontSize: 12, fontWeight: '700', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.6 },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0e1a14',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  dollarSign:  { fontSize: 20, fontWeight: '700', color: MUTED },
+  amountInput: { flex: 1, fontSize: 28, fontWeight: '800', color: WHITE, padding: 0 },
+  quickAmounts: { flexDirection: 'row', gap: 8 },
+  quickBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+    backgroundColor: '#0e1a14',
+  },
+  quickBtnText: { fontSize: 13, fontWeight: '700', color: BLUE },
+  fundBtn: {
+    backgroundColor: BLUE,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  fundBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
 });
