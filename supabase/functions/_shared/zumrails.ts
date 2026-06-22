@@ -127,7 +127,7 @@ export async function fundWallet(params: {
     Amount: parseFloat(params.amountDollars.toFixed(2)),
     FundingSourceId: params.fundingSourceId,
     WalletId: walletId,
-    Memo: params.memo ?? 'Mise wallet top-up',
+    Memo: params.memo ?? 'Wallet-Fund',
     Comment: 'Mise wallet top-up from restaurant account',
   };
   console.log('[zumrails] fundWallet payload:', JSON.stringify(payload));
