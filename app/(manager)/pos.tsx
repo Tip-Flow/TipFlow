@@ -115,6 +115,11 @@ export default function POSScreen() {
   const [syncingPush, setSyncingPush] = useState(false);
   const [pushSyncBanner, setPushSyncBanner] = useState<string | null>(null);
 
+  // Diagnostic: find dates with Push labour data
+  const [checkingDates, setCheckingDates] = useState(false);
+  const [activeDates, setActiveDates] = useState<string[]>([]);
+  const [syncingLabourDate, setSyncingLabourDate] = useState<string | null>(null);
+
   // Edit row flow
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingRowIdx, setEditingRowIdx] = useState<number | null>(null);
@@ -332,6 +337,82 @@ export default function POSScreen() {
       setSyncingPush(false);
     }
   }, [locationId, refetchLocation]);
+
+  // ── Push: find dates with activity (diagnostic) ───────────────────────────
+
+  const handleFindActiveDates = useCallback(async () => {
+    setCheckingDates(true);
+    setActiveDates([]);
+    try {
+      const { data: loc, error: locErr } = await supabase
+        .from('locations')
+        .select('push_company_id')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (locErr) throw new Error(`Could not fetch location: ${locErr.message}`);
+      const pushCompanyId = loc?.push_company_id ?? null;
+      if (!pushCompanyId) {
+        Alert.alert('Push Not Configured', 'This location does not have a Push company ID configured.');
+        return;
+      }
+
+      const res = await supabase.functions.invoke('check-push-activity', {
+        body: { push_company_id: pushCompanyId },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+      const dates: string[] = (res.data as { datesWithActivity: string[] })?.datesWithActivity ?? [];
+      setActiveDates(dates);
+      if (dates.length === 0) Alert.alert('No Activity Found', 'No labour data found in the last 14 days.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Error', msg);
+    } finally {
+      setCheckingDates(false);
+    }
+  }, []);
+
+  const handleSyncLabourForDate = useCallback(async (date: string) => {
+    setSyncingLabourDate(date);
+    setPushSyncBanner(null);
+    try {
+      const { data: loc, error: locErr } = await supabase
+        .from('locations')
+        .select('id, push_company_id')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (locErr) throw new Error(`Could not fetch location: ${locErr.message}`);
+      const locId = loc?.id ?? null;
+      const pushCompanyId = loc?.push_company_id ?? null;
+
+      if (!locId || !pushCompanyId) throw new Error('Location or Push company ID not configured.');
+
+      const labourRes = await supabase.functions.invoke('sync-push-labour', {
+        body: { location_id: locId, push_company_id: pushCompanyId, date },
+      });
+
+      if (labourRes.error) {
+        let detail = labourRes.error.message;
+        try {
+          const body = await (labourRes.error as unknown as { context?: Response }).context?.json() as { error?: string } | undefined;
+          if (body?.error) detail = body.error;
+        } catch { /* ignore */ }
+        throw new Error(detail);
+      }
+
+      const data = labourRes.data as { count?: number } | null;
+      setPushSyncBanner(`Labour loaded for ${date} · ${data?.count ?? 0} staff hours`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Labour Sync Failed', msg);
+    } finally {
+      setSyncingLabourDate(null);
+    }
+  }, []);
 
   // ── CSV upload ────────────────────────────────────────────────────────────
 
@@ -660,6 +741,44 @@ export default function POSScreen() {
               </View>
             )}
           </Pressable>
+
+          {/* Diagnostic: find active dates */}
+          <View style={styles.activeDatesRow}>
+            <Pressable
+              onPress={handleFindActiveDates}
+              disabled={checkingDates || syncingPush}
+              style={styles.findDatesBtn}>
+              {checkingDates ? (
+                <ActivityIndicator color={MUTED} size="small" />
+              ) : (
+                <Text style={styles.findDatesBtnText}>
+                  {activeDates.length > 0 ? `${activeDates.length} dates with data` : 'Find active dates'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          {activeDates.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.datePillsContent}
+              style={styles.datePillsScroll}>
+              {activeDates.map((date) => (
+                <Pressable
+                  key={date}
+                  style={[styles.datePill, syncingLabourDate === date && styles.datePillLoading]}
+                  onPress={() => handleSyncLabourForDate(date)}
+                  disabled={syncingLabourDate !== null}>
+                  {syncingLabourDate === date ? (
+                    <ActivityIndicator color={BLUE} size="small" />
+                  ) : (
+                    <Text style={styles.datePillText}>{date}</Text>
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
 
           <View style={styles.rowDivider} />
 
@@ -1397,6 +1516,34 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   syncNowBadgeText: { fontSize: 12, fontWeight: '700', color: '#ffffff', letterSpacing: 0.2 },
+
+  // Find active dates diagnostic tool
+  activeDatesRow: {
+    paddingHorizontal: 18,
+    paddingBottom: 10,
+    paddingTop: 2,
+  },
+  findDatesBtn: {
+    alignSelf: 'flex-start',
+    minHeight: 24,
+    justifyContent: 'center',
+  },
+  findDatesBtnText: { fontSize: 12, color: MUTED, fontWeight: '600', textDecorationLine: 'underline' },
+  datePillsScroll: { marginBottom: 10 },
+  datePillsContent: { paddingHorizontal: 18, gap: 8 },
+  datePill: {
+    backgroundColor: BLUE_DIM,
+    borderWidth: 1,
+    borderColor: 'rgba(65,105,225,0.35)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  datePillLoading: { opacity: 0.6 },
+  datePillText: { fontSize: 13, fontWeight: '700', color: BLUE },
   comingSoonBadge: {
     backgroundColor: 'rgba(65,105,225,0.12)',
     borderWidth: 1,

@@ -58,6 +58,31 @@ export async function getEmployees(companyId: number): Promise<Record<string, un
   return employees;
 }
 
+export async function findRecentActivityDates(companyId: number): Promise<string[]> {
+  const today = new Date();
+  const dates: string[] = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    return d.toISOString().split('T')[0];
+  });
+
+  console.log('[push] findRecentActivityDates — checking', dates.length, 'days for companyId:', companyId);
+
+  const results = await Promise.allSettled(
+    dates.map(async (date) => {
+      const records = await getLabourActuals(companyId, date, date);
+      return records.length > 0 ? date : null;
+    }),
+  );
+
+  const active = results
+    .map((r) => (r.status === 'fulfilled' ? r.value : null))
+    .filter((d): d is string => d !== null);
+
+  console.log('[push] findRecentActivityDates — active dates:', active.join(', ') || '(none)');
+  return active;
+}
+
 export async function getLabourActuals(
   companyId: number,
   startDate: string,
