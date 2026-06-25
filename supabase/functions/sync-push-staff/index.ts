@@ -63,13 +63,13 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { location_id, push_company_id } = await req.json();
+    const { location_id, push_company_id, dryRun = false } = await req.json();
 
     if (!location_id || !push_company_id) {
       throw new Error('location_id and push_company_id are required');
     }
 
-    console.log('[sync-push-staff] start — location_id:', location_id, 'push_company_id:', push_company_id);
+    console.log('[sync-push-staff] start — location_id:', location_id, 'push_company_id:', push_company_id, 'dryRun:', dryRun);
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -159,8 +159,11 @@ Deno.serve(async (req: Request) => {
 
       console.log('[sync-push-staff] created staff_member:', newStaff.id, 'for', name);
 
-      // Only send invite if we have an email
-      if (email) {
+      // DRY RUN MODE - remove before production launch with Dan
+      if (dryRun) {
+        console.log('[sync-push-staff] DRY RUN — skipping invite for', name, email ? `(${email})` : '(no email)');
+      } else if (email) {
+        // Only send invite if we have an email
         try {
           const inviteRes = await fetch(
             `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-staff-invite`,
@@ -193,7 +196,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const summary = { updated, invited, alreadyExists, total: activeEmployees.length };
+    const summary = { dryRun, updated, invited, alreadyExists, total: activeEmployees.length };
     console.log('[sync-push-staff] done —', JSON.stringify(summary));
 
     return new Response(

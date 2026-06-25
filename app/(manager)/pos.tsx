@@ -270,9 +270,10 @@ export default function POSScreen() {
       }
 
       // Step 1: Sync staff roster
+      // DRY RUN MODE - remove before production launch with Dan
       console.log('[POS] calling sync-push-staff');
       const staffRes = await supabase.functions.invoke('sync-push-staff', {
-        body: { location_id: locId, push_company_id: pushCompanyId },
+        body: { location_id: locId, push_company_id: pushCompanyId, dryRun: true },
       });
       console.log('[POS] sync-push-staff raw — data:', JSON.stringify(staffRes.data), '| error:', staffRes.error?.message ?? null);
       if (staffRes.error) {
