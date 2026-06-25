@@ -404,8 +404,10 @@ export default function POSScreen() {
         throw new Error(detail);
       }
 
-      const data = labourRes.data as { count?: number } | null;
-      setPushSyncBanner(`Labour loaded for ${date} · ${data?.count ?? 0} staff hours`);
+      const data = labourRes.data as { departments?: unknown[]; totalHours?: number; count?: number } | null;
+      const deptCount = data?.count ?? data?.departments?.length ?? 0;
+      const totalHours = data?.totalHours ?? 0;
+      setPushSyncBanner(`Labour loaded for ${date} — ${deptCount} department${deptCount !== 1 ? 's' : ''}, ${totalHours} total hours`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       Alert.alert('Labour Sync Failed', msg);
