@@ -6,39 +6,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface LabourEntry {
-  push_employee_id: string | number | null;
-  name: string;
+// labour-actuals returns department aggregates, not per-employee rows.
+// We store the department summary so the manager can see total hours per
+// department. Individual employee hours need a different Push endpoint.
+interface DepartmentEntry {
+  department_id: number | null;
+  department_name: string;
   hours: number;
-  staff_member_id: string | null;
+  costs: number;
 }
 
-function extractEmployeeId(record: Record<string, unknown>): string | null {
-  const id = record.employee_id ?? record.employeeId ?? record.id ?? record.push_employee_id ?? null;
-  return id !== null ? String(id) : null;
-}
-
-function extractEmployeeName(record: Record<string, unknown>): string {
-  if (record.first_name || record.last_name) {
-    return `${record.first_name ?? ''} ${record.last_name ?? ''}`.trim();
-  }
-  return String(record.employee_name ?? record.name ?? record.employeeName ?? 'Unknown');
-}
-
-function extractHours(record: Record<string, unknown>): number {
-  // Try various field names Push might use for total hours
-  const raw =
-    record.total_hours ??
-    record.totalHours ??
-    record.regular_hours ??
-    record.regularHours ??
-    record.hours_worked ??
-    record.hoursWorked ??
-    record.actual_hours ??
-    record.hours ??
-    0;
-  const parsed = parseFloat(String(raw));
-  return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
+function extractDepartmentEntry(record: Record<string, unknown>): DepartmentEntry {
+  const rawHours = record.hours ?? record.totalHours ?? record.actual_hours ?? 0;
+  const rawCosts = record.costs ?? record.totalCosts ?? record.labour_cost ?? 0;
+  return {
+    department_id: record.departmentId != null ? Number(record.departmentId) : null,
+    department_name: String(record.departmentName ?? record.department ?? 'Unknown'),
+    hours: Math.round(parseFloat(String(rawHours)) * 100) / 100 || 0,
+    costs: Math.round(parseFloat(String(rawCosts)) * 100) / 100 || 0,
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -64,73 +50,42 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // Fetch labour actuals from Push
     const records = await getLabourActuals(push_company_id, date, date);
 
-    // Fetch all staff for this location to map Push employees → staff_member_id
-    const { data: staffData, error: staffErr } = await admin
-      .from('staff_members')
-      .select('id, name, email')
-      .eq('location_id', location_id);
+    const departments: DepartmentEntry[] = records.map(extractDepartmentEntry);
 
-    if (staffErr) throw staffErr;
+    const totalHours = Math.round(departments.reduce((s, d) => s + d.hours, 0) * 100) / 100;
+    const totalCosts = Math.round(departments.reduce((s, d) => s + d.costs, 0) * 100) / 100;
 
-    const staffByName  = new Map<string, string>(); // name.lower → id
-    const staffByEmail = new Map<string, string>(); // email.lower → id
-    for (const s of staffData ?? []) {
-      staffByName.set(s.name.toLowerCase().trim(), s.id);
-      if (s.email) staffByEmail.set(s.email.toLowerCase().trim(), s.id);
-    }
+    console.log('[sync-push-labour] date:', date, '| departments:', departments.length, '| totalHours:', totalHours, '| totalCosts:', totalCosts);
+    departments.forEach((d) => {
+      console.log('[sync-push-labour] dept:', d.department_name, 'hours:', d.hours, 'costs:', d.costs);
+    });
 
-    // Build mapped entries
-    const entries: LabourEntry[] = [];
-    for (const record of records) {
-      const pushId = extractEmployeeId(record);
-      const name   = extractEmployeeName(record);
-      const hours  = extractHours(record);
-
-      if (hours <= 0) {
-        console.log('[sync-push-labour] skipping', name, '— 0 hours');
-        continue;
-      }
-
-      // Match by name (email not available in labour actuals)
-      const staffMemberId = staffByName.get(name.toLowerCase().trim()) ?? null;
-
-      console.log('[sync-push-labour] record:', name, 'push_id:', pushId, 'hours:', hours, 'matched staff_id:', staffMemberId);
-
-      entries.push({
-        push_employee_id: pushId,
-        name,
-        hours,
-        staff_member_id: staffMemberId,
-      });
-    }
-
-    console.log('[sync-push-labour] mapped', entries.length, 'entries with hours > 0');
-
-    // Store in locations.push_labour_cache so calculate tab can read it
+    // Store department-level summary in locations cache.
+    // Note: this is aggregated by department, not individual employees.
     const { error: updateErr } = await admin
       .from('locations')
       .update({
-        push_labour_cache: entries,
+        push_labour_cache: departments,
         push_labour_cache_date: date,
       })
       .eq('id', location_id);
 
     if (updateErr) {
       console.error('[sync-push-labour] failed to store cache:', updateErr.message);
-      // Non-fatal — still return the data
     } else {
-      console.log('[sync-push-labour] stored cache for date:', date);
+      console.log('[sync-push-labour] stored department cache for date:', date);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         date,
-        entries,
-        count: entries.length,
+        departments,
+        totalHours,
+        totalCosts,
+        count: departments.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

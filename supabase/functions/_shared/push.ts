@@ -139,29 +139,20 @@ export async function getLabourActuals(
 
   const result = JSON.parse(rawText);
   console.log('[push] getLabourActuals top-level keys:', Array.isArray(result) ? '[array]' : Object.keys(result).join(', '));
-  console.log('[push] getLabourActuals parsed result:', JSON.stringify(result).slice(0, 2000));
 
-  // Step 1: unwrap top-level envelope
-  let candidate: unknown = Array.isArray(result)
-    ? result
-    : (result.data ?? result.labour ?? result.actuals ?? result.results ?? result.items ?? null);
+  // Response shape: { data: { companyId, totalCosts, totalHours, labourActualByDate: [...] } }
+  // Each entry in labourActualByDate is a DEPARTMENT-LEVEL aggregate (departmentId, departmentName,
+  // costs, hours) — NOT per-employee. Individual staff hours are not available from this endpoint.
+  const labourByDate = (result?.data as Record<string, unknown> | null)?.labourActualByDate;
 
-  // Step 2: if candidate is still a non-array object, go one level deeper
-  if (candidate !== null && !Array.isArray(candidate) && typeof candidate === 'object') {
-    const inner = candidate as Record<string, unknown>;
-    console.log('[push] getLabourActuals candidate (non-array) keys:', Object.keys(inner).join(', '));
-    candidate = inner.records ?? inner.labour ?? inner.actuals ?? inner.items ?? inner.data ?? null;
+  if (!Array.isArray(labourByDate)) {
+    console.warn('[push] getLabourActuals — labourActualByDate not found or not an array; returning empty. data keys:', Object.keys((result?.data ?? {}) as object).join(', '));
+    return [];
   }
 
-  if (!Array.isArray(candidate)) {
-    console.warn('[push] getLabourActuals — no array found in response; returning empty. Shape:', JSON.stringify(result).slice(0, 500));
-    candidate = [];
-  }
-
-  const records = candidate as Record<string, unknown>[];
-  console.log('[push] getLabourActuals resolved', records.length, 'records');
+  const records = labourByDate as Record<string, unknown>[];
+  console.log('[push] getLabourActuals resolved', records.length, 'department records');
   records.slice(0, 3).forEach((r, i) => {
-    console.log(`[push] labour[${i}] keys:`, Object.keys(r).join(', '));
     console.log(`[push] labour[${i}]:`, JSON.stringify(r));
   });
 
