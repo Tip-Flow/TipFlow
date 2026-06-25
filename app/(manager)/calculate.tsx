@@ -146,6 +146,11 @@ export default function CalculateScreen() {
   const [housePoolAllocations, setHousePoolAllocations] = useState<HousePoolAllocation[] | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Push labour hours cache: staff_member_id → hours (pre-filled from Push sync)
+  const [pushHours, setPushHours] = useState<Record<string, number>>({});
+  // Track which fields were pre-filled by Push (to show badge)
+  const [pushFilledIds, setPushFilledIds] = useState<Set<string>>(new Set());
+
   // ── Active (pending) shifts ───────────────────────────────────────────────
   const [activeShifts, setActiveShifts] = useState<ActiveShift[]>([]);
   const [loadingActive, setLoadingActive] = useState(false);
@@ -170,12 +175,29 @@ export default function CalculateScreen() {
       try {
         const { data: locData } = await supabase
           .from('locations')
-          .select('id')
+          .select('id, push_labour_cache, push_labour_cache_date')
           .order('created_at', { ascending: true })
           .limit(1)
           .single();
         if (!locData) return;
         setLocationId(locData.id);
+
+        // Load Push labour cache if it's for today
+        const todayStr = today();
+        const cacheDate = locData.push_labour_cache_date ?? null;
+        const cache = locData.push_labour_cache as Array<{ staff_member_id: string | null; hours: number }> | null;
+        if (cacheDate === todayStr && Array.isArray(cache) && cache.length > 0) {
+          const hoursMap: Record<string, number> = {};
+          for (const entry of cache) {
+            if (entry.staff_member_id && entry.hours > 0) {
+              hoursMap[entry.staff_member_id] = entry.hours;
+            }
+          }
+          console.log('[Calculate] Push labour cache loaded for', todayStr, '—', Object.keys(hoursMap).length, 'entries');
+          setPushHours(hoursMap);
+        } else {
+          setPushHours({});
+        }
 
         const { data: staffData, error } = await supabase
           .from('staff_members')
@@ -218,6 +240,39 @@ export default function CalculateScreen() {
     }
     fetchStaff();
   }, []);
+
+  // ── Pre-fill hours from Push labour cache ────────────────────────────────
+  useEffect(() => {
+    if (Object.keys(pushHours).length === 0) return;
+    const filledIds = new Set<string>();
+
+    setServers((prev) =>
+      prev.map((s) => {
+        const hrs = pushHours[s.id];
+        if (hrs !== undefined && s.hoursWorked === '') {
+          filledIds.add(s.id);
+          return { ...s, hoursWorked: String(hrs) };
+        }
+        return s;
+      }),
+    );
+
+    setSupportStaff((prev) =>
+      prev.map((s) => {
+        const hrs = pushHours[s.id];
+        if (hrs !== undefined && s.hoursWorked === '') {
+          filledIds.add(s.id);
+          return { ...s, hoursWorked: String(hrs) };
+        }
+        return s;
+      }),
+    );
+
+    if (filledIds.size > 0) {
+      setPushFilledIds(filledIds);
+      console.log('[Calculate] pre-filled hours from Push for', filledIds.size, 'staff');
+    }
+  }, [pushHours]);
 
   // ── Fetch active (pending) shifts when location is known ──────────────────
   const fetchActiveShifts = useCallback(async (locId: string) => {
@@ -266,6 +321,10 @@ export default function CalculateScreen() {
     if (/^\d*(\.\d{0,2})?$/.test(value)) {
       setServers((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
       setSummary(null);
+      // Clear Push badge if user manually edits the hours
+      if (field === 'hoursWorked') {
+        setPushFilledIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      }
     }
   }
 
@@ -280,6 +339,7 @@ export default function CalculateScreen() {
         prev.map((s) => (s.id === id ? { ...s, hoursWorked: value } : s)),
       );
       setSummary(null);
+      setPushFilledIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     }
   }
 
@@ -715,15 +775,20 @@ export default function CalculateScreen() {
             keyboardType="decimal-pad"
             editable={s.included}
           />
-          <TextInput
-            style={[styles.tableInput, { width: COL_HOURS, flexShrink: 0 }, !s.included && { color: MUTED }]}
-            placeholder="0"
-            placeholderTextColor={MUTED}
-            value={s.hoursWorked}
-            onChangeText={(t) => updateServer(s.id, 'hoursWorked', t)}
-            keyboardType="decimal-pad"
-            editable={s.included}
-          />
+          <View style={{ width: COL_HOURS, flexShrink: 0, alignItems: 'center' }}>
+            <TextInput
+              style={[styles.tableInput, { width: COL_HOURS, flexShrink: 0 }, !s.included && { color: MUTED }, pushFilledIds.has(s.id) && styles.tableInputPush]}
+              placeholder="0"
+              placeholderTextColor={MUTED}
+              value={s.hoursWorked}
+              onChangeText={(t) => updateServer(s.id, 'hoursWorked', t)}
+              keyboardType="decimal-pad"
+              editable={s.included}
+            />
+            {pushFilledIds.has(s.id) && (
+              <Text style={styles.pushBadgeSmall}>Push</Text>
+            )}
+          </View>
           <View style={{ width: COL_ON, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
             <Switch
               value={s.included}
@@ -893,9 +958,14 @@ export default function CalculateScreen() {
                       />
                     </View>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Hours</Text>
+                      <View style={styles.inputLabelRow}>
+                        <Text style={styles.inputLabel}>Hours</Text>
+                        {pushFilledIds.has(s.id) && (
+                          <Text style={styles.pushBadge}>Push</Text>
+                        )}
+                      </View>
                       <TextInput
-                        style={styles.smallInput}
+                        style={[styles.smallInput, pushFilledIds.has(s.id) && styles.smallInputPush]}
                         placeholder="0"
                         placeholderTextColor={MUTED}
                         value={s.hoursWorked}
@@ -924,10 +994,15 @@ export default function CalculateScreen() {
                   <Text style={[styles.staffName, !s.included && { color: MUTED }]}>
                     {ROLE_EMOJIS[s.role] ?? ''} {s.name}
                   </Text>
-                  <Text style={styles.staffRole}>{ROLE_LABELS[s.role] ?? s.role}</Text>
+                  <View style={styles.staffRoleRow}>
+                    <Text style={styles.staffRole}>{ROLE_LABELS[s.role] ?? s.role}</Text>
+                    {pushFilledIds.has(s.id) && (
+                      <Text style={styles.pushBadge}>Push</Text>
+                    )}
+                  </View>
                 </View>
                 <TextInput
-                  style={[styles.hoursInput, !s.included && styles.hoursInputDisabled]}
+                  style={[styles.hoursInput, !s.included && styles.hoursInputDisabled, pushFilledIds.has(s.id) && styles.hoursInputPush]}
                   placeholder="hrs"
                   placeholderTextColor={MUTED}
                   value={s.hoursWorked}
@@ -1480,6 +1555,34 @@ const styles = StyleSheet.create({
   },
   hoursInputDisabled: { color: MUTED },
   emptyText: { fontSize: 14, color: MUTED, paddingHorizontal: 16, paddingVertical: 20, textAlign: 'center', lineHeight: 20 },
+
+  // Push labour badge
+  inputLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  staffRoleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  pushBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: BLUE,
+    backgroundColor: BLUE_DIM,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    overflow: 'hidden',
+  },
+  pushBadgeSmall: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: BLUE,
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  smallInputPush: { borderColor: BLUE_BORDER },
+  hoursInputPush: { borderColor: BLUE_BORDER },
+  tableInputPush: { borderColor: BLUE_BORDER },
 
   // Calculate button
   calcBtn: { backgroundColor: BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },

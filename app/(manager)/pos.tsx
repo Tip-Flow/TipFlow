@@ -107,9 +107,13 @@ export default function POSScreen() {
   const [ocrPreviewVisible, setOcrPreviewVisible] = useState(false);
 
   // Coming-soon integration modals
-  const [comingSoonModal, setComingSoonModal] = useState<null | 'squirrel' | 'push' | 'adp'>(null);
+  const [comingSoonModal, setComingSoonModal] = useState<null | 'squirrel' | 'adp'>(null);
   // Sync result banner — set by processSyncedStaff() when integrations go live
   const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
+
+  // Push Operations sync
+  const [syncingPush, setSyncingPush] = useState(false);
+  const [pushSyncBanner, setPushSyncBanner] = useState<string | null>(null);
 
   // Edit row flow
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -228,6 +232,84 @@ export default function POSScreen() {
       setPullingReport(false);
     }
   }, [locationId, refetchLocation, router]);
+
+  // ── Push Operations sync ──────────────────────────────────────────────────
+
+  const handleSyncFromPush = useCallback(async () => {
+    setSyncingPush(true);
+    setPushSyncBanner(null);
+    try {
+      // Resolve location and its push_company_id
+      let locId = locationId;
+      let pushCompanyId: number | null = null;
+
+      if (!locId) {
+        await refetchLocation();
+      }
+
+      const { data: loc, error: locErr } = await supabase
+        .from('locations')
+        .select('id, push_company_id')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (locErr) throw new Error(`Could not fetch location: ${locErr.message}`);
+      locId = loc?.id ?? null;
+      pushCompanyId = loc?.push_company_id ?? null;
+
+      console.log('[POS] Push sync — locId:', locId, 'push_company_id:', pushCompanyId);
+
+      if (!locId) {
+        Alert.alert('No Location', 'No location found. Set up your location first.');
+        return;
+      }
+      if (!pushCompanyId) {
+        Alert.alert('Push Not Configured', 'This location does not have a Push company ID configured. Contact Mise support.');
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeader = session?.access_token ? `Bearer ${session.access_token}` : '';
+
+      // Step 1: Sync staff roster
+      console.log('[POS] calling sync-push-staff');
+      const staffRes = await supabase.functions.invoke('sync-push-staff', {
+        body: { location_id: locId, push_company_id: pushCompanyId },
+      });
+      if (staffRes.error) throw new Error(`Staff sync failed: ${staffRes.error.message}`);
+      const staffData = staffRes.data as { invited?: number; updated?: number; alreadyExists?: number } | null;
+      console.log('[POS] sync-push-staff result:', JSON.stringify(staffData));
+
+      // Step 2: Sync today's labour hours
+      const today = new Date().toISOString().split('T')[0];
+      console.log('[POS] calling sync-push-labour for date:', today);
+      const labourRes = await supabase.functions.invoke('sync-push-labour', {
+        body: { location_id: locId, push_company_id: pushCompanyId, date: today },
+      });
+      if (labourRes.error) throw new Error(`Labour sync failed: ${labourRes.error.message}`);
+      const labourData = labourRes.data as { count?: number } | null;
+      console.log('[POS] sync-push-labour result:', JSON.stringify(labourData));
+
+      const invited = staffData?.invited ?? 0;
+      const updatedStaff = staffData?.updated ?? 0;
+      const labourCount = labourData?.count ?? 0;
+
+      const bannerMsg = [
+        invited > 0 ? `${invited} new staff invited` : null,
+        updatedStaff > 0 ? `${updatedStaff} roles updated` : null,
+        labourCount > 0 ? `${labourCount} staff hours loaded for today` : null,
+      ].filter(Boolean).join(' · ');
+
+      setPushSyncBanner(bannerMsg || 'Push sync complete — no changes');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[POS] handleSyncFromPush error:', msg);
+      Alert.alert('Push Sync Failed', msg);
+    } finally {
+      setSyncingPush(false);
+    }
+  }, [locationId, refetchLocation]);
 
   // ── CSV upload ────────────────────────────────────────────────────────────
 
@@ -415,6 +497,16 @@ export default function POSScreen() {
           </View>
         )}
 
+        {/* Push sync result banner */}
+        {pushSyncBanner && (
+          <View style={styles.syncBanner}>
+            <Text style={styles.syncBannerText}>Push · {pushSyncBanner}</Text>
+            <Pressable onPress={() => setPushSyncBanner(null)}>
+              <Text style={styles.syncBannerDismiss}>✕</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Location Cards */}
         <View style={styles.section}>
           {locations.map((loc) => {
@@ -526,17 +618,25 @@ export default function POSScreen() {
 
           {/* Push Operations */}
           <Pressable
-            style={styles.integrationRow}
-            onPress={() => setComingSoonModal('push')}>
+            style={[styles.integrationRow, syncingPush && { opacity: 0.6 }]}
+            onPress={handleSyncFromPush}
+            disabled={syncingPush}>
             <View style={styles.integrationRowLeft}>
               <View style={styles.integrationIcon}>
                 <Text style={styles.integrationIconText}>🕐</Text>
               </View>
-              <Text style={styles.integrationRowName}>Sync from Push</Text>
+              <View>
+                <Text style={styles.integrationRowName}>Sync from Push</Text>
+                <Text style={styles.integrationRowSub}>Staff & hours</Text>
+              </View>
             </View>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
-            </View>
+            {syncingPush ? (
+              <ActivityIndicator color={BLUE} size="small" />
+            ) : (
+              <View style={styles.syncNowBadge}>
+                <Text style={styles.syncNowBadgeText}>Sync Now</Text>
+              </View>
+            )}
           </Pressable>
 
           <View style={styles.rowDivider} />
@@ -1113,18 +1213,6 @@ export default function POSScreen() {
           closing: 'One tap. Everything done.',
         },
         {
-          key: 'push' as const,
-          title: 'Push Operations — Coming Soon',
-          intro: 'When connected, Mise will automatically:',
-          bullets: [
-            'Pull staff schedules and clock-in/clock-out times',
-            'Auto-fill hours worked for every staff member every shift',
-            'Detect new hires and send them Mise invite emails instantly',
-            'Keep your team roster in sync across Mise and Push',
-          ],
-          closing: 'No manual hours entry. Ever.',
-        },
-        {
           key: 'adp' as const,
           title: 'ADP Payroll — Coming Soon',
           intro: 'When connected, Mise will automatically:',
@@ -1278,7 +1366,15 @@ const styles = StyleSheet.create({
   },
   integrationIconText: { fontSize: 18 },
   integrationRowName: { fontSize: 15, fontWeight: '600', color: WHITE },
+  integrationRowSub: { fontSize: 12, color: MUTED, marginTop: 1 },
   rowDivider: { height: 1, backgroundColor: BORDER, marginHorizontal: 18 },
+  syncNowBadge: {
+    backgroundColor: BLUE,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  syncNowBadgeText: { fontSize: 12, fontWeight: '700', color: '#ffffff', letterSpacing: 0.2 },
   comingSoonBadge: {
     backgroundColor: 'rgba(65,105,225,0.12)',
     borderWidth: 1,
