@@ -269,15 +269,24 @@ export default function POSScreen() {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const authHeader = session?.access_token ? `Bearer ${session.access_token}` : '';
-
       // Step 1: Sync staff roster
       console.log('[POS] calling sync-push-staff');
       const staffRes = await supabase.functions.invoke('sync-push-staff', {
         body: { location_id: locId, push_company_id: pushCompanyId },
       });
-      if (staffRes.error) throw new Error(`Staff sync failed: ${staffRes.error.message}`);
+      console.log('[POS] sync-push-staff raw — data:', JSON.stringify(staffRes.data), '| error:', staffRes.error?.message ?? null);
+      if (staffRes.error) {
+        // FunctionsHttpError stores the raw Response in .context; read it to get the actual error from the function.
+        let detail = staffRes.error.message;
+        try {
+          const body = await (staffRes.error as unknown as { context?: Response }).context?.json() as { error?: string } | undefined;
+          console.log('[POS] sync-push-staff error body:', JSON.stringify(body));
+          if (body?.error) detail = body.error;
+        } catch (bodyErr) {
+          console.log('[POS] could not read sync-push-staff error body:', bodyErr);
+        }
+        throw new Error(`Staff sync failed: ${detail}`);
+      }
       const staffData = staffRes.data as { invited?: number; updated?: number; alreadyExists?: number } | null;
       console.log('[POS] sync-push-staff result:', JSON.stringify(staffData));
 
@@ -287,7 +296,18 @@ export default function POSScreen() {
       const labourRes = await supabase.functions.invoke('sync-push-labour', {
         body: { location_id: locId, push_company_id: pushCompanyId, date: today },
       });
-      if (labourRes.error) throw new Error(`Labour sync failed: ${labourRes.error.message}`);
+      console.log('[POS] sync-push-labour raw — data:', JSON.stringify(labourRes.data), '| error:', labourRes.error?.message ?? null);
+      if (labourRes.error) {
+        let detail = labourRes.error.message;
+        try {
+          const body = await (labourRes.error as unknown as { context?: Response }).context?.json() as { error?: string } | undefined;
+          console.log('[POS] sync-push-labour error body:', JSON.stringify(body));
+          if (body?.error) detail = body.error;
+        } catch (bodyErr) {
+          console.log('[POS] could not read sync-push-labour error body:', bodyErr);
+        }
+        throw new Error(`Labour sync failed: ${detail}`);
+      }
       const labourData = labourRes.data as { count?: number } | null;
       console.log('[POS] sync-push-labour result:', JSON.stringify(labourData));
 
@@ -301,6 +321,7 @@ export default function POSScreen() {
         labourCount > 0 ? `${labourCount} staff hours loaded for today` : null,
       ].filter(Boolean).join(' · ');
 
+      console.log('[POS] setPushSyncBanner →', bannerMsg || 'Push sync complete — no changes');
       setPushSyncBanner(bannerMsg || 'Push sync complete — no changes');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
