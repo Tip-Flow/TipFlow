@@ -1,12 +1,10 @@
 const BASE_URL = 'https://api.pushoperations.com/platform/api/v1';
 const TIMEOUT_MS = 15_000;
 
-function getAuthHeader(): string {
-  const username = Deno.env.get('PUSH_USERNAME') ?? '';
-  const password = Deno.env.get('PUSH_PASSWORD') ?? '';
-  console.log('[push] getAuthHeader — username present:', !!username, 'password present:', !!password);
-  const encoded = btoa(`${username}:${password}`);
-  return `Basic ${encoded}`;
+function getAuthHeader(): Record<string, string> {
+  const token = Deno.env.get('PUSH_PASSWORD') ?? '';
+  console.log('[push] getAuthHeader — token present:', !!token);
+  return { 'Authorization': `Bearer ${token}` };
 }
 
 async function timedFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -30,7 +28,7 @@ export async function getEmployees(companyId: number): Promise<Record<string, un
   const url = `${BASE_URL}/employees?company=${companyId}&include=positions,location`;
   const res = await timedFetch(url, {
     headers: {
-      'Authorization': getAuthHeader(),
+      ...getAuthHeader(),
       'Accept': 'application/json',
     },
   });
@@ -68,7 +66,7 @@ export async function getLabourActuals(
   const url = `${BASE_URL}/analytics/summary/labour-actuals?company=${companyId}&start=${startDate}&end=${endDate}`;
   const res = await timedFetch(url, {
     headers: {
-      'Authorization': getAuthHeader(),
+      ...getAuthHeader(),
       'Accept': 'application/json',
     },
   });
