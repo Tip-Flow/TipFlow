@@ -314,21 +314,24 @@ export default function POSScreen() {
         }
         throw new Error(`Labour sync failed: ${detail}`);
       }
-      const labourData = labourRes.data as { count?: number } | null;
+      const labourData = labourRes.data as { count?: number; totalHours?: number; departments?: unknown[] } | null;
       console.log('[POS] sync-push-labour result:', JSON.stringify(labourData));
 
       const invited = staffData?.invited ?? 0;
       const updatedStaff = staffData?.updated ?? 0;
-      const labourCount = labourData?.count ?? 0;
+      const labourDepts = labourData?.count ?? labourData?.departments?.length ?? 0;
+      const labourHours = labourData?.totalHours ?? 0;
 
-      const bannerMsg = [
-        invited > 0 ? `${invited} new staff invited` : null,
+      const today = new Date().toISOString().split('T')[0];
+      const bannerParts = [
+        invited > 0 ? `${invited} new staff added` : null,
         updatedStaff > 0 ? `${updatedStaff} roles updated` : null,
-        labourCount > 0 ? `${labourCount} staff hours loaded for today` : null,
-      ].filter(Boolean).join(' · ');
+        labourDepts > 0 ? `Labour loaded for ${today} — ${labourDepts} department${labourDepts !== 1 ? 's' : ''}, ${labourHours} total hours` : null,
+      ].filter(Boolean);
 
-      console.log('[POS] setPushSyncBanner →', bannerMsg || 'Push sync complete — no changes');
-      setPushSyncBanner(bannerMsg || 'Push sync complete — no changes');
+      const bannerMsg = bannerParts.join(' · ') || 'Push sync complete — no changes';
+      console.log('[POS] setPushSyncBanner →', bannerMsg);
+      setPushSyncBanner(bannerMsg);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[POS] handleSyncFromPush error:', msg);
@@ -572,6 +575,15 @@ export default function POSScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Push sync result banner — outside ScrollView so it's always visible */}
+      {pushSyncBanner && (
+        <View style={styles.pushBanner}>
+          <Text style={styles.pushBannerText} numberOfLines={2}>{pushSyncBanner}</Text>
+          <Pressable onPress={() => setPushSyncBanner(null)} style={styles.pushBannerClose}>
+            <Text style={styles.pushBannerCloseText}>✕</Text>
+          </Pressable>
+        </View>
+      )}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -602,15 +614,6 @@ export default function POSScreen() {
           </View>
         )}
 
-        {/* Push sync result banner */}
-        {pushSyncBanner && (
-          <View style={styles.syncBanner}>
-            <Text style={styles.syncBannerText}>Push · {pushSyncBanner}</Text>
-            <Pressable onPress={() => setPushSyncBanner(null)}>
-              <Text style={styles.syncBannerDismiss}>✕</Text>
-            </Pressable>
-          </View>
-        )}
 
         {/* Location Cards */}
         <View style={styles.section}>
@@ -1587,6 +1590,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   comingSoonGotItText: { fontSize: 15, fontWeight: '700', color: '#ffffff', letterSpacing: 0.1 },
+
+  // Push result banner — fixed above scroll, always visible
+  pushBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: BLUE,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  pushBannerText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#ffffff', lineHeight: 18 },
+  pushBannerClose: { padding: 4 },
+  pushBannerCloseText: { fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: '700' },
 
   // Sync summary banner
   syncBanner: {
