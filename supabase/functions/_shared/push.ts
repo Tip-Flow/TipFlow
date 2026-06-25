@@ -59,27 +59,60 @@ export async function getEmployees(companyId: number): Promise<Record<string, un
 }
 
 export async function findRecentActivityDates(companyId: number): Promise<string[]> {
+  const BATCH_SIZE = 3;
+  const BATCH_DELAY_MS = 400;
+  const OVERALL_DEADLINE_MS = 45_000;
+
+  const startTime = Date.now();
   const today = new Date();
-  const dates: string[] = Array.from({ length: 14 }, (_, i) => {
+  const dates: string[] = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
     return d.toISOString().split('T')[0];
   });
 
-  console.log('[push] findRecentActivityDates — checking', dates.length, 'days for companyId:', companyId);
+  console.log('[push] findRecentActivityDates — START companyId:', companyId, '| checking:', dates.join(', '));
 
-  const results = await Promise.allSettled(
-    dates.map(async (date) => {
-      const records = await getLabourActuals(companyId, date, date);
-      return records.length > 0 ? date : null;
-    }),
-  );
+  const active: string[] = [];
 
-  const active = results
-    .map((r) => (r.status === 'fulfilled' ? r.value : null))
-    .filter((d): d is string => d !== null);
+  for (let i = 0; i < dates.length; i += BATCH_SIZE) {
+    const elapsed = Date.now() - startTime;
+    if (elapsed > OVERALL_DEADLINE_MS) {
+      console.warn('[push] findRecentActivityDates — deadline reached after', elapsed, 'ms; returning partial results');
+      break;
+    }
 
-  console.log('[push] findRecentActivityDates — active dates:', active.join(', ') || '(none)');
+    const batch = dates.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    console.log('[push] findRecentActivityDates — batch', batchNum, 'start:', batch.join(', '), '| elapsed:', elapsed, 'ms');
+
+    const results = await Promise.allSettled(
+      batch.map(async (date) => {
+        try {
+          const records = await getLabourActuals(companyId, date, date);
+          const hasData = records.length > 0;
+          console.log('[push] findRecentActivityDates —', date, '→', hasData ? `${records.length} records FOUND` : 'no data');
+          return hasData ? date : null;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn('[push] findRecentActivityDates —', date, '→ error:', msg);
+          return null;
+        }
+      }),
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value !== null) active.push(r.value);
+    }
+
+    console.log('[push] findRecentActivityDates — batch', batchNum, 'done | active so far:', active.join(', ') || '(none)');
+
+    if (i + BATCH_SIZE < dates.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+    }
+  }
+
+  console.log('[push] findRecentActivityDates — END elapsed:', Date.now() - startTime, 'ms | active dates:', active.join(', ') || '(none)');
   return active;
 }
 
