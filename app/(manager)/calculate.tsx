@@ -195,30 +195,7 @@ export default function CalculateScreen() {
         if (!locData) return;
         setLocationId(locData.id);
 
-        // Load Push labour cache if it's for today
-        const todayStr = today();
-        const cacheDate = locData.push_labour_cache_date ?? null;
-        const cache = locData.push_labour_cache as Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null;
-        if (cacheDate === todayStr && Array.isArray(cache) && cache.length > 0) {
-          const hoursMap: Record<string, number> = {};
-          let totalHours = 0;
-          for (const entry of cache) {
-            if (entry.staff_member_id && entry.hours > 0) {
-              hoursMap[entry.staff_member_id] = entry.hours;
-              totalHours += entry.hours;
-            }
-          }
-          const staffCount = Object.keys(hoursMap).length;
-          console.log('[Calculate] Push labour cache loaded for', todayStr, '—', staffCount, 'staff,', totalHours, 'total hours');
-          setPushHours(hoursMap);
-          if (staffCount > 0) {
-            const roundedHours = Math.round(totalHours * 10) / 10;
-            triggerPushBanner(`Labour loaded for ${formatDate(todayStr)} — ${staffCount} staff, ${roundedHours}h`);
-          }
-        } else {
-          setPushHours({});
-        }
-
+        // Fetch staff first — needed for name-based cache matching
         const { data: staffData, error } = await supabase
           .from('staff_members')
           .select('id, name, role, location_id')
@@ -228,30 +205,102 @@ export default function CalculateScreen() {
 
         const all = staffData ?? [];
 
+        // Build name→id map for fallback matching when staff_member_id is null
+        function normalizeNameLocal(name: string): string {
+          return name.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+        }
+        const nameToId = new Map<string, string>();
+        for (const s of all) {
+          nameToId.set(normalizeNameLocal(s.name), s.id);
+        }
+
+        // Process Push labour cache and build hoursMap keyed by staff_member_id
+        const todayStr = today();
+        const cacheDate = locData.push_labour_cache_date ?? null;
+        const cache = locData.push_labour_cache as Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null;
+
+        console.log('[Calculate] push_labour_cache_date:', cacheDate, '| todayStr:', todayStr);
+        console.log('[Calculate] push_labour_cache full content:', JSON.stringify(cache));
+
+        const hoursMap: Record<string, number> = {};
+        if (cacheDate === todayStr && Array.isArray(cache) && cache.length > 0) {
+          let totalHours = 0;
+          for (const entry of cache) {
+            // Try stored staff_member_id first, fall back to name matching
+            let staffId = entry.staff_member_id ?? null;
+            if (!staffId && entry.employee_name) {
+              const normalized = normalizeNameLocal(entry.employee_name);
+              staffId = nameToId.get(normalized) ?? null;
+              console.log(
+                '[Calculate] name match — cache:', JSON.stringify(entry.employee_name),
+                '| normalized:', normalized,
+                '| matched id:', staffId ?? 'NO MATCH',
+              );
+            } else {
+              console.log(
+                '[Calculate] cache entry:', JSON.stringify(entry.employee_name),
+                '| staff_member_id:', entry.staff_member_id,
+                '| hours:', entry.hours,
+              );
+            }
+            if (staffId && entry.hours > 0) {
+              hoursMap[staffId] = entry.hours;
+              totalHours += entry.hours;
+            }
+          }
+          const staffCount = Object.keys(hoursMap).length;
+          console.log('[Calculate] hoursMap after matching:', JSON.stringify(hoursMap));
+          setPushHours(hoursMap);
+          if (staffCount > 0) {
+            const roundedHours = Math.round(totalHours * 10) / 10;
+            triggerPushBanner(`Labour loaded for ${formatDate(todayStr)} — ${staffCount} staff, ${roundedHours}h`);
+          }
+        } else {
+          console.log('[Calculate] no Push cache for today — cacheDate:', cacheDate, '| cache length:', Array.isArray(cache) ? cache.length : 'not array');
+          setPushHours({});
+        }
+
+        // Initialize servers and support staff — pre-fill hours inline so there
+        // is no race between setPushHours and setServers across separate renders
+        const filledIds = new Set<string>();
+
         setServers(
           all
             .filter((s) => SERVER_ROLES.has(s.role?.toLowerCase()))
-            .map((s) => ({
-              id: s.id,
-              name: s.name,
-              role: s.role?.toLowerCase() ?? 'server',
-              sales: '',
-              tipsEarned: '',
-              hoursWorked: '',
-              included: true,
-            })),
+            .map((s) => {
+              const hrs = hoursMap[s.id];
+              if (hrs !== undefined) filledIds.add(s.id);
+              return {
+                id: s.id,
+                name: s.name,
+                role: s.role?.toLowerCase() ?? 'server',
+                sales: '',
+                tipsEarned: '',
+                hoursWorked: hrs !== undefined ? String(hrs) : '',
+                included: true,
+              };
+            }),
         );
         setSupportStaff(
           all
             .filter((s) => SUPPORT_ROLES.has(s.role?.toLowerCase()))
-            .map((s) => ({
-              id: s.id,
-              name: s.name,
-              role: s.role?.toLowerCase() ?? 'runner',
-              hoursWorked: '',
-              included: true,
-            })),
+            .map((s) => {
+              const hrs = hoursMap[s.id];
+              if (hrs !== undefined) filledIds.add(s.id);
+              return {
+                id: s.id,
+                name: s.name,
+                role: s.role?.toLowerCase() ?? 'runner',
+                hoursWorked: hrs !== undefined ? String(hrs) : '',
+                included: true,
+              };
+            }),
         );
+
+        if (filledIds.size > 0) {
+          setPushFilledIds(filledIds);
+          console.log('[Calculate] pre-filled hours from Push for', filledIds.size, 'staff:', Array.from(filledIds).join(', '));
+        }
       } catch (err) {
         console.error('Failed to load staff:', err);
       } finally {
@@ -260,39 +309,6 @@ export default function CalculateScreen() {
     }
     fetchStaff();
   }, []);
-
-  // ── Pre-fill hours from Push labour cache ────────────────────────────────
-  useEffect(() => {
-    if (Object.keys(pushHours).length === 0) return;
-    const filledIds = new Set<string>();
-
-    setServers((prev) =>
-      prev.map((s) => {
-        const hrs = pushHours[s.id];
-        if (hrs !== undefined && s.hoursWorked === '') {
-          filledIds.add(s.id);
-          return { ...s, hoursWorked: String(hrs) };
-        }
-        return s;
-      }),
-    );
-
-    setSupportStaff((prev) =>
-      prev.map((s) => {
-        const hrs = pushHours[s.id];
-        if (hrs !== undefined && s.hoursWorked === '') {
-          filledIds.add(s.id);
-          return { ...s, hoursWorked: String(hrs) };
-        }
-        return s;
-      }),
-    );
-
-    if (filledIds.size > 0) {
-      setPushFilledIds(filledIds);
-      console.log('[Calculate] pre-filled hours from Push for', filledIds.size, 'staff');
-    }
-  }, [pushHours]);
 
   // ── Fetch active (pending) shifts when location is known ──────────────────
   const fetchActiveShifts = useCallback(async (locId: string) => {
