@@ -125,6 +125,9 @@ export default function CalculateScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const successOpacity = useRef(new Animated.Value(0)).current;
   const [showBanner, setShowBanner] = useState(false);
+  const pushBannerOpacity = useRef(new Animated.Value(0)).current;
+  const [showPushBanner, setShowPushBanner] = useState(false);
+  const [pushBannerMsg, setPushBannerMsg] = useState('');
 
   function triggerSuccessBanner() {
     setShowBanner(true);
@@ -133,6 +136,16 @@ export default function CalculateScreen() {
       Animated.delay(2500),
       Animated.timing(successOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]).start(() => setShowBanner(false));
+  }
+
+  function triggerPushBanner(msg: string) {
+    setPushBannerMsg(msg);
+    setShowPushBanner(true);
+    pushBannerOpacity.setValue(1);
+    Animated.sequence([
+      Animated.delay(3000),
+      Animated.timing(pushBannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start(() => setShowPushBanner(false));
   }
 
   // ── Main form state ───────────────────────────────────────────────────────
@@ -185,16 +198,23 @@ export default function CalculateScreen() {
         // Load Push labour cache if it's for today
         const todayStr = today();
         const cacheDate = locData.push_labour_cache_date ?? null;
-        const cache = locData.push_labour_cache as Array<{ staff_member_id: string | null; hours: number }> | null;
+        const cache = locData.push_labour_cache as Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null;
         if (cacheDate === todayStr && Array.isArray(cache) && cache.length > 0) {
           const hoursMap: Record<string, number> = {};
+          let totalHours = 0;
           for (const entry of cache) {
             if (entry.staff_member_id && entry.hours > 0) {
               hoursMap[entry.staff_member_id] = entry.hours;
+              totalHours += entry.hours;
             }
           }
-          console.log('[Calculate] Push labour cache loaded for', todayStr, '—', Object.keys(hoursMap).length, 'entries');
+          const staffCount = Object.keys(hoursMap).length;
+          console.log('[Calculate] Push labour cache loaded for', todayStr, '—', staffCount, 'staff,', totalHours, 'total hours');
           setPushHours(hoursMap);
+          if (staffCount > 0) {
+            const roundedHours = Math.round(totalHours * 10) / 10;
+            triggerPushBanner(`Labour loaded for ${formatDate(todayStr)} — ${staffCount} staff, ${roundedHours}h`);
+          }
         } else {
           setPushHours({});
         }
@@ -1149,6 +1169,11 @@ export default function CalculateScreen() {
           <Text style={styles.successBannerText}>✓ Shift saved and paid out!</Text>
         </Animated.View>
       )}
+      {showPushBanner && (
+        <Animated.View style={[styles.pushLabourBanner, { opacity: pushBannerOpacity }]} pointerEvents="none">
+          <Text style={styles.pushLabourBannerText}>{pushBannerMsg}</Text>
+        </Animated.View>
+      )}
       {/* KeyboardAvoidingView: only apply padding behavior on iOS — on web/Android
           the 'height' behavior can add a blocking div layer over content */}
       <KeyboardAvoidingView
@@ -1328,6 +1353,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successBannerText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  pushLabourBanner: {
+    position: 'absolute',
+    top: 16,
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    backgroundColor: '#0f1f2e',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BLUE_BORDER,
+  },
+  pushLabourBannerText: { color: BLUE, fontSize: 14, fontWeight: '700' },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48, gap: 20 },
   contentDesktop: { paddingHorizontal: 32 },

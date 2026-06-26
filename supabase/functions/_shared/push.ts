@@ -116,6 +116,62 @@ export async function findRecentActivityDates(companyId: number): Promise<string
   return active;
 }
 
+export interface EmployeeLabourEntry {
+  date: string;
+  employeeId: string | number;
+  employeeName: string;
+  hours: number;
+  costs: number;
+  labourType: string;
+  positionName: string;
+  costCenterName: string;
+}
+
+export async function getEmployeeLabour(
+  companyId: number,
+  startDate: string,
+  endDate: string,
+): Promise<EmployeeLabourEntry[]> {
+  const url = `${BASE_URL}/labour/employee?company=${companyId}&start=${startDate}&end=${endDate}`;
+  const res = await timedFetch(url, {
+    headers: {
+      ...getAuthHeader(),
+      'Accept': 'application/json',
+    },
+  });
+
+  const rawText = await res.text();
+  console.log('[push] getEmployeeLabour status:', res.status, 'companyId:', companyId, 'start:', startDate, 'end:', endDate);
+  console.log('[push] getEmployeeLabour raw response (first 2000):', rawText.slice(0, 2000));
+
+  if (!res.ok) {
+    throw new Error(`Push Operations getEmployeeLabour failed (${res.status}): ${rawText}`);
+  }
+
+  const result = JSON.parse(rawText);
+  console.log('[push] getEmployeeLabour top-level keys:', Array.isArray(result) ? '[array]' : Object.keys(result).join(', '));
+
+  const rows: Record<string, unknown>[] = Array.isArray(result)
+    ? result
+    : (result.data ?? result.employees ?? result.results ?? []);
+
+  console.log('[push] getEmployeeLabour resolved', rows.length, 'raw rows');
+  rows.slice(0, 3).forEach((r, i) => {
+    console.log(`[push] employeeLabour[${i}]:`, JSON.stringify(r));
+  });
+
+  return rows.map((r) => ({
+    date: String(r.date ?? ''),
+    employeeId: r.employeeId ?? r.employee_id ?? r.id ?? '',
+    employeeName: String(r.employeeName ?? r.employee_name ?? r.name ?? ''),
+    hours: parseFloat(String(r.hours ?? r.totalHours ?? r.actual_hours ?? 0)) || 0,
+    costs: parseFloat(String(r.costs ?? r.totalCosts ?? r.labour_cost ?? 0)) || 0,
+    labourType: String(r.labourType ?? r.labour_type ?? r.type ?? ''),
+    positionName: String(r.positionName ?? r.position_name ?? r.position ?? ''),
+    costCenterName: String(r.costCenterName ?? r.cost_center_name ?? r.cost_center ?? ''),
+  }));
+}
+
 export async function getLabourActuals(
   companyId: number,
   startDate: string,
