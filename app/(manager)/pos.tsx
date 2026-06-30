@@ -322,7 +322,6 @@ export default function POSScreen() {
       const labourDepts = labourData?.count ?? labourData?.departments?.length ?? 0;
       const labourHours = labourData?.totalHours ?? 0;
 
-      const today = new Date().toISOString().split('T')[0];
       const bannerParts = [
         invited > 0 ? `${invited} new staff added` : null,
         updatedStaff > 0 ? `${updatedStaff} roles updated` : null,
