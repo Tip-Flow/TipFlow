@@ -468,6 +468,7 @@ export default function CalculateScreen() {
 
   // ── Load a pending shift into the calculation form ────────────────────────
   async function handleLoadShift(shift: ActiveShift) {
+    console.log('[Calculate] Load tapped for shift:', shift.id);
     try {
       const { data: allocs } = await supabase
         .from('tip_allocations')
