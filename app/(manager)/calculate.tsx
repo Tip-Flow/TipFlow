@@ -465,6 +465,57 @@ export default function CalculateScreen() {
       const { error: allocError } = await supabase.from('tip_allocations').insert(stubs);
       if (allocError) throw allocError;
 
+      setShiftName(newShiftName.trim());
+      setShiftDate(newShiftDate);
+      setActiveShiftId(shiftData.id);
+      setSummary(null);
+      setHousePoolAllocations(null);
+
+      setServers((prev) =>
+        prev.map((s) => ({
+          ...s,
+          included: selectedIds.has(s.id),
+          sales: SERVER_ROLES.has(s.role) ? (modalSales[s.id] ?? '') : s.sales,
+          tipsEarned: '',
+          hoursWorked: '',
+        })),
+      );
+      setSupportStaff((prev) =>
+        prev.map((s) => ({
+          ...s,
+          included: selectedIds.has(s.id),
+          hoursWorked: '',
+        })),
+      );
+
+      // Pre-fill hours from the Push labour cache if it matches this new shift's date
+      console.log('[Calculate] new shift created — checking Push cache for date:', newShiftDate);
+      const { hoursMap, totalHours } = computePushHoursMap(pushCache, pushCacheDate, newShiftDate, allStaff);
+      const staffCount = Object.keys(hoursMap).length;
+      if (staffCount > 0) {
+        setPushHours(hoursMap);
+        const filledIds = new Set<string>();
+        setServers((prev) =>
+          prev.map((s) => {
+            const hrs = hoursMap[s.id];
+            if (hrs === undefined) return s;
+            filledIds.add(s.id);
+            return { ...s, hoursWorked: String(hrs) };
+          }),
+        );
+        setSupportStaff((prev) =>
+          prev.map((s) => {
+            const hrs = hoursMap[s.id];
+            if (hrs === undefined) return s;
+            filledIds.add(s.id);
+            return { ...s, hoursWorked: String(hrs) };
+          }),
+        );
+        setPushFilledIds(filledIds);
+        const roundedHours = Math.round(totalHours * 10) / 10;
+        triggerPushBanner(`Labour loaded for ${formatDate(newShiftDate)} — ${staffCount} staff, ${roundedHours}h`);
+      }
+
       setModalVisible(false);
       fetchActiveShifts(locationId);
     } catch (err: unknown) {
