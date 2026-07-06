@@ -119,6 +119,41 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
 }
 
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// Builds a staff_member_id → hours map from the Push labour cache, but only
+// when the cache's date matches the target date (the date of the shift being
+// worked on — not necessarily today, since managers can load past shifts).
+function computePushHoursMap(
+  cache: Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null,
+  cacheDate: string | null,
+  targetDate: string,
+  staffList: Array<{ id: string; name: string }>,
+): { hoursMap: Record<string, number>; totalHours: number } {
+  const hoursMap: Record<string, number> = {};
+  let totalHours = 0;
+  if (cacheDate !== targetDate || !Array.isArray(cache) || cache.length === 0) {
+    return { hoursMap, totalHours };
+  }
+  const nameToId = new Map<string, string>();
+  for (const s of staffList) {
+    nameToId.set(normalizeName(s.name), s.id);
+  }
+  for (const entry of cache) {
+    let staffId = entry.staff_member_id ?? null;
+    if (!staffId && entry.employee_name) {
+      staffId = nameToId.get(normalizeName(entry.employee_name)) ?? null;
+    }
+    if (staffId && entry.hours > 0) {
+      hoursMap[staffId] = entry.hours;
+      totalHours += entry.hours;
+    }
+  }
+  return { hoursMap, totalHours };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
   const isDesktop = useIsDesktop();
@@ -163,6 +198,10 @@ export default function CalculateScreen() {
   const [pushHours, setPushHours] = useState<Record<string, number>>({});
   // Track which fields were pre-filled by Push (to show badge)
   const [pushFilledIds, setPushFilledIds] = useState<Set<string>>(new Set());
+  // Raw Push cache + its date, kept around so we can re-match hours against
+  // whatever shift date the manager loads (not just today's date)
+  const [pushCache, setPushCache] = useState<Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null>(null);
+  const [pushCacheDate, setPushCacheDate] = useState<string | null>(null);
 
   // ── Active (pending) shifts ───────────────────────────────────────────────
   const [activeShifts, setActiveShifts] = useState<ActiveShift[]>([]);
@@ -205,59 +244,28 @@ export default function CalculateScreen() {
 
         const all = staffData ?? [];
 
-        // Build name→id map for fallback matching when staff_member_id is null
-        function normalizeNameLocal(name: string): string {
-          return name.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
-        }
-        const nameToId = new Map<string, string>();
-        for (const s of all) {
-          nameToId.set(normalizeNameLocal(s.name), s.id);
-        }
-
-        // Process Push labour cache and build hoursMap keyed by staff_member_id
+        // Process Push labour cache and build hoursMap keyed by staff_member_id.
+        // Pre-fill against the currently loaded shift date (today, since no
+        // pending shift has been loaded yet at mount) — not just "today" —
+        // so a later shift load can re-match against its own date.
         const todayStr = today();
         const cacheDate = locData.push_labour_cache_date ?? null;
         const cache = locData.push_labour_cache as Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null;
+        setPushCache(cache);
+        setPushCacheDate(cacheDate);
 
         console.log('[Calculate] push_labour_cache_date:', cacheDate, '| todayStr:', todayStr);
         console.log('[Calculate] push_labour_cache full content:', JSON.stringify(cache));
 
-        const hoursMap: Record<string, number> = {};
-        if (cacheDate === todayStr && Array.isArray(cache) && cache.length > 0) {
-          let totalHours = 0;
-          for (const entry of cache) {
-            // Try stored staff_member_id first, fall back to name matching
-            let staffId = entry.staff_member_id ?? null;
-            if (!staffId && entry.employee_name) {
-              const normalized = normalizeNameLocal(entry.employee_name);
-              staffId = nameToId.get(normalized) ?? null;
-              console.log(
-                '[Calculate] name match — cache:', JSON.stringify(entry.employee_name),
-                '| normalized:', normalized,
-                '| matched id:', staffId ?? 'NO MATCH',
-              );
-            } else {
-              console.log(
-                '[Calculate] cache entry:', JSON.stringify(entry.employee_name),
-                '| staff_member_id:', entry.staff_member_id,
-                '| hours:', entry.hours,
-              );
-            }
-            if (staffId && entry.hours > 0) {
-              hoursMap[staffId] = entry.hours;
-              totalHours += entry.hours;
-            }
-          }
-          const staffCount = Object.keys(hoursMap).length;
-          console.log('[Calculate] hoursMap after matching:', JSON.stringify(hoursMap));
-          setPushHours(hoursMap);
-          if (staffCount > 0) {
-            const roundedHours = Math.round(totalHours * 10) / 10;
-            triggerPushBanner(`Labour loaded for ${formatDate(todayStr)} — ${staffCount} staff, ${roundedHours}h`);
-          }
+        const { hoursMap, totalHours } = computePushHoursMap(cache, cacheDate, todayStr, all);
+        const staffCount = Object.keys(hoursMap).length;
+        console.log('[Calculate] hoursMap after matching:', JSON.stringify(hoursMap));
+        setPushHours(hoursMap);
+        if (staffCount > 0) {
+          const roundedHours = Math.round(totalHours * 10) / 10;
+          triggerPushBanner(`Labour loaded for ${formatDate(todayStr)} — ${staffCount} staff, ${roundedHours}h`);
         } else {
           console.log('[Calculate] no Push cache for today — cacheDate:', cacheDate, '| cache length:', Array.isArray(cache) ? cache.length : 'not array');
-          setPushHours({});
         }
 
         // Initialize servers and support staff — pre-fill hours inline so there
@@ -480,31 +488,53 @@ export default function CalculateScreen() {
         allocMap[a.staff_id] = { server_sales: a.server_sales ?? 0, hours_worked: a.hours_worked ?? 0 };
       }
 
+      // Re-match the Push labour cache against this shift's own date, not
+      // today's date — a manager can load a pending shift from any day.
+      const { hoursMap, totalHours } = computePushHoursMap(pushCache, pushCacheDate, shift.date, allStaff);
+      const staffCount = Object.keys(hoursMap).length;
+      setPushHours(hoursMap);
+
       setShiftName(shift.name);
       setShiftDate(shift.date);
       setActiveShiftId(shift.id);
       setSummary(null);
       setHousePoolAllocations(null);
 
+      const filledIds = new Set<string>();
+
       setServers((prev) =>
-        prev.map((s) => ({
-          ...s,
-          included: !!allocMap[s.id],
-          sales: allocMap[s.id]?.server_sales
-            ? centsToDisplay(allocMap[s.id].server_sales)
-            : '',
-          tipsEarned: '',
-          hoursWorked: '',
-        })),
+        prev.map((s) => {
+          const hrs = hoursMap[s.id];
+          if (hrs !== undefined) filledIds.add(s.id);
+          return {
+            ...s,
+            included: !!allocMap[s.id],
+            sales: allocMap[s.id]?.server_sales
+              ? centsToDisplay(allocMap[s.id].server_sales)
+              : '',
+            tipsEarned: '',
+            hoursWorked: hrs !== undefined ? String(hrs) : '',
+          };
+        }),
       );
 
       setSupportStaff((prev) =>
-        prev.map((s) => ({
-          ...s,
-          included: !!allocMap[s.id],
-          hoursWorked: '',
-        })),
+        prev.map((s) => {
+          const hrs = hoursMap[s.id];
+          if (hrs !== undefined) filledIds.add(s.id);
+          return {
+            ...s,
+            included: !!allocMap[s.id],
+            hoursWorked: hrs !== undefined ? String(hrs) : '',
+          };
+        }),
       );
+
+      setPushFilledIds(filledIds);
+      if (staffCount > 0) {
+        const roundedHours = Math.round(totalHours * 10) / 10;
+        triggerPushBanner(`Labour loaded for ${formatDate(shift.date)} — ${staffCount} staff, ${roundedHours}h`);
+      }
     } catch (err) {
       Alert.alert('Failed to load shift', err instanceof Error ? err.message : String(err));
     }
