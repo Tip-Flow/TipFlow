@@ -107,7 +107,7 @@ export default function POSScreen() {
   const [ocrPreviewVisible, setOcrPreviewVisible] = useState(false);
 
   // Coming-soon integration modals
-  const [comingSoonModal, setComingSoonModal] = useState<null | 'squirrel' | 'adp'>(null);
+  const [comingSoonModal, setComingSoonModal] = useState<null | 'adp'>(null);
   // Sync result banner — set by processSyncedStaff() when integrations go live
   const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
 
@@ -119,6 +119,15 @@ export default function POSScreen() {
   const [checkingDates, setCheckingDates] = useState(false);
   const [activeDates, setActiveDates] = useState<string[]>([]);
   const [syncingLabourDate, setSyncingLabourDate] = useState<string | null>(null);
+
+  // Squirrel POS sync
+  const [syncingSquirrel, setSyncingSquirrel] = useState(false);
+  const [squirrelSyncBanner, setSquirrelSyncBanner] = useState<string | null>(null);
+
+  // Diagnostic: find dates with Squirrel sales data
+  const [checkingSquirrelDates, setCheckingSquirrelDates] = useState(false);
+  const [squirrelActiveDates, setSquirrelActiveDates] = useState<string[]>([]);
+  const [syncingSquirrelSalesDate, setSyncingSquirrelSalesDate] = useState<string | null>(null);
 
   // Edit row flow
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -418,6 +427,159 @@ export default function POSScreen() {
     }
   }, []);
 
+  // ── Squirrel POS sync ─────────────────────────────────────────────────────
+
+  const handleSyncFromSquirrel = useCallback(async () => {
+    setSyncingSquirrel(true);
+    setSquirrelSyncBanner(null);
+    try {
+      let locId = locationId;
+      if (!locId) {
+        await refetchLocation();
+      }
+
+      const { data: loc, error: locErr } = await supabase
+        .from('locations')
+        .select('id')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (locErr) throw new Error(`Could not fetch location: ${locErr.message}`);
+      locId = loc?.id ?? null;
+
+      console.log('[POS] Squirrel sync — locId:', locId);
+
+      if (!locId) {
+        Alert.alert('No Location', 'No location found. Set up your location first.');
+        return;
+      }
+
+      // Step 1: Sync staff roster
+      // DRY RUN MODE - remove before production launch with Dan
+      console.log('[POS] calling sync-squirrel-staff');
+      const staffRes = await supabase.functions.invoke('sync-squirrel-staff', {
+        body: { location_id: locId, dryRun: true },
+      });
+      console.log('[POS] sync-squirrel-staff raw — data:', JSON.stringify(staffRes.data), '| error:', staffRes.error?.message ?? null);
+      if (staffRes.error) {
+        let detail = staffRes.error.message;
+        try {
+          const body = await (staffRes.error as unknown as { context?: Response }).context?.json() as { error?: string } | undefined;
+          console.log('[POS] sync-squirrel-staff error body:', JSON.stringify(body));
+          if (body?.error) detail = body.error;
+        } catch (bodyErr) {
+          console.log('[POS] could not read sync-squirrel-staff error body:', bodyErr);
+        }
+        throw new Error(`Staff sync failed: ${detail}`);
+      }
+      const staffData = staffRes.data as { created?: number; matched?: number; unmatchedCount?: number } | null;
+      console.log('[POS] sync-squirrel-staff result:', JSON.stringify(staffData));
+
+      // Step 2: Sync today's sales
+      const today = new Date().toISOString().split('T')[0];
+      console.log('[POS] calling sync-squirrel-sales for date:', today);
+      const salesRes = await supabase.functions.invoke('sync-squirrel-sales', {
+        body: { location_id: locId, date: today },
+      });
+      console.log('[POS] sync-squirrel-sales raw — data:', JSON.stringify(salesRes.data), '| error:', salesRes.error?.message ?? null);
+      if (salesRes.error) {
+        let detail = salesRes.error.message;
+        try {
+          const body = await (salesRes.error as unknown as { context?: Response }).context?.json() as { error?: string } | undefined;
+          console.log('[POS] sync-squirrel-sales error body:', JSON.stringify(body));
+          if (body?.error) detail = body.error;
+        } catch (bodyErr) {
+          console.log('[POS] could not read sync-squirrel-sales error body:', bodyErr);
+        }
+        throw new Error(`Sales sync failed: ${detail}`);
+      }
+      const salesData = salesRes.data as { entries?: Array<{ totalSales: number }>; matchedCount?: number } | null;
+      console.log('[POS] sync-squirrel-sales result:', JSON.stringify(salesData));
+
+      const created = staffData?.created ?? 0;
+      const entries = salesData?.entries ?? [];
+      const serverCount = entries.length;
+      const totalSales = Math.round(entries.reduce((s, e) => s + (e.totalSales ?? 0), 0) * 100) / 100;
+
+      const bannerParts = [
+        created > 0 ? `${created} new staff added` : null,
+        serverCount > 0 ? `Sales loaded for ${today} — ${serverCount} server${serverCount !== 1 ? 's' : ''}, $${totalSales.toFixed(2)} total sales` : null,
+      ].filter(Boolean);
+
+      const bannerMsg = bannerParts.join(' · ') || 'Squirrel sync complete — no changes';
+      console.log('[POS] setSquirrelSyncBanner →', bannerMsg);
+      setSquirrelSyncBanner(bannerMsg);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[POS] handleSyncFromSquirrel error:', msg);
+      Alert.alert('Squirrel Sync Failed', msg);
+    } finally {
+      setSyncingSquirrel(false);
+    }
+  }, [locationId, refetchLocation]);
+
+  // ── Squirrel: find dates with activity (diagnostic) ───────────────────────
+
+  const handleFindSquirrelActiveDates = useCallback(async () => {
+    setCheckingSquirrelDates(true);
+    setSquirrelActiveDates([]);
+    try {
+      const res = await supabase.functions.invoke('check-squirrel-activity', { body: {} });
+
+      if (res.error) throw new Error(res.error.message);
+      const dates: string[] = (res.data as { datesWithActivity: string[] })?.datesWithActivity ?? [];
+      setSquirrelActiveDates(dates);
+      if (dates.length === 0) Alert.alert('No Activity Found', 'No sales data found in the last 7 days.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Error', msg);
+    } finally {
+      setCheckingSquirrelDates(false);
+    }
+  }, []);
+
+  const handleSyncSquirrelSalesForDate = useCallback(async (date: string) => {
+    setSyncingSquirrelSalesDate(date);
+    setSquirrelSyncBanner(null);
+    try {
+      const { data: loc, error: locErr } = await supabase
+        .from('locations')
+        .select('id')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (locErr) throw new Error(`Could not fetch location: ${locErr.message}`);
+      const locId = loc?.id ?? null;
+      if (!locId) throw new Error('Location not configured.');
+
+      const salesRes = await supabase.functions.invoke('sync-squirrel-sales', {
+        body: { location_id: locId, date },
+      });
+
+      if (salesRes.error) {
+        let detail = salesRes.error.message;
+        try {
+          const body = await (salesRes.error as unknown as { context?: Response }).context?.json() as { error?: string } | undefined;
+          if (body?.error) detail = body.error;
+        } catch { /* ignore */ }
+        throw new Error(detail);
+      }
+
+      const data = salesRes.data as { entries?: Array<{ totalSales: number }> } | null;
+      const entries = data?.entries ?? [];
+      const serverCount = entries.length;
+      const totalSales = Math.round(entries.reduce((s, e) => s + (e.totalSales ?? 0), 0) * 100) / 100;
+      setSquirrelSyncBanner(`Sales loaded for ${date} — ${serverCount} server${serverCount !== 1 ? 's' : ''}, $${totalSales.toFixed(2)} total sales`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Sales Sync Failed', msg);
+    } finally {
+      setSyncingSquirrelSalesDate(null);
+    }
+  }, []);
+
   // ── CSV upload ────────────────────────────────────────────────────────────
 
   async function handleUploadCSV() {
@@ -583,6 +745,15 @@ export default function POSScreen() {
           </Pressable>
         </View>
       )}
+      {/* Squirrel sync result banner — outside ScrollView so it's always visible */}
+      {squirrelSyncBanner && (
+        <View style={styles.pushBanner}>
+          <Text style={styles.pushBannerText} numberOfLines={2}>{squirrelSyncBanner}</Text>
+          <Pressable onPress={() => setSquirrelSyncBanner(null)} style={styles.pushBannerClose}>
+            <Text style={styles.pushBannerCloseText}>✕</Text>
+          </Pressable>
+        </View>
+      )}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -708,18 +879,64 @@ export default function POSScreen() {
 
           {/* Squirrel */}
           <Pressable
-            style={styles.integrationRow}
-            onPress={() => setComingSoonModal('squirrel')}>
+            style={[styles.integrationRow, syncingSquirrel && { opacity: 0.6 }]}
+            onPress={handleSyncFromSquirrel}
+            disabled={syncingSquirrel}>
             <View style={styles.integrationRowLeft}>
               <View style={styles.integrationIcon}>
                 <Text style={styles.integrationIconText}>🖥️</Text>
               </View>
-              <Text style={styles.integrationRowName}>Sync from Squirrel</Text>
+              <View>
+                <Text style={styles.integrationRowName}>Sync from Squirrel</Text>
+                <Text style={styles.integrationRowSub}>Staff & sales</Text>
+              </View>
             </View>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
-            </View>
+            {syncingSquirrel ? (
+              <ActivityIndicator color={BLUE} size="small" />
+            ) : (
+              <View style={styles.syncNowBadge}>
+                <Text style={styles.syncNowBadgeText}>Sync Now</Text>
+              </View>
+            )}
           </Pressable>
+
+          {/* Diagnostic: find active dates */}
+          <View style={styles.activeDatesRow}>
+            <Pressable
+              onPress={handleFindSquirrelActiveDates}
+              disabled={checkingSquirrelDates || syncingSquirrel}
+              style={styles.findDatesBtn}>
+              {checkingSquirrelDates ? (
+                <ActivityIndicator color={MUTED} size="small" />
+              ) : (
+                <Text style={styles.findDatesBtnText}>
+                  {squirrelActiveDates.length > 0 ? `${squirrelActiveDates.length} dates with data` : 'Find active dates'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          {squirrelActiveDates.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.datePillsContent}
+              style={styles.datePillsScroll}>
+              {squirrelActiveDates.map((date) => (
+                <Pressable
+                  key={date}
+                  style={[styles.datePill, syncingSquirrelSalesDate === date && styles.datePillLoading]}
+                  onPress={() => handleSyncSquirrelSalesForDate(date)}
+                  disabled={syncingSquirrelSalesDate !== null}>
+                  {syncingSquirrelSalesDate === date ? (
+                    <ActivityIndicator color={BLUE} size="small" />
+                  ) : (
+                    <Text style={styles.datePillText}>{date}</Text>
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
 
           <View style={styles.rowDivider} />
 
@@ -1345,18 +1562,6 @@ export default function POSScreen() {
 
       {/* ── Coming-Soon Integration Modals ─────────────────────────────────── */}
       {([
-        {
-          key: 'squirrel' as const,
-          title: 'Squirrel POS — Coming Soon',
-          intro: 'When connected, Mise will automatically:',
-          bullets: [
-            "Pull tonight's sales for every server directly from your POS",
-            'Sync your full staff list — no manual entry needed',
-            'New staff members receive an automatic invite — existing Mise users are never re-invited',
-            'Pre-fill the Calculate tab with real sales data every shift',
-          ],
-          closing: 'One tap. Everything done.',
-        },
         {
           key: 'adp' as const,
           title: 'ADP Payroll — Coming Soon',

@@ -154,6 +154,36 @@ function computePushHoursMap(
   return { hoursMap, totalHours };
 }
 
+interface SquirrelSalesCacheEntry {
+  serverName: string;
+  staffMemberId: string | null;
+  totalSales: number;
+  checkCount: number;
+}
+
+// Builds a staff_member_id → sales (dollars) map from the Squirrel sales
+// cache, gated on the cache's date matching the target date (the shift's own
+// date). staff_member_id matching already happened server-side in
+// sync-squirrel-sales, so no name re-matching is needed here.
+function computeSquirrelSalesMap(
+  cache: SquirrelSalesCacheEntry[] | null,
+  cacheDate: string | null,
+  targetDate: string,
+): { salesMap: Record<string, number>; totalSales: number } {
+  const salesMap: Record<string, number> = {};
+  let totalSales = 0;
+  if (cacheDate !== targetDate || !Array.isArray(cache) || cache.length === 0) {
+    return { salesMap, totalSales };
+  }
+  for (const entry of cache) {
+    if (entry.staffMemberId && entry.totalSales > 0) {
+      salesMap[entry.staffMemberId] = entry.totalSales;
+      totalSales += entry.totalSales;
+    }
+  }
+  return { salesMap, totalSales };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CalculateScreen() {
   const isDesktop = useIsDesktop();
@@ -203,6 +233,13 @@ export default function CalculateScreen() {
   const [pushCache, setPushCache] = useState<Array<{ staff_member_id: string | null; hours: number; employee_name?: string }> | null>(null);
   const [pushCacheDate, setPushCacheDate] = useState<string | null>(null);
 
+  // Squirrel POS sales cache — same "raw cache + date" pattern as Push, so
+  // handleLoadShift can re-match against whatever date a loaded shift is on.
+  const [squirrelSalesCache, setSquirrelSalesCache] = useState<SquirrelSalesCacheEntry[] | null>(null);
+  const [squirrelSalesCacheDate, setSquirrelSalesCacheDate] = useState<string | null>(null);
+  // Track which server sales fields were auto-filled from Squirrel (to show badge)
+  const [squirrelFilledIds, setSquirrelFilledIds] = useState<Set<string>>(new Set());
+
   // ── Active (pending) shifts ───────────────────────────────────────────────
   const [activeShifts, setActiveShifts] = useState<ActiveShift[]>([]);
   const [loadingActive, setLoadingActive] = useState(false);
@@ -227,12 +264,14 @@ export default function CalculateScreen() {
       try {
         const { data: locData } = await supabase
           .from('locations')
-          .select('id, push_labour_cache, push_labour_cache_date')
+          .select('id, push_labour_cache, push_labour_cache_date, squirrel_sales_cache, squirrel_sales_cache_date')
           .order('created_at', { ascending: true })
           .limit(1)
           .single();
         if (!locData) return;
         setLocationId(locData.id);
+        setSquirrelSalesCache((locData.squirrel_sales_cache as SquirrelSalesCacheEntry[] | null) ?? null);
+        setSquirrelSalesCacheDate(locData.squirrel_sales_cache_date ?? null);
 
         // Fetch staff first — needed for name-based cache matching
         const { data: staffData, error } = await supabase
@@ -368,6 +407,10 @@ export default function CalculateScreen() {
       // Clear Push badge if user manually edits the hours
       if (field === 'hoursWorked') {
         setPushFilledIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      }
+      // Clear Squirrel badge if user manually edits the sales
+      if (field === 'sales') {
+        setSquirrelFilledIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
       }
     }
   }
@@ -545,6 +588,10 @@ export default function CalculateScreen() {
       const staffCount = Object.keys(hoursMap).length;
       setPushHours(hoursMap);
 
+      // Same idea for Squirrel sales — match against this shift's own date.
+      const { salesMap, totalSales } = computeSquirrelSalesMap(squirrelSalesCache, squirrelSalesCacheDate, shift.date);
+      const squirrelStaffCount = Object.keys(salesMap).length;
+
       setShiftName(shift.name);
       setShiftDate(shift.date);
       setActiveShiftId(shift.id);
@@ -552,17 +599,25 @@ export default function CalculateScreen() {
       setHousePoolAllocations(null);
 
       const filledIds = new Set<string>();
+      const salesFilledIds = new Set<string>();
 
       setServers((prev) =>
         prev.map((s) => {
           const hrs = hoursMap[s.id];
           if (hrs !== undefined) filledIds.add(s.id);
+          const storedSales = allocMap[s.id]?.server_sales;
+          const squirrelSales = salesMap[s.id];
+          let sales = '';
+          if (storedSales) {
+            sales = centsToDisplay(storedSales);
+          } else if (squirrelSales !== undefined) {
+            sales = squirrelSales.toFixed(2);
+            salesFilledIds.add(s.id);
+          }
           return {
             ...s,
             included: !!allocMap[s.id],
-            sales: allocMap[s.id]?.server_sales
-              ? centsToDisplay(allocMap[s.id].server_sales)
-              : '',
+            sales,
             tipsEarned: '',
             hoursWorked: hrs !== undefined ? String(hrs) : '',
           };
@@ -582,9 +637,14 @@ export default function CalculateScreen() {
       );
 
       setPushFilledIds(filledIds);
+      setSquirrelFilledIds(salesFilledIds);
       if (staffCount > 0) {
         const roundedHours = Math.round(totalHours * 10) / 10;
         triggerPushBanner(`Labour loaded for ${formatDate(shift.date)} — ${staffCount} staff, ${roundedHours}h`);
+      }
+      if (squirrelStaffCount > 0) {
+        const roundedSales = Math.round(totalSales * 100) / 100;
+        console.log('[Calculate] Squirrel sales pre-filled for', squirrelStaffCount, 'staff — total:', roundedSales);
       }
     } catch (err) {
       Alert.alert('Failed to load shift', err instanceof Error ? err.message : String(err));
@@ -875,15 +935,20 @@ export default function CalculateScreen() {
           <Text style={[styles.staffName, { flex: 1 }, !s.included && { color: MUTED }]}>
             {ROLE_EMOJIS.server} {s.name}
           </Text>
-          <TextInput
-            style={[styles.tableInput, { width: COL_SALES, flexShrink: 0 }, !s.included && { color: MUTED }]}
-            placeholder="0.00"
-            placeholderTextColor={MUTED}
-            value={s.sales}
-            onChangeText={(t) => updateServer(s.id, 'sales', t)}
-            keyboardType="decimal-pad"
-            editable={s.included}
-          />
+          <View style={{ width: COL_SALES, flexShrink: 0, alignItems: 'center' }}>
+            <TextInput
+              style={[styles.tableInput, { width: COL_SALES, flexShrink: 0 }, !s.included && { color: MUTED }, squirrelFilledIds.has(s.id) && styles.tableInputSquirrel]}
+              placeholder="0.00"
+              placeholderTextColor={MUTED}
+              value={s.sales}
+              onChangeText={(t) => updateServer(s.id, 'sales', t)}
+              keyboardType="decimal-pad"
+              editable={s.included}
+            />
+            {squirrelFilledIds.has(s.id) && (
+              <Text style={styles.pushBadgeSmall}>SQ</Text>
+            )}
+          </View>
           <TextInput
             style={[styles.tableInput, { width: COL_TIPS, flexShrink: 0 }, !s.included && { color: MUTED }]}
             placeholder="0.00"
@@ -1054,9 +1119,14 @@ export default function CalculateScreen() {
                 {s.included && (
                   <View style={styles.serverInputs}>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Sales ($)</Text>
+                      <View style={styles.inputLabelRow}>
+                        <Text style={styles.inputLabel}>Sales ($)</Text>
+                        {squirrelFilledIds.has(s.id) && (
+                          <Text style={styles.pushBadge}>SQ</Text>
+                        )}
+                      </View>
                       <TextInput
-                        style={styles.smallInput}
+                        style={[styles.smallInput, squirrelFilledIds.has(s.id) && styles.smallInputSquirrel]}
                         placeholder="0.00"
                         placeholderTextColor={MUTED}
                         value={s.sales}
@@ -1721,6 +1791,11 @@ const styles = StyleSheet.create({
   smallInputPush: { borderColor: BLUE_BORDER },
   hoursInputPush: { borderColor: BLUE_BORDER },
   tableInputPush: { borderColor: BLUE_BORDER },
+
+  // Squirrel sales badge — same blue treatment as the Push badge, applied to
+  // the sales field instead of hours
+  smallInputSquirrel: { borderColor: BLUE_BORDER },
+  tableInputSquirrel: { borderColor: BLUE_BORDER },
 
   // Calculate button
   calcBtn: { backgroundColor: BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
