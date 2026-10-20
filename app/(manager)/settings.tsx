@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import { supabase } from '../../lib/supabase';
 import { ZumConnectModal } from '../../components/ZumConnectModal';
 import { useLocationId } from '../../hooks/useLocationId';
 
+import * as Crypto from 'expo-crypto';
 const BG      = '#09100e';
 const CARD    = '#162019';
 const BLUE    = '#4169E1';
@@ -516,6 +517,7 @@ function FundingAccountTab() {
   const [fundAmount,     setFundAmount]     = useState('');
   const [funding,        setFunding]        = useState(false);
   const [fundError,      setFundError]      = useState('');
+    const fundKeyRef = useRef<{ key: string; cents: number } | null>(null);
   const [fundSuccess,    setFundSuccess]    = useState('');
 
   // Once locationId resolves, fetch the funding link status for that location.
@@ -619,20 +621,41 @@ function FundingAccountTab() {
       return;
     }
     if (!locationId) { setFundError('Location not loaded.'); return; }
+    const cents = Math.round(dollars * 100);
+
+    // Reuse the same key when retrying the same amount, so a retry can't charge twice.
+    if (!fundKeyRef.current || fundKeyRef.current.cents !== cents) {
+      fundKeyRef.current = { key: Crypto.randomUUID(), cents };
+    }
+
     setFundError('');
     setFundSuccess('');
     setFunding(true);
     try {
       const { data, error } = await supabase.functions.invoke('fund-wallet', {
-        body: { location_id: locationId, amount_dollars: dollars },
+        body: {
+          location_id: locationId,
+          amount_dollars: cents / 100,
+          idempotency_key: fundKeyRef.current.key,
+        },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = 'Funding failed. Please try again.';
+        try {
+          const ctx = await (error as { context?: Response }).context?.json();
+          if (ctx?.error) msg = ctx.error;
+        } catch { /* keep default message */ }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
+
+      fundKeyRef.current = null;
       setFundAmount('');
       if (data.wallet_balance !== null && data.wallet_balance !== undefined) {
         setWalletBalance(data.wallet_balance);
       }
-      setFundSuccess(`$${dollars.toFixed(2)} funding initiated — transaction ID: ${data.transaction_id}`);
+      const note = data.already_processed ? ' (already processed earlier)' : '';
+      setFundSuccess(`$${(cents / 100).toFixed(2)} funding initiated${note} — transaction ID: ${data.transaction_id}`);
       setTimeout(() => setFundSuccess(''), 6000);
     } catch (err: unknown) {
       setFundError(err instanceof Error ? err.message : 'Funding failed. Please try again.');
