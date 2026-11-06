@@ -56,17 +56,21 @@ Deno.serve(async (req: Request) => {
     }
 
     if (entity_type === 'restaurant') {
+       if (!location_id) throw new Error('location_id required for restaurant');
       const isAdmin = ADMIN_EMAILS.includes(user.email ?? '');
       if (!isAdmin) {
-        const { data: mgr } = await admin
+        // Managers may only relink their OWN location's bank account.
+        const { data: mgrRows, error: mgrErr } = await admin
           .from('managers')
           .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (!mgr) throw new Error('Unauthorized — not a manager or admin');
+          .eq('email', user.email ?? '')
+          .eq('location_id', location_id)
+          .limit(1);
+        if (mgrErr || !mgrRows || mgrRows.length === 0) {
+          throw new Error('Unauthorized — this location does not belong to your account');
+        }
       }
-      if (!location_id) throw new Error('location_id required for restaurant');
-
+      
       console.log('[save-zumconnect-result] updating locations.zumrails_funding_source_id — location_id:', location_id, '| value:', zumrails_user_id);
       const { error, count } = await admin
         .from('locations')
