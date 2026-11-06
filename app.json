@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Mise",
-    "slug": "mise",
+    "slug": "tipflow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mise.mise",
+      "bundleIdentifier": "com.miseflow.mise",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -74,6 +74,7 @@
       "eas": {
         "projectId": "1c2cc0e3-60b0-44ae-b123-7303af81b688"
       }
-    }
+    },
+    "owner": "tipflow"
   }
 }
