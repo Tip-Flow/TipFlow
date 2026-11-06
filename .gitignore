@@ -46,3 +46,4 @@ app-example
 
 # IDE
 .cursor/
+supabase/.temp/
