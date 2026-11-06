@@ -16,7 +16,7 @@ console.log('[squirrel] SQL client loaded — using npm:tedious (pure-JS TDS dri
 export interface SquirrelServerSale {
   serverName: string;
   empId: number;
-  totalSales: number; // dollars, as returned by Squirrel's CashoutSales (not CAD cents)
+  totalSales: number; // dollars — CashoutSales from Squirrel is stored in CENTS, converted here
   checkCount: number;
 }
 
@@ -176,7 +176,7 @@ export async function getServerSales(date: string): Promise<SquirrelServerSale[]
 
   const sql = `
     SELECT
-      k.FirstName + ' ' + k.LastName as ServerName,
+      COALESCE(k.FirstName, '') + ' ' + COALESCE(k.LastName, '') as ServerName,
       k.EmpID,
       SUM(ch.CashoutSales) as TotalSales,
       COUNT(ch.CheckID) as CheckCount
@@ -194,7 +194,7 @@ export async function getServerSales(date: string): Promise<SquirrelServerSale[]
     (columns) => ({
       serverName: String(getColumn(columns, 'ServerName') ?? ''),
       empId: Number(getColumn(columns, 'EmpID') ?? 0),
-      totalSales: Number(getColumn(columns, 'TotalSales') ?? 0),
+      totalSales: Number(getColumn(columns, 'TotalSales') ?? 0) / 100,
       checkCount: Number(getColumn(columns, 'CheckCount') ?? 0),
     }),
     [{ name: 'date', type: TYPES.Date, value: date }],
@@ -211,14 +211,20 @@ export async function getEmployeeHours(date: string): Promise<SquirrelEmployeeHo
 
   const sql = `
     SELECT
-      k.FirstName + ' ' + k.LastName as ServerName,
+      COALESCE(k.FirstName, '') + ' ' + COALESCE(k.LastName, '') as ServerName,
       k.EmpID,
-      SUM(DATEDIFF(minute, pi.TimeIn, pi.TimeOut)) / 60.0 as HoursWorked
+      SUM(DATEDIFF(minute, pi.PunchIn, pi.PunchOut)) / 60.0 as HoursWorked
     FROM X_PunchIn pi
     JOIN K_Employee k ON pi.EmpID = k.EmpID
     WHERE pi.TransactionDate >= @date
       AND pi.TransactionDate < DATEADD(day, 1, @date)
       AND pi.Active = 1
+      -- Exclude punches longer than 16 hours: real-world staff sometimes
+      -- forget to punch out, and the system then records whatever time it
+      -- was eventually closed (sometimes days later), producing bogus
+      -- multi-day 'shifts'. Confirmed against real Whistler Lab data
+      -- (EmpID 252, XactID 59058 — a punch left open ~6 days).
+      AND DATEDIFF(hour, pi.PunchIn, pi.PunchOut) <= 16
     GROUP BY k.FirstName, k.LastName, k.EmpID
   `;
 
