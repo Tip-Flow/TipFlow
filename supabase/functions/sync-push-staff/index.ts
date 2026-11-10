@@ -6,32 +6,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const ROLE_MAP: Record<string, string> = {
-  server:    'server',
-  servers:   'server',
-  bartender: 'bartender',
-  bartenders:'bartender',
-  bar:       'bartender',
-  runner:    'runner',
-  runners:   'runner',
-  busser:    'runner',
-  bussers:   'runner',
-  bus:       'runner',
-  host:      'host',
-  hosts:     'host',
-  hostess:   'host',
-  hostesses: 'host',
-  kitchen:   'kitchen',
-  cook:      'kitchen',
-  'line cook':'kitchen',
-  'prep cook':'kitchen',
-  prep:      'kitchen',
-  dishwasher:'kitchen',
+  server:      'server',
+  servers:     'server',
+  bartender:   'bartender',
+  bartenders:  'bartender',
+  bar:         'bartender',
+  runner:      'runner',
+  runners:     'runner',
+  busser:      'runner',
+  bussers:     'runner',
+  bus:         'runner',
+  host:        'host',
+  hosts:       'host',
+  hostess:     'host',
+  hostesses:   'host',
+  kitchen:     'kitchen',
+  cook:        'kitchen',
+  'line cook': 'kitchen',
+  'prep cook': 'kitchen',
+  prep:        'kitchen',
+  dishwasher:  'kitchen',
 };
 
-function mapPosition(positionName: string): string {
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// Unknown positions return null: they are listed for review, never guessed.
+function mapPosition(positionName: string): string | null {
   const lower = (positionName ?? '').toLowerCase().trim();
-  return ROLE_MAP[lower] ?? 'server';
+  return ROLE_MAP[lower] ?? null;
 }
 
 function extractName(emp: Record<string, unknown>): string {
@@ -47,29 +59,35 @@ function extractEmail(emp: Record<string, unknown>): string | null {
 }
 
 function extractPosition(emp: Record<string, unknown>): string {
-  // positions may be an array of objects, or a primary_position string
   const positions = emp.positions as Record<string, unknown>[] | null;
   if (Array.isArray(positions) && positions.length > 0) {
     const first = positions[0];
-    return String(first.name ?? first.title ?? first.position_name ?? 'server');
+    return String(first.name ?? first.title ?? first.position_name ?? '');
   }
-  const pos = emp.primary_position ?? emp.position ?? emp.job_title ?? 'server';
-  return String(pos);
+  return String(emp.primary_position ?? emp.position ?? emp.job_title ?? '');
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const respond = (body: object, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   try {
-    const { location_id, push_company_id, dryRun = false } = await req.json();
-
-    if (!location_id || !push_company_id) {
-      throw new Error('location_id and push_company_id are required');
+    let body: { location_id?: unknown; dryRun?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      throw new HttpError(400, 'Invalid request body');
     }
+    const locationId = typeof body.location_id === 'string' ? body.location_id : '';
+    if (!UUID_RE.test(locationId)) throw new HttpError(400, 'location_id is required');
 
-    console.log('[sync-push-staff] start — location_id:', location_id, 'push_company_id:', push_company_id, 'dryRun:', dryRun);
+    // Safe by default: ONLY an explicit dryRun === false makes changes.
+    const dryRun = body.dryRun !== false;
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -77,138 +95,153 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // Fetch all current staff for this location (index by email and name)
+    // ── Auth: admin, or a manager of THIS location ───────────────────────────
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new HttpError(401, 'Unauthorized');
+    const { data: { user }, error: authErr } = await admin.auth.getUser(
+      authHeader.replace('Bearer ', ''),
+    );
+    if (authErr || !user) throw new HttpError(401, 'Unauthorized');
+
+    const isAdmin = ADMIN_EMAILS.includes(user.email ?? '');
+    if (!isAdmin) {
+      const { data: mgrRows, error: mgrErr } = await admin
+        .from('managers')
+        .select('id')
+        .eq('email', user.email ?? '')
+        .eq('location_id', locationId)
+        .limit(1);
+      if (mgrErr || !mgrRows || mgrRows.length === 0) {
+        throw new HttpError(403, 'This location does not belong to your account');
+      }
+    }
+
+    // ── Push company comes from our own records, never from the caller ───────
+    const { data: loc, error: locErr } = await admin
+      .from('locations')
+      .select('id, push_company_id')
+      .eq('id', locationId)
+      .maybeSingle();
+    if (locErr) throw new Error(`location lookup failed: ${locErr.message}`);
+    if (!loc) throw new HttpError(404, 'Location not found');
+    if (!loc.push_company_id) throw new HttpError(400, 'This location has no Push company configured');
+
+    // ── Current Mise staff for this location ─────────────────────────────────
     const { data: existingStaff, error: staffErr } = await admin
       .from('staff_members')
       .select('id, name, email, role')
-      .eq('location_id', location_id);
+      .eq('location_id', locationId);
+    if (staffErr) throw new Error(`staff lookup failed: ${staffErr.message}`);
 
-    if (staffErr) throw staffErr;
-
-    const byEmail = new Map<string, { id: string; name: string; role: string }>();
-    const byName  = new Map<string, { id: string; email: string | null; role: string }>();
+    const byEmail = new Map<string, { id: string; role: string }>();
+    const byName = new Map<string, { id: string; email: string | null; role: string }>();
     for (const s of existingStaff ?? []) {
-      if (s.email) byEmail.set(s.email.toLowerCase().trim(), { id: s.id, name: s.name, role: s.role });
-      byName.set(s.name.toLowerCase().trim(), { id: s.id, email: s.email ?? null, role: s.role });
+      if (s.email) byEmail.set(String(s.email).toLowerCase().trim(), { id: s.id, role: s.role });
+      byName.set(String(s.name).toLowerCase().trim(), { id: s.id, email: s.email ? String(s.email).toLowerCase().trim() : null, role: s.role });
     }
 
-    const employees = await getEmployees(Number(push_company_id));
-
-    // Filter to active employees only
+    // ── Push employees (active only) ─────────────────────────────────────────
+    const employees = await getEmployees(Number(loc.push_company_id));
     const activeEmployees = employees.filter((emp) => {
       const status = String(emp.status ?? emp.employee_status ?? emp.active ?? 'active').toLowerCase();
       return status === 'active' || status === 'true' || status === '1';
     });
-    console.log('[sync-push-staff] active employees:', activeEmployees.length, 'of', employees.length, 'total');
 
-    let invited = 0;
-    let updated = 0;
+    const toAdd: { name: string; email: string | null; role: string }[] = [];
+    const roleChanges: { staffMemberId: string; name: string; from: string; to: string }[] = [];
+    const unmapped: { name: string; position: string }[] = [];
+    const needsReview: { name: string; reason: string }[] = [];
     let alreadyExists = 0;
 
     for (const emp of activeEmployees) {
-      const name  = extractName(emp);
+      const name = extractName(emp);
       const email = extractEmail(emp);
       const position = extractPosition(emp);
-      const role  = mapPosition(position);
+      const role = mapPosition(position);
 
-      console.log('[sync-push-staff] processing employee:', name, 'email:', email, 'position:', position, '→ role:', role);
+      if (!role) {
+        unmapped.push({ name, position: position || '(no position in Push)' });
+        continue;
+      }
 
-      // Match by email first, then by name
-      const existingByEmail = email ? byEmail.get(email) : null;
-      const existingByName  = byName.get(name.toLowerCase().trim());
-      const existing = existingByEmail ?? existingByName;
-
-      if (existing) {
-        // Update role if changed
-        if (existing.role !== role) {
-          const { error: updateErr } = await admin
-            .from('staff_members')
-            .update({ role })
-            .eq('id', existing.id);
-          if (updateErr) {
-            console.error('[sync-push-staff] update role error:', updateErr.message);
-          } else {
-            console.log('[sync-push-staff] updated role for', name, 'from', existing.role, 'to', role);
-            updated++;
-          }
+      // Strong match: same email.
+      const emailMatch = email ? byEmail.get(email) : undefined;
+      if (emailMatch) {
+        if (emailMatch.role !== role) {
+          roleChanges.push({ staffMemberId: emailMatch.id, name, from: emailMatch.role, to: role });
         } else {
           alreadyExists++;
-          console.log('[sync-push-staff] already exists:', name);
         }
         continue;
       }
 
-      // New employee — create staff_member row
-      const { data: newStaff, error: insertErr } = await admin
-        .from('staff_members')
-        .insert({
-          location_id,
-          name,
-          role,
-          email: email ?? undefined,
+      // Weak match: same name only. Never change anything automatically.
+      const nameMatch = byName.get(name.toLowerCase().trim());
+      if (nameMatch) {
+        if (email && nameMatch.email && nameMatch.email !== email) {
+          needsReview.push({ name, reason: 'Same name as an existing staff member, but a different email' });
+        } else if (nameMatch.role !== role) {
+          needsReview.push({ name, reason: `Push says ${role}, Mise says ${nameMatch.role}` });
+        } else {
+          alreadyExists++;
+        }
+        continue;
+      }
+
+      toAdd.push({ name, email, role });
+    }
+
+    // ── Apply (only when explicitly asked). Never sends invites. ─────────────
+    let added = 0;
+    let updated = 0;
+    const failures: string[] = [];
+    if (!dryRun) {
+      for (const p of toAdd) {
+        const { error } = await admin.from('staff_members').insert({
+          location_id: locationId,
+          name: p.name,
+          role: p.role,
+          email: p.email ?? undefined,
           payout_method: 'etransfer',
           bank_linked: false,
-        })
-        .select('id')
-        .single();
-
-      if (insertErr) {
-        console.error('[sync-push-staff] insert error for', name, ':', insertErr.message);
-        continue;
+        });
+        if (error) failures.push(p.name); else added++;
       }
-
-      console.log('[sync-push-staff] created staff_member:', newStaff.id, 'for', name);
-
-      // DRY RUN MODE - remove before production launch with Dan
-      if (dryRun) {
-        console.log('[sync-push-staff] DRY RUN — skipping invite for', name, email ? `(${email})` : '(no email)');
-      } else if (email) {
-        // Only send invite if we have an email
-        try {
-          const inviteRes = await fetch(
-            `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-staff-invite`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              },
-              body: JSON.stringify({
-                email,
-                name,
-                role,
-                location_id,
-                staff_member_id: newStaff.id,
-              }),
-            },
-          );
-          const inviteBody = await inviteRes.json();
-          console.log('[sync-push-staff] invite result for', email, ':', JSON.stringify(inviteBody));
-          invited++;
-        } catch (inviteErr: unknown) {
-          const msg = inviteErr instanceof Error ? inviteErr.message : String(inviteErr);
-          console.error('[sync-push-staff] invite failed for', email, ':', msg);
-          // Don't fail the whole sync if invite fails
-        }
-      } else {
-        console.log('[sync-push-staff] no email for', name, '— skipping invite');
-        invited++; // Count as invited (staff created), invite will be manual
+      for (const c of roleChanges) {
+        const { error } = await admin
+          .from('staff_members')
+          .update({ role: c.to })
+          .eq('id', c.staffMemberId)
+          .eq('location_id', locationId);
+        if (error) failures.push(c.name); else updated++;
       }
     }
 
-    const summary = { dryRun, updated, invited, alreadyExists, total: activeEmployees.length };
-    console.log('[sync-push-staff] done —', JSON.stringify(summary));
+    console.log('[sync-push-staff] location', locationId, '| dryRun', dryRun,
+      '| active', activeEmployees.length, '| existing', alreadyExists,
+      '| toAdd', toAdd.length, '| roleChanges', roleChanges.length,
+      '| unmapped', unmapped.length, '| review', needsReview.length,
+      '| added', added, '| updated', updated, '| failures', failures.length);
 
-    return new Response(
-      JSON.stringify({ success: true, ...summary }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return respond({
+      success: true,
+      dryRun,
+      total: activeEmployees.length,
+      alreadyExists,
+      added,
+      updated,
+      invited: 0,
+      would_add: toAdd.map((p) => ({ name: p.name, role: p.role, has_email: !!p.email })),
+      role_changes: roleChanges.map((c) => ({ name: c.name, from: c.from, to: c.to })),
+      unmapped_positions: unmapped,
+      needs_review: needsReview,
+      failures: failures.length ? failures : undefined,
+    });
+
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[sync-push-staff] error:', message);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    const status = err instanceof HttpError ? err.status : 500;
+    const message = err instanceof HttpError ? err.message : 'Something went wrong. Please try again.';
+    console.error('[sync-push-staff] error', status, '|', err instanceof Error ? err.message : String(err));
+    return respond({ error: message }, status);
   }
 });
