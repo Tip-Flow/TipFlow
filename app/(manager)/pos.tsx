@@ -85,6 +85,26 @@ type ReportAllocation = {
   calculated_amount: number;
 };
 
+type PopupButton = { text?: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' };
+
+// Alert.alert is skipped by browsers, so on web use the browser's own pop-ups.
+function showAlert(title: string, message?: string, buttons?: PopupButton[]) {
+  if (Platform.OS !== 'web') {
+    Alert.alert(title, message, buttons);
+    return;
+  }
+  const text = message ? `${title}\n\n${message}` : title;
+  if (!buttons || buttons.length <= 1) {
+    window.alert(text);
+    buttons?.[0]?.onPress?.();
+    return;
+  }
+  const cancel = buttons.find((b) => b.style === 'cancel');
+  const action = buttons.find((b) => b.style !== 'cancel') ?? buttons[buttons.length - 1];
+  if (window.confirm(text)) action?.onPress?.();
+  else cancel?.onPress?.();
+}
+
 export default function POSScreen() {
   const router = useRouter();
 
@@ -184,7 +204,7 @@ export default function POSScreen() {
       console.log('[POS] resolved locId:', locId);
 
       if (!locId) {
-        Alert.alert('No Location', 'No location found. Please set up your location first.');
+        showAlert('No Location', 'No location found. Please set up your location first.');
         return;
       }
 
@@ -204,7 +224,7 @@ export default function POSScreen() {
       if (shiftErr) console.log('[POS] shift fetch error detail:', shiftErr);
 
       if (!shift) {
-        Alert.alert(
+        showAlert(
           'No Shift Tonight',
           "There's no shift created for today yet. Go to the Calculate tab to create tonight's shift first.",
           [
@@ -241,7 +261,7 @@ export default function POSScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log('[POS] handlePullReport error:', msg);
-      Alert.alert('Error', "Couldn't pull tonight's report. Please try again.");
+      showAlert('Error', "Couldn't pull tonight's report. Please try again.");
     } finally {
       setPullingReport(false);
     }
@@ -275,11 +295,11 @@ export default function POSScreen() {
       console.log('[POS] Push sync — locId:', locId, 'push_company_id:', pushCompanyId);
 
       if (!locId) {
-        Alert.alert('No Location', 'No location found. Set up your location first.');
+        showAlert('No Location', 'No location found. Set up your location first.');
         return;
       }
       if (!pushCompanyId) {
-        Alert.alert('Push Not Configured', 'This location does not have a Push company ID configured. Contact Mise support.');
+        showAlert('Push Not Configured', 'This location does not have a Push company ID configured. Contact Mise support.');
         return;
       }
 
@@ -340,11 +360,12 @@ export default function POSScreen() {
 
       const bannerMsg = bannerParts.join(' · ') || 'Push sync complete — no changes';
       console.log('[POS] setPushSyncBanner →', bannerMsg);
-      setPushSyncBanner(bannerMsg);
+            setPushSyncBanner(bannerMsg);
+      showAlert('Push Sync Complete', bannerMsg);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[POS] handleSyncFromPush error:', msg);
-      Alert.alert('Push Sync Failed', msg);
+      showAlert('Push Sync Failed', msg);
     } finally {
       setSyncingPush(false);
     }
@@ -366,7 +387,7 @@ export default function POSScreen() {
       if (locErr) throw new Error(`Could not fetch location: ${locErr.message}`);
       const pushCompanyId = loc?.push_company_id ?? null;
       if (!pushCompanyId) {
-        Alert.alert('Push Not Configured', 'This location does not have a Push company ID configured.');
+        showAlert('Push Not Configured', 'This location does not have a Push company ID configured.');
         return;
       }
 
@@ -377,10 +398,10 @@ export default function POSScreen() {
       if (res.error) throw new Error(res.error.message);
       const dates: string[] = (res.data as { datesWithActivity: string[] })?.datesWithActivity ?? [];
       setActiveDates(dates);
-      if (dates.length === 0) Alert.alert('No Activity Found', 'No labour data found in the last 14 days.');
+      if (dates.length === 0) showAlert('No Activity Found', 'No labour data found in the last 14 days.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setCheckingDates(false);
     }
@@ -422,7 +443,7 @@ export default function POSScreen() {
       setPushSyncBanner(`Labour loaded for ${date} — ${deptCount} department${deptCount !== 1 ? 's' : ''}, ${totalHours} total hours`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Labour Sync Failed', msg);
+      showAlert('Labour Sync Failed', msg);
     } finally {
       setSyncingLabourDate(null);
     }
@@ -452,7 +473,7 @@ export default function POSScreen() {
       console.log('[POS] Squirrel sync — locId:', locId);
 
       if (!locId) {
-        Alert.alert('No Location', 'No location found. Set up your location first.');
+        showAlert('No Location', 'No location found. Set up your location first.');
         return;
       }
 
@@ -514,7 +535,7 @@ export default function POSScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[POS] handleSyncFromSquirrel error:', msg);
-      Alert.alert('Squirrel Sync Failed', msg);
+      showAlert('Squirrel Sync Failed', msg);
     } finally {
       setSyncingSquirrel(false);
     }
@@ -531,10 +552,10 @@ export default function POSScreen() {
       if (res.error) throw new Error(res.error.message);
       const dates: string[] = (res.data as { datesWithActivity: string[] })?.datesWithActivity ?? [];
       setSquirrelActiveDates(dates);
-      if (dates.length === 0) Alert.alert('No Activity Found', 'No sales data found in the last 7 days.');
+      if (dates.length === 0) showAlert('No Activity Found', 'No sales data found in the last 7 days.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setCheckingSquirrelDates(false);
     }
@@ -575,7 +596,7 @@ export default function POSScreen() {
       setSquirrelSyncBanner(`Sales loaded for ${date} — ${serverCount} server${serverCount !== 1 ? 's' : ''}, $${totalSales.toFixed(2)} total sales`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Sales Sync Failed', msg);
+      showAlert('Sales Sync Failed', msg);
     } finally {
       setSyncingSquirrelSalesDate(null);
     }
@@ -617,14 +638,14 @@ export default function POSScreen() {
   async function handleScanReport() {
     const { granted } = await ImagePicker.requestCameraPermissionsAsync();
     if (!granted) {
-      Alert.alert(
+      showAlert(
         'Camera Access Required',
         'Mise needs camera access to photograph your POS reports. Please enable it in Settings.',
         [
           {
             text: 'Open Settings',
             onPress: () => {
-              Alert.alert('Go to Settings', 'Settings → Mise → Camera → Allow');
+              showAlert('Go to Settings', 'Settings → Mise → Camera → Allow');
             },
           },
           { text: 'Cancel', style: 'cancel' },
@@ -671,7 +692,7 @@ export default function POSScreen() {
       setOcrPreviewVisible(true);
     } catch (err) {
       console.error('OCR error:', err);
-      Alert.alert(
+      showAlert(
         'Scan Failed',
         'Could not read text from the image. Try a clearer, well-lit photo or use CSV upload instead.'
       );
