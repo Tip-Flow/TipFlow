@@ -306,7 +306,8 @@ export default function POSScreen() {
       console.log('[POS] sync-push-staff result:', JSON.stringify(staffData));
 
       // Step 2: Sync today's labour hours
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       console.log('[POS] calling sync-push-labour for date:', today);
       const labourRes = await supabase.functions.invoke('sync-push-labour', {
         body: { location_id: locId, push_company_id: pushCompanyId, date: today },

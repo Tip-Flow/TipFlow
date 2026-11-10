@@ -6,11 +6,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// All current restaurants are in BC. Move this to a per-location setting
+// before onboarding a restaurant in another time zone.
+const RESTAURANT_TZ = 'America/Vancouver';
+
 // Labour types that represent non-worked time — excluded from hour totals
 const NON_WORKED_TYPES = new Set(['vac', 'vacation', 'pto', 'holiday', 'stat', 'sick', 'leave']);
 
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// Today's date in the restaurant's own time zone, as YYYY-MM-DD.
+function restaurantToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: RESTAURANT_TZ }).format(new Date());
 }
 
 interface EmployeeCacheEntry {
@@ -21,21 +41,28 @@ interface EmployeeCacheEntry {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const respond = (body: object, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   try {
-    const body = await req.json();
-    const location_id: string = body.location_id;
-    const push_company_id: number = Number(body.push_company_id);
-    const date: string = body.date ?? new Date().toISOString().split('T')[0];
-
-    if (!location_id || !push_company_id) {
-      throw new Error('location_id and push_company_id are required');
+    let body: { location_id?: unknown; date?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      throw new HttpError(400, 'Invalid request body');
     }
+    const locationId = typeof body.location_id === 'string' ? body.location_id : '';
+    if (!UUID_RE.test(locationId)) throw new HttpError(400, 'location_id is required');
 
-    console.log('[sync-push-labour] start — location_id:', location_id, 'push_company_id:', push_company_id, 'date:', date);
+    const date = typeof body.date === 'string' && body.date ? body.date : restaurantToday();
+    if (!DATE_RE.test(date) || isNaN(Date.parse(date))) {
+      throw new HttpError(400, 'date must be YYYY-MM-DD');
+    }
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -43,31 +70,60 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // Fetch staff members for this location to enable name matching
+    // ── Auth: admin, or a manager of THIS location ───────────────────────────
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new HttpError(401, 'Unauthorized');
+    const { data: { user }, error: authErr } = await admin.auth.getUser(
+      authHeader.replace('Bearer ', ''),
+    );
+    if (authErr || !user) throw new HttpError(401, 'Unauthorized');
+
+    const isAdmin = ADMIN_EMAILS.includes(user.email ?? '');
+    if (!isAdmin) {
+      const { data: mgrRows, error: mgrErr } = await admin
+        .from('managers')
+        .select('id')
+        .eq('email', user.email ?? '')
+        .eq('location_id', locationId)
+        .limit(1);
+      if (mgrErr || !mgrRows || mgrRows.length === 0) {
+        throw new HttpError(403, 'This location does not belong to your account');
+      }
+    }
+
+    // ── Push company comes from our own records, never from the caller ───────
+    const { data: loc, error: locErr } = await admin
+      .from('locations')
+      .select('id, push_company_id')
+      .eq('id', locationId)
+      .maybeSingle();
+    if (locErr) throw new Error(`location lookup failed: ${locErr.message}`);
+    if (!loc) throw new HttpError(404, 'Location not found');
+    if (!loc.push_company_id) throw new HttpError(400, 'This location has no Push company configured');
+
+    // ── Staff for name matching. Shared names are never matched. ─────────────
     const { data: staffRows, error: staffErr } = await admin
       .from('staff_members')
       .select('id, name')
-      .eq('location_id', location_id);
+      .eq('location_id', locationId);
+    if (staffErr) throw new Error(`staff lookup failed: ${staffErr.message}`);
 
-    if (staffErr) {
-      console.warn('[sync-push-labour] could not fetch staff_members:', staffErr.message);
-    }
-
-    // Build normalized name → staff_member_id lookup
     const nameToId = new Map<string, string>();
+    const ambiguousNames = new Set<string>();
     for (const s of staffRows ?? []) {
-      nameToId.set(normalizeName(s.name), s.id);
+      const key = normalizeName(String(s.name));
+      if (nameToId.has(key)) ambiguousNames.add(key);
+      else nameToId.set(key, s.id);
     }
-    console.log('[sync-push-labour] loaded', nameToId.size, 'staff members for name matching');
 
-    const rawRows = await getEmployeeLabour(push_company_id, date, date);
+    // ── Push hours for the date ──────────────────────────────────────────────
+    const rawRows = await getEmployeeLabour(Number(loc.push_company_id), date, date);
 
-    // Sum worked hours per employee (exclude vacation / non-worked types)
     const hoursPerEmployee = new Map<string, { hours: number; positionName: string }>();
+    let skippedNonWorked = 0;
     for (const row of rawRows) {
-      const lt = row.labourType.toLowerCase();
-      if (NON_WORKED_TYPES.has(lt)) {
-        console.log('[sync-push-labour] skipping non-worked row:', row.employeeName, 'type:', row.labourType);
+      if (NON_WORKED_TYPES.has(String(row.labourType).toLowerCase())) {
+        skippedNonWorked++;
         continue;
       }
       const existing = hoursPerEmployee.get(row.employeeName) ?? { hours: 0, positionName: row.positionName };
@@ -78,53 +134,50 @@ Deno.serve(async (req: Request) => {
     }
 
     const employees: EmployeeCacheEntry[] = [];
+    const sharedNames: string[] = [];
     for (const [employeeName, { hours, positionName }] of hoursPerEmployee) {
-      const staffMemberId = nameToId.get(normalizeName(employeeName)) ?? null;
+      const key = normalizeName(employeeName);
+      let staffMemberId: string | null = null;
+      if (ambiguousNames.has(key)) {
+        sharedNames.push(employeeName);
+      } else {
+        staffMemberId = nameToId.get(key) ?? null;
+      }
       employees.push({
         employee_name: employeeName,
         staff_member_id: staffMemberId,
         hours,
         position_name: positionName,
       });
-      console.log('[sync-push-labour] employee:', employeeName, '→ staff_member_id:', staffMemberId, 'hours:', hours, 'position:', positionName);
     }
 
     const totalHours = Math.round(employees.reduce((s, e) => s + e.hours, 0) * 100) / 100;
     const matchedCount = employees.filter((e) => e.staff_member_id !== null).length;
 
-    console.log('[sync-push-labour] date:', date, '| employees:', employees.length, '| matched:', matchedCount, '| totalHours:', totalHours);
-
     const { error: updateErr } = await admin
       .from('locations')
-      .update({
-        push_labour_cache: employees,
-        push_labour_cache_date: date,
-      })
-      .eq('id', location_id);
+      .update({ push_labour_cache: employees, push_labour_cache_date: date })
+      .eq('id', locationId);
+    if (updateErr) throw new Error(`cache update failed: ${updateErr.message}`);
 
-    if (updateErr) {
-      console.error('[sync-push-labour] failed to store cache:', updateErr.message);
-    } else {
-      console.log('[sync-push-labour] stored per-employee cache for date:', date);
-    }
+    console.log('[sync-push-labour] location', locationId, '| date', date,
+      '| employees', employees.length, '| matched', matchedCount,
+      '| shared names', sharedNames.length, '| non-worked skipped', skippedNonWorked);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        date,
-        employees,
-        totalHours,
-        matchedCount,
-        count: employees.length,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return respond({
+      success: true,
+      date,
+      employees,
+      totalHours,
+      matchedCount,
+      count: employees.length,
+      shared_names: sharedNames,
+    });
+
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[sync-push-labour] error:', message);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    const status = err instanceof HttpError ? err.status : 500;
+    const message = err instanceof HttpError ? err.message : 'Something went wrong. Please try again.';
+    console.error('[sync-push-labour] error', status, '|', err instanceof Error ? err.message : String(err));
+    return respond({ error: message }, status);
   }
 });
