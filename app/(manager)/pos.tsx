@@ -624,7 +624,12 @@ export default function POSScreen() {
     }
   }
 
-  function handleUseCSVData() {
+      // Importing into Calculate isn't connected yet (Calculate never read this data).
+    showAlert(
+      'Not available yet',
+      "Importing into Calculate isn't connected yet, so these figures weren't used. For now, enter them in the Calculate tab, or upload the end-of-night PDF on the Daily POS Report page.",
+    );
+    return;
     if (!preview) return;
     setPreviewVisible(false);
     router.push({
@@ -702,6 +707,12 @@ export default function POSScreen() {
   }
 
   function handleUseOCRData() {
+    // Importing into Calculate isn't connected yet (Calculate never read this data).
+    showAlert(
+      'Not available yet',
+      "Importing into Calculate isn't connected yet, so these figures weren't used. For now, enter them in the Calculate tab, or upload the end-of-night PDF on the Daily POS Report page.",
+    );
+    return;
     if (!ocrResult) return;
     setOcrPreviewVisible(false);
     router.push({
