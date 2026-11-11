@@ -185,6 +185,26 @@ function computeSquirrelSalesMap(
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+type PopupButton = { text?: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' };
+
+// Alert.alert is skipped by browsers, so on web use the browser's own pop-ups.
+function showAlert(title: string, message?: string, buttons?: PopupButton[]) {
+  if (Platform.OS !== 'web') {
+    Alert.alert(title, message, buttons);
+    return;
+  }
+  const text = message ? `${title}\n\n${message}` : title;
+  if (!buttons || buttons.length <= 1) {
+    window.alert(text);
+    buttons?.[0]?.onPress?.();
+    return;
+  }
+  const cancel = buttons.find((b) => b.style === 'cancel');
+  const action = buttons.find((b) => b.style !== 'cancel') ?? buttons[buttons.length - 1];
+  if (window.confirm(text)) action?.onPress?.();
+  else cancel?.onPress?.();
+}
+
 export default function CalculateScreen() {
   const isDesktop = useIsDesktop();
   const scrollRef = useRef<ScrollView>(null);
@@ -466,11 +486,11 @@ export default function CalculateScreen() {
 
   async function handleCreateShift() {
     if (!newShiftName.trim()) {
-      Alert.alert('Missing shift name', 'Give tonight\'s shift a name.');
+      showAlert('Missing shift name', 'Give tonight\'s shift a name.');
       return;
     }
     if (selectedIds.size === 0) {
-      Alert.alert('No staff selected', 'Select at least one staff member for this shift.');
+      showAlert('No staff selected', 'Select at least one staff member for this shift.');
       return;
     }
     if (!locationId) return;
@@ -562,7 +582,7 @@ export default function CalculateScreen() {
       setModalVisible(false);
       fetchActiveShifts(locationId);
     } catch (err: unknown) {
-      Alert.alert('Failed to create shift', err instanceof Error ? err.message : String(err));
+      showAlert('Failed to create shift', err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -681,24 +701,24 @@ export default function CalculateScreen() {
         console.log('[Calculate] Squirrel sales pre-filled for', squirrelStaffCount, 'staff — total:', roundedSales);
       }
     } catch (err) {
-      Alert.alert('Failed to load shift', err instanceof Error ? err.message : String(err));
+      showAlert('Failed to load shift', err instanceof Error ? err.message : String(err));
     }
   }
 
-  
+
   // ── Calculate ─────────────────────────────────────────────────────────────
   function handleCalculate() {
     console.log("Calculate tapped");
     console.log('[Calculate] shiftName:', JSON.stringify(shiftName), '| servers:', servers.length, '| support:', supportStaff.length);
     console.log('[Calculate] server data:', JSON.stringify(servers.map(s => ({ name: s.name, included: s.included, sales: s.sales, tips: s.tipsEarned, hours: s.hoursWorked }))));
     if (!shiftName.trim()) {
-      Alert.alert('Missing info', 'Please enter a shift name.');
+      showAlert('Missing info', 'Please enter a shift name.');
       return;
     }
 
     const activeServers = servers.filter((s) => s.included);
     if (activeServers.length === 0) {
-      Alert.alert('No servers', 'Include at least one server.');
+      showAlert('No servers', 'Include at least one server.');
       return;
     }
 
@@ -709,7 +729,7 @@ export default function CalculateScreen() {
         parseFloat(s.hoursWorked) <= 0,
     );
     if (missingData.length > 0) {
-      Alert.alert(
+      showAlert(
         'Missing data',
         `Enter sales, tips earned, and hours for: ${missingData.map((s) => s.name).join(', ')}`,
       );
@@ -745,7 +765,7 @@ export default function CalculateScreen() {
       setSummary(newSummary);
       setHousePoolAllocations(newPoolAllocations);
     } catch (err: unknown) {
-      Alert.alert('Calculation error', err instanceof Error ? err.message : String(err));
+      showAlert('Calculation error', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -941,7 +961,7 @@ export default function CalculateScreen() {
           ? String((err as any).message)
           : JSON.stringify(err);
       console.log('[SaveAndPayout] caught error:', JSON.stringify(err));
-      Alert.alert('Save failed', msg);
+      showAlert('Save failed', msg);
     } finally {
       setSaving(false);
     }
