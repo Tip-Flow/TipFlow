@@ -6,12 +6,34 @@ const corsHeaders = {
 };
 
 const ADMIN_EMAILS = ['sukhi.muker@gmail.com', 'sukhi@drsukhi.com'];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STAFF_ROLES = new Set(['server', 'bartender', 'runner', 'host', 'kitchen', 'support']);
+const INVITE_REDIRECT = 'https://app.mise.ltd/invite';
+
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function roleLabel(role: string): string {
   const map: Record<string, string> = {
     server:           'Server',
     bartender:        'Bartender',
     runner:           'Runner',
+    host:             'Host',
     kitchen:          'Kitchen',
     support:          'Support',
     location_manager: 'Location Manager',
@@ -24,25 +46,30 @@ function isManagerRole(role: string): boolean {
   return role === 'location_manager' || role === 'regional_manager';
 }
 
-function buildInviteEmail(name: string, locationName: string, role: string, inviteUrl: string): string {
-  const firstName = name.split(' ')[0];
+function buildInviteEmail(name: string, placeName: string, role: string, inviteUrl: string): string {
+  const firstName = escapeHtml(name.split(' ')[0] || name);
+  const safePlace = escapeHtml(placeName);
+  const safeRole = escapeHtml(roleLabel(role));
+  const safeUrl = escapeHtml(inviteUrl);
   const isManager = isManagerRole(role);
 
-  const bodyText = isManager
-    ? `<strong style="color:#0f172a;">${locationName}</strong> has added you to Mise as a <strong style="color:#4169E1;">${roleLabel(role)}</strong>.`
-    : `<strong style="color:#0f172a;">${locationName}</strong> has added you to Mise as a <strong style="color:#4169E1;">${roleLabel(role)}</strong>.`;
-
   const description = isManager
-    ? `Mise is how your team gets paid. Manage shift schedules, calculate tips instantly, and pay staff directly — no cash, no spreadsheets.`
-    : `After every shift, your tips are calculated automatically and waiting for you in Mise. Check your earnings, request a payout, and watch it land directly in your bank account.`;
-
+    ? 'Mise is how your team gets paid. Manage shifts, calculate tips instantly, and pay staff directly — no cash, no spreadsheets.'
+    : 'After every shift, your tips are calculated and waiting for you in Mise. Check your earnings and get paid directly to your bank account.';
   const step2 = isManager
-    ? `Set up your location's tip pool rules and team`
-    : `Link your bank account securely via Flinks — takes 2 minutes`;
-
+    ? "Set up your location's tip pool rules and team"
+    : 'Link your bank account securely through Zum Connect — takes 2 minutes';
   const step3 = isManager
-    ? `Import your first shift and pay your team in seconds`
-    : `After your next shift, tips land directly in your account`;
+    ? 'Load your first shift and pay your team'
+    : 'After your next shift, your tips are paid to your account';
+
+  const stepRow = (n: number, text: string) => `
+                <tr>
+                  <td style="padding:8px 0;vertical-align:top;width:28px;">
+                    <div style="width:22px;height:22px;background:#4169E1;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">${n}</div>
+                  </td>
+                  <td style="padding:8px 0 8px 10px;font-size:14px;color:#475569;line-height:1.5;">${text}</td>
+                </tr>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -56,91 +83,50 @@ function buildInviteEmail(name: string, locationName: string, role: string, invi
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-
-          <!-- Header -->
           <tr>
             <td align="center" style="background:#4169E1;border-radius:16px 16px 0 0;padding:32px 40px 28px;">
               <div style="font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-0.04em;line-height:1;margin-bottom:6px;">Mise</div>
               <div style="font-size:13px;color:rgba(255,255,255,0.75);letter-spacing:0.05em;text-transform:uppercase;">Everything in its Place</div>
             </td>
           </tr>
-
-          <!-- Body -->
           <tr>
             <td style="background:#ffffff;padding:40px 40px 32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-              <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;">Hi ${firstName} 👋</p>
+              <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a;">Hi ${firstName} 👋</p>
               <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
-                ${bodyText}
+                <strong style="color:#0f172a;">${safePlace}</strong> has added you to Mise as a <strong style="color:#4169E1;">${safeRole}</strong>.
               </p>
-
-              <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">
-                ${description}
-              </p>
-
-              <!-- CTA -->
+              <p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">${description}</p>
               <table width="100%" cellpadding="0" cellspacing="0" style="margin:32px 0;">
                 <tr>
                   <td align="center">
-                    <a href="${inviteUrl}"
-                       style="display:inline-block;background:#4169E1;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:12px;letter-spacing:0.1px;">
+                    <a href="${safeUrl}" style="display:inline-block;background:#4169E1;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:12px;">
                       Set Up Your Account →
                     </a>
                   </td>
                 </tr>
               </table>
-
               <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;">
-                This invite link expires in 24 hours.
+                This link works once. If it has expired, ask your manager to send a new invite.
               </p>
-
-              <!-- Divider -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;">
                 <tr><td style="height:1px;background:#e2e8f0;"></td></tr>
               </table>
-
-              <!-- What to expect -->
               <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.6px;">What happens next</p>
               <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:8px 0;vertical-align:top;width:28px;">
-                    <div style="width:22px;height:22px;background:#4169E1;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">1</div>
-                  </td>
-                  <td style="padding:8px 0 8px 10px;font-size:14px;color:#475569;line-height:1.5;">
-                    Click the button above and set your password
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;vertical-align:top;width:28px;">
-                    <div style="width:22px;height:22px;background:#4169E1;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">2</div>
-                  </td>
-                  <td style="padding:8px 0 8px 10px;font-size:14px;color:#475569;line-height:1.5;">
-                    ${step2}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;vertical-align:top;width:28px;">
-                    <div style="width:22px;height:22px;background:#4169E1;border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">3</div>
-                  </td>
-                  <td style="padding:8px 0 8px 10px;font-size:14px;color:#475569;line-height:1.5;">
-                    ${step3}
-                  </td>
-                </tr>
+                ${stepRow(1, 'Click the button above and set your password')}
+                ${stepRow(2, step2)}
+                ${stepRow(3, step3)}
               </table>
             </td>
           </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
               <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;">
                 Sent by Mise · <a href="https://mise.ltd" style="color:#4169E1;text-decoration:none;">mise.ltd</a>
               </p>
-              <p style="margin:0;font-size:11px;color:#cbd5e1;">
-                🍁 RPAA Registered &nbsp;·&nbsp; 🔒 PIPEDA Compliant &nbsp;·&nbsp; 🏦 Data: ca-central-1
-              </p>
+              <p style="margin:0;font-size:11px;color:#cbd5e1;">🔒 Your data is stored in Canada</p>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
@@ -150,23 +136,34 @@ function buildInviteEmail(name: string, locationName: string, role: string, invi
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const respond = (body: object, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   try {
-    const {
-      email,
-      name,
-      role,
-      location_id,
-      organisation_id,
-      staff_member_id,
-      manager_id,
-    } = await req.json();
+    // ── Read and validate the request ────────────────────────────────────────
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      throw new HttpError(400, 'Invalid request body');
+    }
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const name = String(body.name ?? '').trim();
+    const role = String(body.role ?? '').trim();
+    const locationId = typeof body.location_id === 'string' && body.location_id ? body.location_id : null;
+    const orgId = typeof body.organisation_id === 'string' && body.organisation_id ? body.organisation_id : null;
+    const staffMemberId = typeof body.staff_member_id === 'string' && body.staff_member_id ? body.staff_member_id : null;
 
-    if (!email || !name || !role) {
-      throw new Error('email, name, and role are required');
+    if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Enter a valid email address');
+    if (!name || name.length > 100) throw new HttpError(400, 'Enter a name (up to 100 characters)');
+    if (!isManagerRole(role) && !STAFF_ROLES.has(role)) throw new HttpError(400, 'Unknown role');
+    for (const id of [locationId, orgId, staffMemberId]) {
+      if (id && !UUID_RE.test(id)) throw new HttpError(400, 'Invalid ID in request');
     }
 
     const admin = createClient(
@@ -175,165 +172,164 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // Verify caller authorisation for sensitive roles
+    // ── Who is asking? (a login is always required) ──────────────────────────
     const authHeader = req.headers.get('Authorization');
-    if (role === 'regional_manager' && authHeader) {
-      const jwt = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await admin.auth.getUser(jwt);
-      if (!ADMIN_EMAILS.includes(user?.email ?? '')) {
-        throw new Error('Unauthorized: only Mise admins can invite regional managers');
-      }
-    }
+    if (!authHeader) throw new HttpError(401, 'Unauthorized');
+    const { data: { user }, error: authErr } = await admin.auth.getUser(
+      authHeader.replace('Bearer ', ''),
+    );
+    if (authErr || !user) throw new HttpError(401, 'Unauthorized');
+    const callerEmail = (user.email ?? '').toLowerCase();
+    const isAdmin = ADMIN_EMAILS.includes(callerEmail);
 
-    // Look up location name for the email
-    let locationName = 'your restaurant';
-    if (location_id) {
-      const { data: loc } = await admin
-        .from('locations')
-        .select('name')
-        .eq('id', location_id)
-        .maybeSingle();
-      locationName = loc?.name ?? locationName;
-    } else if (organisation_id) {
-      const { data: org } = await admin
-        .from('organisations')
-        .select('name')
-        .eq('id', organisation_id)
-        .maybeSingle();
-      locationName = org?.name ?? locationName;
-    }
+    const { data: callerMgrs, error: cmErr } = await admin
+      .from('managers')
+      .select('role, location_id, organisation_id')
+      .eq('email', callerEmail);
+    if (cmErr) throw new Error(`caller lookup failed: ${cmErr.message}`);
+    const managesLocation = (locId: string) =>
+      (callerMgrs ?? []).some((m) => m.location_id === locId);
+    const isRegionalOf = (org: string) =>
+      (callerMgrs ?? []).some((m) => m.role === 'regional_manager' && m.organisation_id === org);
 
-    // Resolve or create the record row
+    // ── The location (if any) and the organisation it belongs to ─────────────
+    let loc: Record<string, unknown> | null = null;
+    if (locationId) {
+      const { data, error } = await admin.from('locations').select('*').eq('id', locationId).maybeSingle();
+      if (error) throw new Error(`location lookup failed: ${error.message}`);
+      if (!data) throw new HttpError(404, 'Location not found');
+      loc = data;
+    }
+    const locOrgId = loc ? ((loc.organisation_id ?? loc.org_id ?? null) as string | null) : null;
+    let placeName = loc?.name ? String(loc.name) : 'your restaurant';
+
+    // ── Permission check and record, by role ─────────────────────────────────
     let recordId: string | null = null;
 
-    if (isManagerRole(role)) {
-      if (manager_id) {
-        recordId = manager_id;
-      } else {
-        // Check if manager already exists
-        const { data: existing } = await admin
-          .from('managers')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
+    if (role === 'regional_manager') {
+      if (!isAdmin) throw new HttpError(403, 'Only Mise admins can invite regional managers');
+      if (!orgId) throw new HttpError(400, 'organisation_id is required');
+      const { data: org, error: orgErr } = await admin
+        .from('organisations').select('id, name').eq('id', orgId).maybeSingle();
+      if (orgErr) throw new Error(`organisation lookup failed: ${orgErr.message}`);
+      if (!org) throw new HttpError(404, 'Organisation not found');
+      placeName = org.name ?? placeName;
 
-        if (existing) {
-          recordId = existing.id;
-        } else {
-          const { data: inserted, error: insertErr } = await admin
-            .from('managers')
-            .insert({ name, email, role, organisation_id: organisation_id ?? null, location_id: location_id ?? null })
-            .select('id')
-            .single();
-          if (insertErr) throw insertErr;
-          recordId = inserted?.id ?? null;
-        }
+      const { data: existing } = await admin
+        .from('managers').select('id')
+        .eq('email', email).eq('role', 'regional_manager').eq('organisation_id', orgId)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        recordId = existing[0].id;
+      } else {
+        const { data: inserted, error: insErr } = await admin
+          .from('managers')
+          .insert({ name, email, role, organisation_id: orgId, location_id: null })
+          .select('id').single();
+        if (insErr) throw new Error(`manager insert failed: ${insErr.message}`);
+        recordId = inserted.id;
       }
+
+    } else if (role === 'location_manager') {
+      if (!locationId) throw new HttpError(400, 'location_id is required');
+      if (!isAdmin && !(locOrgId && isRegionalOf(locOrgId))) {
+        throw new HttpError(403, "Only a Mise admin or this location's regional manager can invite its managers");
+      }
+      const { data: existing } = await admin
+        .from('managers').select('id')
+        .eq('email', email).eq('location_id', locationId)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        recordId = existing[0].id;
+      } else {
+        const { data: inserted, error: insErr } = await admin
+          .from('managers')
+          .insert({ name, email, role, organisation_id: locOrgId, location_id: locationId })
+          .select('id').single();
+        if (insErr) throw new Error(`manager insert failed: ${insErr.message}`);
+        recordId = inserted.id;
+      }
+
     } else {
-      recordId = staff_member_id ?? null;
-      if (!recordId) throw new Error('staff_member_id is required for staff role');
+      // Staff roles: an existing staff record at this location is required.
+      if (!locationId) throw new HttpError(400, 'location_id is required');
+      if (!staffMemberId) throw new HttpError(400, 'staff_member_id is required');
+      if (!isAdmin && !managesLocation(locationId) && !(locOrgId && isRegionalOf(locOrgId))) {
+        throw new HttpError(403, 'This location does not belong to your account');
+      }
+      const { data: staffRow, error: staffErr } = await admin
+        .from('staff_members').select('id, email, location_id')
+        .eq('id', staffMemberId).maybeSingle();
+      if (staffErr) throw new Error(`staff lookup failed: ${staffErr.message}`);
+      if (!staffRow || staffRow.location_id !== locationId) {
+        throw new HttpError(404, 'Staff member not found at this location');
+      }
+      if (String(staffRow.email ?? '').trim().toLowerCase() !== email) {
+        throw new HttpError(400, "The email must match this staff member's email in Mise");
+      }
+      recordId = staffMemberId;
     }
 
-    // Generate invite link (suppresses Supabase default email).
-    // redirectTo is explicit so the link always lands on app.mise.ltd regardless
-    // of what SITE_URL is set to in the Supabase project Auth settings.
+    // ── One-time invite link (no tokens copied into URLs or logs) ────────────
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'invite',
       email,
       options: {
-        data: { name, role, location_id, organisation_id },
-        redirectTo: 'https://app.mise.ltd/invite',
+        data: { name, role, location_id: locationId, organisation_id: role === 'regional_manager' ? orgId : locOrgId },
+        redirectTo: INVITE_REDIRECT,
       },
     });
 
-    let userId: string | null = null;
     let inviteUrl: string | null = null;
     let note: string | null = null;
-
     if (linkError) {
       const alreadyRegistered =
-        linkError.message.includes('already been registered') ||
-        linkError.message.includes('already registered') ||
-        (linkError as any).status === 422;
-
-      if (alreadyRegistered) {
-        note = 'User already has a Mise account and can log in directly.';
-        console.log('[send-staff-invite] already registered:', email);
-      } else {
-        throw linkError;
-      }
+        /already (been )?registered/i.test(linkError.message) ||
+        (linkError as { status?: number }).status === 422;
+      if (!alreadyRegistered) throw new Error(`invite link failed: ${linkError.message}`);
+      note = 'This person already has a Mise account and can log in directly.';
     } else {
-      userId = linkData.user.id;
-      console.log('[send-staff-invite] linkData.properties:', JSON.stringify(linkData.properties));
-
-      // Manually construct the redirect URL using the tokens directly so the
-      // invite lands on /invite with access_token+refresh_token in the hash —
-      // the format invite.tsx expects — regardless of what Supabase's action_link looks like.
-      const { access_token, refresh_token } = linkData.properties as any;
-      if (access_token && refresh_token) {
-        inviteUrl = `https://app.mise.ltd/invite#access_token=${access_token}&refresh_token=${refresh_token}&type=invite`;
-        console.log('[send-staff-invite] constructed inviteUrl:', inviteUrl);
-      } else {
-        inviteUrl = linkData.properties.action_link;
-        console.log('[send-staff-invite] falling back to action_link:', inviteUrl);
-      }
+      inviteUrl = linkData?.properties?.action_link ?? null;
     }
 
-    // Stamp invite_sent_at on the correct table
-    if (isManagerRole(role) && recordId) {
-      await admin
-        .from('managers')
-        .update({ invite_sent_at: new Date().toISOString() })
-        .eq('id', recordId);
-    } else if (recordId) {
-      await admin
-        .from('staff_members')
-        .update({ invite_sent_at: new Date().toISOString() })
-        .eq('id', recordId);
-    }
-
-    // Send branded email for new users only
-    let resendResult: Record<string, unknown> | null = null;
+    // ── Send the branded email (only if email sending is set up) ─────────────
+    let emailSent = false;
     if (inviteUrl) {
       const resendKey = Deno.env.get('RESEND_API_KEY');
       if (!resendKey) {
-        console.warn('[send-staff-invite] RESEND_API_KEY not set — skipping branded email');
+        note = 'Invite created, but email sending is not set up yet, so no email was sent.';
       } else {
         const emailRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${resendKey}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             from: 'Mise <noreply@mise.ltd>',
             to: email,
             subject: "You've been added to Mise",
-            html: buildInviteEmail(name, locationName, role, inviteUrl),
+            html: buildInviteEmail(name, placeName, role, inviteUrl),
           }),
         });
-
-        const resendBody = await emailRes.json();
-        if (!emailRes.ok) {
-          console.error('[send-staff-invite] Resend error:', JSON.stringify(resendBody));
-          resendResult = { ok: false, status: emailRes.status, body: resendBody };
-        } else {
-          console.log('[send-staff-invite] email sent via Resend id:', resendBody.id);
-          resendResult = { ok: true, id: resendBody.id };
+        emailSent = emailRes.ok;
+        if (!emailSent) {
+          console.error('[send-staff-invite] email provider status', emailRes.status, '| record', recordId);
+          note = 'The invite email could not be sent. Please try again later.';
         }
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, user_id: userId, record_id: recordId, note, resend: resendResult }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    // Only mark as invited when an email actually went out.
+    if (emailSent && recordId) {
+      const table = isManagerRole(role) ? 'managers' : 'staff_members';
+      await admin.from(table).update({ invite_sent_at: new Date().toISOString() }).eq('id', recordId);
+    }
+
+    console.log('[send-staff-invite] role', role, '| record', recordId, '| email sent', emailSent, '| already registered', !inviteUrl);
+    return respond({ success: true, record_id: recordId, email_sent: emailSent, note });
+
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[send-staff-invite] error:', message);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    const status = err instanceof HttpError ? err.status : 500;
+    const message = err instanceof HttpError ? err.message : 'Something went wrong. Please try again.';
+    console.error('[send-staff-invite] error', status, '|', err instanceof Error ? err.message : String(err));
+    return respond({ error: message }, status);
   }
 });
