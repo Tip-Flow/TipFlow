@@ -116,11 +116,12 @@ Deno.serve(async (req: Request) => {
       throw new HttpError(400, 'Expected a file upload');
     }
     const locationId = String(form.get('location_id') ?? '');
-    const businessDate = String(form.get('business_date') ?? '');
+    const businessDateInput = String(form.get('business_date') ?? '').trim();
     const file = form.get('file');
 
     if (!UUID_RE.test(locationId)) throw new HttpError(400, 'location_id is required');
-    if (!DATE_RE.test(businessDate) || isNaN(Date.parse(businessDate))) {
+    // The date is optional: a PDF prints its own date. A spreadsheet needs one.
+    if (businessDateInput && (!DATE_RE.test(businessDateInput) || isNaN(Date.parse(businessDateInput)))) {
       throw new HttpError(400, 'business_date must be YYYY-MM-DD');
     }
     if (!(file instanceof File)) throw new HttpError(400, 'A report file is required');
@@ -145,6 +146,27 @@ Deno.serve(async (req: Request) => {
     const kind = detectKind(bytes, file.name ?? '');
     if (!kind) throw new HttpError(400, 'Upload a PDF or a spreadsheet (Excel, Numbers or CSV)');
     const fileHash = await sha256Hex(bytes);
+
+    // ── Read and understand the file (before storing anything) ───────────────
+    let pageCount = 0;
+    let rows: string[][] = [];
+    try {
+      const out = kind === 'pdf' ? await pdfRows(bytes) : sheetRows(bytes);
+      pageCount = out.pageCount;
+      rows = out.rows;
+    } catch (readErr: unknown) {
+      console.error('[upload-pos-report] could not read', kind, readErr instanceof Error ? readErr.message : '');
+      throw new HttpError(422, kind === 'pdf'
+        ? "This PDF's text could not be read. Is it a scanned image?"
+        : 'This spreadsheet could not be read.');
+    }
+    const parsed: CashoutResult = parseSquirrelCashout(rows);
+
+    // Business date: what the GM chose, otherwise the date printed on the report.
+    const businessDate = businessDateInput || parsed.reportDate || '';
+    if (!businessDate) {
+      throw new HttpError(400, "This file doesn't show its date. Choose the business date and upload it again.");
+    }
 
     // ── Same file already uploaded for this location? ────────────────────────
     const { data: existing, error: existErr } = await admin
@@ -193,25 +215,6 @@ Deno.serve(async (req: Request) => {
       reportId = report.id;
     }
 
-    // ── Read the rows ────────────────────────────────────────────────────────
-    let pageCount = 0;
-    let rows: string[][] = [];
-    try {
-      const out = kind === 'pdf' ? await pdfRows(bytes) : sheetRows(bytes);
-      pageCount = out.pageCount;
-      rows = out.rows;
-    } catch (readErr: unknown) {
-      console.error('[upload-pos-report] could not read', kind, 'for', reportId, readErr instanceof Error ? readErr.message : '');
-      await admin.from('pos_reports')
-        .update({ status: 'needs_review', review_notes: `Could not read this ${kind} file`, updated_at: new Date().toISOString() })
-        .eq('id', reportId);
-      throw new HttpError(422, kind === 'pdf'
-        ? 'The file was saved, but its text could not be read. Is it a scanned image?'
-        : 'The file was saved, but the spreadsheet could not be read.');
-    }
-
-    // ── Understand it ────────────────────────────────────────────────────────
-    const parsed: CashoutResult = parseSquirrelCashout(rows);
     let matchedCount = 0;
     if (parsed.reportDate && parsed.reportDate !== businessDate) {
       parsed.warnings.unshift(`The report is dated ${parsed.reportDate}, but it was uploaded for ${businessDate}. Check the business date.`);
@@ -286,6 +289,7 @@ Deno.serve(async (req: Request) => {
     return respond({
       report_id: reportId,
       status,
+      business_date: businessDate,
       file_type: kind,
       page_count: pageCount,
       line_count: rows.length,
