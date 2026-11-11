@@ -624,7 +624,7 @@ export default function POSScreen() {
     }
   }
 
-      // Importing into Calculate isn't connected yet (Calculate never read this data).
+         function handleUseCSVData() { // Importing into Calculate isn't connected yet (Calculate never read this data).
     showAlert(
       'Not available yet',
       "Importing into Calculate isn't connected yet, so these figures weren't used. For now, enter them in the Calculate tab, or upload the end-of-night PDF on the Daily POS Report page.",
