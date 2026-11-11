@@ -568,7 +568,7 @@ export default function CalculateScreen() {
     }
   }
 
-  // ── Load a pending shift into the calculation form ────────────────────────
+   // ── Load a pending shift into the calculation form ────────────────────────
   async function handleLoadShift(shift: ActiveShift) {
     console.log('[Calculate] Load tapped for shift:', shift.id);
     try {
@@ -592,6 +592,32 @@ export default function CalculateScreen() {
       const { salesMap, totalSales } = computeSquirrelSalesMap(squirrelSalesCache, squirrelSalesCacheDate, shift.date);
       const squirrelStaffCount = Object.keys(salesMap).length;
 
+      // Confirmed end-of-night report (PDF upload) for this shift's date.
+      // Only confirmed reports are returned, and only staff matched to Mise.
+      const reportMap: Record<string, { salesCents: number; tipsCents: number }> = {};
+      if (locationId) {
+        try {
+          const { data: rep } = await supabase.functions.invoke('get-pos-report-lines', {
+            body: { location_id: locationId, date: shift.date },
+          });
+          const lines = (rep?.lines ?? []) as Array<{
+            staff_member_id: string;
+            net_sales_cents: number;
+            card_tips_cents: number;
+            cash_tips_cents: number;
+          }>;
+          for (const l of lines) {
+            reportMap[l.staff_member_id] = {
+              salesCents: l.net_sales_cents ?? 0,
+              tipsCents: (l.card_tips_cents ?? 0) + (l.cash_tips_cents ?? 0),
+            };
+          }
+        } catch (repErr) {
+          console.warn('[Calculate] could not load end-of-night report:', repErr instanceof Error ? repErr.message : String(repErr));
+        }
+      }
+      const reportStaffCount = Object.keys(reportMap).length;
+
       setShiftName(shift.name);
       setShiftDate(shift.date);
       setActiveShiftId(shift.id);
@@ -606,19 +632,24 @@ export default function CalculateScreen() {
           const hrs = hoursMap[s.id];
           if (hrs !== undefined) filledIds.add(s.id);
           const storedSales = allocMap[s.id]?.server_sales;
+          const reportRow = reportMap[s.id];
           const squirrelSales = salesMap[s.id];
+          // Sales priority: figures already saved for this shift, then the
+          // confirmed report, then the older Squirrel sync.
           let sales = '';
           if (storedSales) {
             sales = centsToDisplay(storedSales);
+          } else if (reportRow) {
+            sales = centsToDisplay(reportRow.salesCents);
           } else if (squirrelSales !== undefined) {
             sales = squirrelSales.toFixed(2);
             salesFilledIds.add(s.id);
           }
           return {
             ...s,
-            included: !!allocMap[s.id],
+            included: !!allocMap[s.id] || !!reportRow,
             sales,
-            tipsEarned: '',
+            tipsEarned: reportRow ? centsToDisplay(reportRow.tipsCents) : '',
             hoursWorked: hrs !== undefined ? String(hrs) : '',
           };
         }),
@@ -638,9 +669,12 @@ export default function CalculateScreen() {
 
       setPushFilledIds(filledIds);
       setSquirrelFilledIds(salesFilledIds);
-      if (staffCount > 0) {
-        const roundedHours = Math.round(totalHours * 10) / 10;
-        triggerPushBanner(`Labour loaded for ${formatDate(shift.date)} — ${staffCount} staff, ${roundedHours}h`);
+
+      const loaded: string[] = [];
+      if (reportStaffCount > 0) loaded.push(`report sales & tips for ${reportStaffCount} staff`);
+      if (staffCount > 0) loaded.push(`hours for ${staffCount} staff (${Math.round(totalHours * 10) / 10}h)`);
+      if (loaded.length > 0) {
+        triggerPushBanner(`Loaded for ${formatDate(shift.date)} — ${loaded.join(', ')}`);
       }
       if (squirrelStaffCount > 0) {
         const roundedSales = Math.round(totalSales * 100) / 100;
@@ -651,6 +685,7 @@ export default function CalculateScreen() {
     }
   }
 
+  
   // ── Calculate ─────────────────────────────────────────────────────────────
   function handleCalculate() {
     console.log("Calculate tapped");
