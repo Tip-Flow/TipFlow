@@ -265,11 +265,39 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ── Same night uploaded under a different date? ─────────────────────────
+    // Spreadsheets carry no date, so the same report can land on the wrong day.
+    // Identical sales AND tips to the cent on another date is treated as a duplicate.
+    let duplicateOf: string | null = null;
+    const ownNet = parsed.totals.netSalesCents ?? parsed.totals.sumNetSalesCents;
+    const ownTips = parsed.totals.tipsCents ?? parsed.totals.sumTipsCents;
+    if (parsed.recognised && ownNet > 0) {
+      const { data: others, error: othersErr } = await admin
+        .from('pos_reports')
+        .select('id, business_date, report_totals')
+        .eq('location_id', locationId)
+        .neq('business_date', businessDate)
+        .in('status', ['parsed', 'confirmed', 'needs_review'])
+        .order('business_date', { ascending: false })
+        .limit(120);
+      if (othersErr) throw new Error(`duplicate check failed: ${othersErr.message}`);
+      for (const o of others ?? []) {
+        if (o.id === reportId) continue;
+        const t = (o.report_totals ?? {}) as Record<string, number | null>;
+        const net = t.netSalesCents ?? t.sumNetSalesCents;
+        const tips = t.tipsCents ?? t.sumTipsCents;
+        if (net === ownNet && tips === ownTips) { duplicateOf = String(o.business_date); break; }
+      }
+      if (duplicateOf) {
+        parsed.warnings.unshift(`This looks like the same report as ${duplicateOf} (identical sales and tips). Check the business date before using it.`);
+      }
+    }
+
     const totalsOk = parsed.recognised &&
       (parsed.totals.tipsCents === null || parsed.totals.tipsCents === parsed.totals.sumTipsCents) &&
       (parsed.totals.netSalesCents === null || parsed.totals.netSalesCents === parsed.totals.sumNetSalesCents);
     const dateOk = !parsed.reportDate || parsed.reportDate === businessDate;
-    const status = parsed.recognised && totalsOk && dateOk ? 'parsed' : 'needs_review';
+    const status = parsed.recognised && totalsOk && dateOk && !duplicateOf ? 'parsed' : 'needs_review';
 
     const { error: updErr } = await admin.from('pos_reports')
       .update({
@@ -298,6 +326,7 @@ Deno.serve(async (req: Request) => {
       store_name: parsed.storeName,
       totals: parsed.totals,
       totals_match: totalsOk,
+      duplicate_of: duplicateOf,
       warnings: parsed.warnings,
       matched_count: matchedCount,
       accounts: parsed.accounts.map((a) => ({
