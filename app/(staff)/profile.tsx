@@ -614,8 +614,8 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.toggleDivider} />
               <View style={styles.contactRow}>
-                <Text style={styles.contactLabel}>Registered under</Text>
-                <Text style={styles.contactValue}>RPAA — Bank of Canada</Text>
+                <Text style={styles.contactLabel}>Data stored in</Text>
+                <Text style={styles.contactValue}>Canada</Text>
               </View>
             </View>
 
@@ -648,7 +648,7 @@ const FAQ = [
   },
   {
     q: 'Is my data safe?',
-    a: 'All data is stored in Canada (AWS ca-central-1), encrypted at rest with AES-256, and in transit with TLS 1.3. Mise is registered under RPAA.',
+    a: 'All Mise data is stored in Canada and encrypted both at rest and in transit. Payments are handled by our payment partner, Zum Rails.',
   },
 ];
 

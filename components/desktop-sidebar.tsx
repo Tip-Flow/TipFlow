@@ -51,7 +51,7 @@ export const DesktopSidebar = memo(function DesktopSidebar() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>RPAA registered · PIPEDA compliant</Text>
+        <Text style={styles.footerText}>Data stored in Canada</Text>
         <Text style={styles.footerText}>Data: ca-central-1</Text>
       </View>
     </View>
