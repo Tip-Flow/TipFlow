@@ -52,6 +52,7 @@ export default function ManagerLayout() {
             <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: SettingsIcon }} />
             <Tabs.Screen name="housepool" options={{ href: null }} />
             <Tabs.Screen name="shiftgoals" options={{ href: null }} />
+                        <Tabs.Screen name="reports" options={{ href: null }} />
           </Tabs>
         </View>
       </View>

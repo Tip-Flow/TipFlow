@@ -11,6 +11,7 @@ const WHITE_HOVER_BG = 'rgba(255,255,255,0.07)';
 const NAV_ITEMS = [
   { label: 'Home', segment: 'home', icon: '⊞' },
   { label: 'POS', segment: 'pos', icon: '💳' },
+    { label: 'Daily Report', segment: 'reports', icon: '📄' },
   { label: 'Calculate', segment: 'calculate', icon: '±' },
   { label: 'Payouts', segment: 'payouts', icon: '💸' },
   { label: 'Rewards', segment: 'rewards', icon: '⭐' },
