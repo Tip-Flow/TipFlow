@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
@@ -79,6 +79,27 @@ type UploadResult = {
   lines?: string[];
 };
 
+type RecentReport = {
+  id: string;
+  business_date: string;
+  status: string;
+  file_type: string | null;
+  report_totals: UploadResult['totals'] | null;
+};
+
+function weekday(date: string): string {
+  const d = new Date(`${date}T12:00:00`);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-CA', { weekday: 'short' });
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  confirmed: 'Confirmed',
+  parsed: 'Awaiting confirmation',
+  needs_review: 'Needs review',
+  uploaded: 'Not read',
+  rejected: 'Rejected',
+};
+
 type FileResult = { fileName: string; result: UploadResult };
 
 function statusLabel(r: UploadResult): { text: string; style: 'ok' | 'wait' | 'warn' | 'err' } {
@@ -127,6 +148,19 @@ export default function ReportsScreen() {
   const [reviewError, setReviewError] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [recent, setRecent] = useState<RecentReport[]>([]);
+
+  const loadRecent = useCallback(async () => {
+    if (!locationId) return;
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('review-pos-report', {
+        body: { action: 'list', location_id: locationId },
+      });
+      if (!fnErr) setRecent((data?.reports ?? []) as RecentReport[]);
+    } catch { /* the list is a convenience; ignore failures */ }
+  }, [locationId]);
+
+  useEffect(() => { loadRecent(); }, [loadRecent]);
 
   const callReview = useCallback(async (body: Record<string, unknown>) => {
     setReviewBusy(true);
@@ -140,12 +174,13 @@ export default function ReportsScreen() {
         fr.result.report_id === rv.report.id
           ? { ...fr, result: { ...fr.result, status: rv.report.status } }
           : fr));
+      loadRecent();
     } catch (e: unknown) {
       setReviewError(e instanceof Error ? e.message : 'Could not update the report.');
     } finally {
       setReviewBusy(false);
     }
-  }, []);
+  }, [loadRecent]);
 
   async function pickFile() {
     setError('');
@@ -205,6 +240,7 @@ export default function ReportsScreen() {
       out.sort((a, b) => (a.result.business_date ?? '').localeCompare(b.result.business_date ?? ''));
       setResults(out);
       setPicked([]);
+      loadRecent();
       // Open the first night that still needs confirming.
       const first = out.find((fr) => fr.result.report_id && fr.result.status === 'parsed')
         ?? out.find((fr) => fr.result.report_id && fr.result.recognised !== false);
@@ -270,6 +306,42 @@ export default function ReportsScreen() {
       <Text style={s.subtitle}>
         Upload the end-of-night Server Cashout report for {locationName ?? 'your restaurant'}. PDF or spreadsheet (Excel, Numbers, CSV).
       </Text>
+
+      {recent.length > 0 && (
+        <View style={s.card}>
+          <Text style={s.sectionTitle}>Recent reports</Text>
+          {(() => {
+            const waiting = recent.filter((r) => r.status === 'parsed').length;
+            return waiting > 0
+              ? <Text style={s.waitText}>{waiting} night{waiting === 1 ? '' : 's'} waiting for confirmation</Text>
+              : <Text style={s.hint}>Everything uploaded is confirmed or flagged.</Text>;
+          })()}
+          {recent.map((r) => {
+            const t = r.report_totals;
+            const selected = review?.report.id === r.id;
+            const style = r.status === 'confirmed' ? s.okText : r.status === 'parsed' ? s.waitText : s.warning;
+            return (
+              <View key={r.id} style={[s.resultRow, selected && s.resultRowSelected]}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={s.td}>{weekday(r.business_date)} {r.business_date}</Text>
+                  <Text style={style}>{STATUS_TEXT[r.status] ?? r.status}</Text>
+                  {t && (
+                    <Text style={s.kind}>
+                      Sales {money(t.netSalesCents ?? t.sumNetSalesCents)} · Tips {money(t.tipsCents ?? t.sumTipsCents)}
+                      {r.file_type ? ` · ${r.file_type.toUpperCase()}` : ''}
+                    </Text>
+                  )}
+                </View>
+                {r.status !== 'uploaded' && (
+                  <Pressable style={s.chip} onPress={() => openReview(r.id)} disabled={reviewBusy}>
+                    <Text style={s.chipText}>{selected ? 'Reviewing' : 'Review'}</Text>
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       <View style={s.card}>
         <Text style={s.label}>REPORT FILES</Text>

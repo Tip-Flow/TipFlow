@@ -21,6 +21,7 @@ class HttpError extends Error {
 //   match   -> link one POS account to a Mise staff member (remembered for next time)
 //   confirm -> approve the report so Calculate can use it
 //   reopen  -> undo a confirmation, e.g. to fix a match
+//   list    -> the location's recent reports (needs location_id instead of report_id)
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -31,7 +32,7 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
-    let body: { action?: unknown; report_id?: unknown; pos_employee_key?: unknown; staff_member_id?: unknown };
+    let body: { action?: unknown; report_id?: unknown; location_id?: unknown; pos_employee_key?: unknown; staff_member_id?: unknown };
     try {
       body = await req.json();
     } catch {
@@ -39,8 +40,13 @@ Deno.serve(async (req: Request) => {
     }
     const action = String(body.action ?? '');
     const reportId = typeof body.report_id === 'string' ? body.report_id : '';
-    if (!['get', 'match', 'confirm', 'reopen'].includes(action)) throw new HttpError(400, 'Unknown action');
-    if (!UUID_RE.test(reportId)) throw new HttpError(400, 'report_id is required');
+    if (!['get', 'match', 'confirm', 'reopen', 'list'].includes(action)) throw new HttpError(400, 'Unknown action');
+    const listLocationId = typeof body.location_id === 'string' ? body.location_id : '';
+    if (action === 'list') {
+      if (!UUID_RE.test(listLocationId)) throw new HttpError(400, 'location_id is required');
+    } else if (!UUID_RE.test(reportId)) {
+      throw new HttpError(400, 'report_id is required');
+    }
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -56,6 +62,34 @@ Deno.serve(async (req: Request) => {
     );
     if (authErr || !user) throw new HttpError(401, 'Unauthorized');
 
+    const isAdmin = ADMIN_EMAILS.includes(user.email ?? '');
+    const managesLocation = async (locId: string) => {
+      if (isAdmin) return true;
+      const { data: mgrRows, error: mgrErr } = await admin
+        .from('managers')
+        .select('id')
+        .eq('email', user.email ?? '')
+        .eq('location_id', locId)
+        .limit(1);
+      return !mgrErr && !!mgrRows && mgrRows.length > 0;
+    };
+
+    // ── list ─────────────────────────────────────────────────────────────────
+    if (action === 'list') {
+      if (!(await managesLocation(listLocationId))) {
+        throw new HttpError(403, 'This location does not belong to your account');
+      }
+      const { data: reports, error: listErr } = await admin
+        .from('pos_reports')
+        .select('id, business_date, status, file_type, report_totals, created_at')
+        .eq('location_id', listLocationId)
+        .order('business_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (listErr) throw new Error(`report list failed: ${listErr.message}`);
+      return respond({ reports: reports ?? [] });
+    }
+
     // ── The report, and permission for its location ──────────────────────────
     const { data: report, error: repErr } = await admin
       .from('pos_reports')
@@ -66,17 +100,8 @@ Deno.serve(async (req: Request) => {
     if (!report) throw new HttpError(404, 'Report not found');
     const locationId = String(report.location_id);
 
-    const isAdmin = ADMIN_EMAILS.includes(user.email ?? '');
-    if (!isAdmin) {
-      const { data: mgrRows, error: mgrErr } = await admin
-        .from('managers')
-        .select('id')
-        .eq('email', user.email ?? '')
-        .eq('location_id', locationId)
-        .limit(1);
-      if (mgrErr || !mgrRows || mgrRows.length === 0) {
-        throw new HttpError(403, 'This report does not belong to your location');
-      }
+    if (!(await managesLocation(locationId))) {
+      throw new HttpError(403, 'This report does not belong to your location');
     }
 
     // ── match ────────────────────────────────────────────────────────────────
