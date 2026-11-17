@@ -40,29 +40,11 @@ const RED_DIM = 'rgba(239,68,68,0.12)';
 
 const ROLES = ['server', 'bartender', 'runner', 'host', 'kitchen'] as const;
 
-const locations = [
-  {
-    name: 'Ossington',
-    city: 'Toronto, ON',
-    posType: 'Square API',
-    posStyle: 'teal',
-    connected: true,
-  },
-  {
-    name: 'Kensington',
-    city: 'Toronto, ON',
-    posType: 'CSV Upload',
-    posStyle: 'amber',
-    connected: false,
-  },
-];
+
 
 const posSystems = [
-  { name: 'Square', type: 'API' },
-  { name: 'Lightspeed', type: 'API' },
-  { name: 'TouchBistro', type: 'CSV' },
-  { name: "Maitre'D", type: 'CSV' },
-  { name: 'Any POS', type: 'CSV' },
+  { name: 'Squirrel', type: 'Report' },
+  { name: 'Push Operations', type: 'Hours' },
 ];
 
 function centsToDisplay(cents: number): string {
@@ -818,86 +800,25 @@ export default function POSScreen() {
         )}
 
 
-        {/* Location Cards */}
+               {/* End-of-night report */}
         <View style={styles.section}>
-          {locations.map((loc) => {
-            const isTeal = loc.posStyle === 'teal';
-            const isCSV = loc.posType === 'CSV Upload';
-            return (
-              <View key={loc.name} style={styles.locationCard}>
-                {/* Location name + city */}
-                <View style={styles.locHeader}>
-                  <View style={styles.locInfo}>
-                    <Text style={styles.locName}>{loc.name}</Text>
-                    <Text style={styles.locCity}>{loc.city}</Text>
-                  </View>
-                  <View style={[
-                    styles.statusBadge,
-                    loc.connected ? styles.statusConnected : styles.statusDisconnected,
-                  ]}>
-                    <View style={[
-                      styles.statusDot,
-                      { backgroundColor: loc.connected ? BLUE : '#ef4444' },
-                    ]} />
-                    <Text style={[
-                      styles.statusText,
-                      { color: loc.connected ? BLUE : '#ef4444' },
-                    ]}>
-                      {loc.connected ? 'Connected' : 'Not Connected'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* POS type badge */}
-                <View style={[
-                  styles.posBadge,
-                  isTeal ? styles.posBadgeTeal : styles.posBadgeAmber,
-                ]}>
-                  <Text style={[
-                    styles.posBadgeText,
-                    { color: isTeal ? BLUE : AMBER },
-                  ]}>
-                    {loc.posType}
-                  </Text>
-                </View>
-
-                {/* Primary action button */}
-                <Pressable
-                  style={[
-                    styles.actionBtn,
-                    isTeal ? styles.actionBtnTeal : styles.actionBtnAmber,
-                    ((loading && isCSV) || (pullingReport && !isCSV)) && styles.actionBtnDisabled,
-                  ]}
-                  disabled={(loading && isCSV) || (pullingReport && !isCSV)}
-                  onPress={isCSV ? handleUploadCSV : handlePullReport}>
-                  {(loading && isCSV) || (pullingReport && !isCSV) ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <Text style={styles.actionBtnText}>
-                      {loc.connected ? "Pull Tonight's Report" : 'Upload CSV'}
-                    </Text>
-                  )}
-                </Pressable>
-
-                {/* Scan Report button */}
-                <Pressable
-                  style={[
-                    styles.scanBtn,
-                    isTeal ? styles.scanBtnTeal : styles.scanBtnAmber,
-                  ]}
-                  onPress={handleScanReport}>
-                  <Text style={[
-                    styles.scanBtnText,
-                    { color: isTeal ? BLUE : AMBER },
-                  ]}>
-                    📷  Scan Report
-                  </Text>
-                </Pressable>
+          <View style={styles.locationCard}>
+            <View style={styles.locHeader}>
+              <View style={styles.locInfo}>
+                <Text style={styles.locName}>End-of-night report</Text>
+                <Text style={styles.locCity}>Squirrel Server Cashout · PDF or spreadsheet</Text>
               </View>
-            );
-          })}
+            </View>
+            <View style={[styles.posBadge, styles.posBadgeTeal]}>
+              <Text style={[styles.posBadgeText, { color: BLUE }]}>Squirrel</Text>
+            </View>
+            <Pressable
+              style={[styles.actionBtn, styles.actionBtnTeal]}
+              onPress={() => router.push('/(manager)/reports')}>
+              <Text style={styles.actionBtnText}>Upload tonight's report →</Text>
+            </Pressable>
+          </View>
         </View>
-
         {/* Shift Goals CTA */}
         <Pressable
           style={styles.shiftGoalsBtn}
@@ -910,68 +831,7 @@ export default function POSScreen() {
           <Text style={styles.integrationsTitle}>More Integrations</Text>
           <View style={styles.divider} />
 
-          {/* Squirrel */}
-          <Pressable
-            style={[styles.integrationRow, syncingSquirrel && { opacity: 0.6 }]}
-            onPress={handleSyncFromSquirrel}
-            disabled={syncingSquirrel}>
-            <View style={styles.integrationRowLeft}>
-              <View style={styles.integrationIcon}>
-                <Text style={styles.integrationIconText}>🖥️</Text>
-              </View>
-              <View>
-                <Text style={styles.integrationRowName}>Sync from Squirrel</Text>
-                <Text style={styles.integrationRowSub}>Staff & sales</Text>
-              </View>
-            </View>
-            {syncingSquirrel ? (
-              <ActivityIndicator color={BLUE} size="small" />
-            ) : (
-              <View style={styles.syncNowBadge}>
-                <Text style={styles.syncNowBadgeText}>Sync Now</Text>
-              </View>
-            )}
-          </Pressable>
-
-          {/* Diagnostic: find active dates */}
-          <View style={styles.activeDatesRow}>
-            <Pressable
-              onPress={handleFindSquirrelActiveDates}
-              disabled={checkingSquirrelDates || syncingSquirrel}
-              style={styles.findDatesBtn}>
-              {checkingSquirrelDates ? (
-                <ActivityIndicator color={MUTED} size="small" />
-              ) : (
-                <Text style={styles.findDatesBtnText}>
-                  {squirrelActiveDates.length > 0 ? `${squirrelActiveDates.length} dates with data` : 'Find active dates'}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-
-          {squirrelActiveDates.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.datePillsContent}
-              style={styles.datePillsScroll}>
-              {squirrelActiveDates.map((date) => (
-                <Pressable
-                  key={date}
-                  style={[styles.datePill, syncingSquirrelSalesDate === date && styles.datePillLoading]}
-                  onPress={() => handleSyncSquirrelSalesForDate(date)}
-                  disabled={syncingSquirrelSalesDate !== null}>
-                  {syncingSquirrelSalesDate === date ? (
-                    <ActivityIndicator color={BLUE} size="small" />
-                  ) : (
-                    <Text style={styles.datePillText}>{date}</Text>
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-
-          <View style={styles.rowDivider} />
+         
 
           {/* Push Operations */}
           <Pressable
