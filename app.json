@@ -26,6 +26,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -75,6 +77,12 @@
         "projectId": "1c2cc0e3-60b0-44ae-b123-7303af81b688"
       }
     },
-    "owner": "tipflow"
+    "owner": "tipflow",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1c2cc0e3-60b0-44ae-b123-7303af81b688"
+    }
   }
 }
