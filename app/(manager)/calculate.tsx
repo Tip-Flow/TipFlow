@@ -102,7 +102,7 @@ interface ActiveShift {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function today(): string {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toLocaleDateString('en-CA');
 }
 
 function centsToDisplay(cents: number): string {

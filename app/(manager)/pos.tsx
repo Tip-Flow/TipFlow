@@ -160,7 +160,7 @@ export default function POSScreen() {
 
   const handlePullReport = useCallback(async () => {
     console.log("Pull Tonight's Report tapped");
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
     console.log('[POS] handlePullReport triggered — locationId from hook:', locationId, '| today:', today);
     setPullingReport(true);
     try {
@@ -481,7 +481,7 @@ export default function POSScreen() {
       console.log('[POS] sync-squirrel-staff result:', JSON.stringify(staffData));
 
       // Step 2: Sync today's sales
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA');
       console.log('[POS] calling sync-squirrel-sales for date:', today);
       const salesRes = await supabase.functions.invoke('sync-squirrel-sales', {
         body: { location_id: locId, date: today },

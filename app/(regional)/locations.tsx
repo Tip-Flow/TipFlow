@@ -68,7 +68,7 @@ export default function RegionalLocations() {
     try {
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekStartStr = weekStart.toLocaleDateString('en-CA');
 
       const [locsRes, staffRes, shiftsRes] = await Promise.all([
         supabase.from('locations').select('id, name, city, pos_type, house_pool_balance'),

@@ -105,7 +105,7 @@ export default function ProgressScreen() {
       // Weekly average: shifts in the current week
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekStartStr = weekStart.toLocaleDateString('en-CA');
       const weekPoints = points.filter(p => p.date >= weekStartStr);
       const weeklyAvg = weekPoints.length > 0
         ? weekPoints.reduce((sum, p) => sum + p.pct, 0) / weekPoints.length

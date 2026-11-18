@@ -75,7 +75,7 @@ const recentMilestones = [
 ];
 
 function today(): string {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toLocaleDateString('en-CA');
 }
 
 export default function RewardsScreen() {

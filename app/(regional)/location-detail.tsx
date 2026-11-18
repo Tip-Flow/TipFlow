@@ -111,7 +111,7 @@ export default function LocationDetail() {
     try {
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekStartStr = weekStart.toLocaleDateString('en-CA');
 
       const [locRes, mgrRes, staffRes, shiftsRes, weekShiftsRes] = await Promise.all([
         supabase

@@ -73,7 +73,7 @@ export default function RegionalOverview() {
 
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekStartStr = weekStart.toLocaleDateString('en-CA');
 
       const [locsRes, staffRes, shiftsRes, requestsRes] = await Promise.all([
         supabase.from('locations').select('id, name, city, house_pool_balance'),

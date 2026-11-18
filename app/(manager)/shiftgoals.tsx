@@ -58,7 +58,7 @@ const GOAL_TYPE_LABELS: Record<GoalType, string> = {
   managers_choice: "Manager's Choice",
 };
 
-function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+function getTodayDate() { return new Date().toLocaleDateString('en-CA'); }
 function getTodayLabel() { return new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' }); }
 
 const DEMO_STAFF: StaffMember[] = [

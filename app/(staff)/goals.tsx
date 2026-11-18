@@ -7,7 +7,7 @@ import { useWebFocus } from '@/hooks/useWebFocus';
 
 // Demo — replace with real auth'd staff ID
 const MY_STAFF_ID = 'staff-1';
-const TODAY_DATE = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+const TODAY_DATE = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
 type ShiftGoal = {
   id: string;
