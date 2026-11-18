@@ -301,7 +301,7 @@ export default function ReportsScreen() {
   const matchedCount = staffLines.filter((l) => l.staff_member_id).length;
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+    <ScrollView style={s.screen} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic">
       <Text style={s.title}>Daily POS Report</Text>
       <Text style={s.subtitle}>
         Upload the end-of-night Server Cashout report for {locationName ?? 'your restaurant'}. PDF or spreadsheet (Excel, Numbers, CSV).
