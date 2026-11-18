@@ -91,6 +91,17 @@ interface SupportEntry {
   role: string;
   hoursWorked: string;
   included: boolean;
+  // Tips this person earned on their own account in the confirmed
+  // end-of-night report (e.g. a bar pot or a host who rang in sales).
+  // Paid to them as-is, on top of any tip-out or pool share.
+  reportTipsCents: number;
+}
+
+// The confirmed report's tips per matched staff member, kept so Calculate
+// can refuse to run if any of those tips aren't assigned to someone.
+interface ReportCheck {
+  totalTipsCents: number;
+  lines: Array<{ staffId: string; tipsCents: number }>;
 }
 
 interface ActiveShift {
@@ -243,6 +254,7 @@ export default function CalculateScreen() {
   const [summary, setSummary] = useState<ShiftSummaryResult | null>(null);
   const [housePoolAllocations, setHousePoolAllocations] = useState<HousePoolAllocation[] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reportCheck, setReportCheck] = useState<ReportCheck | null>(null);
 
   // Push labour hours cache: staff_member_id → hours (pre-filled from Push sync)
   const [pushHours, setPushHours] = useState<Record<string, number>>({});
@@ -360,6 +372,7 @@ export default function CalculateScreen() {
                 role: s.role?.toLowerCase() ?? 'runner',
                 hoursWorked: hrs !== undefined ? String(hrs) : '',
                 included: true,
+                reportTipsCents: 0,
               };
             }),
         );
@@ -548,8 +561,10 @@ export default function CalculateScreen() {
           ...s,
           included: selectedIds.has(s.id),
           hoursWorked: '',
+          reportTipsCents: 0,
         })),
       );
+      setReportCheck(null);
 
       // Pre-fill hours from the Push labour cache if it matches this new shift's date
       console.log('[Calculate] new shift created — checking Push cache for date:', newShiftDate);
@@ -581,6 +596,15 @@ export default function CalculateScreen() {
 
       setModalVisible(false);
       fetchActiveShifts(locationId);
+
+      // Load the new shift straight away, so the confirmed end-of-night
+      // report (if there is one for this date) fills in without a second click.
+      await handleLoadShift({
+        id: shiftData.id,
+        name: newShiftName.trim(),
+        date: newShiftDate,
+        staffCount: stubs.length,
+      });
     } catch (err: unknown) {
       showAlert('Failed to create shift', err instanceof Error ? err.message : String(err));
     } finally {
@@ -637,6 +661,12 @@ export default function CalculateScreen() {
         }
       }
       const reportStaffCount = Object.keys(reportMap).length;
+      const reportLines = Object.entries(reportMap).map(([staffId, r]) => ({ staffId, tipsCents: r.tipsCents }));
+      setReportCheck(
+        reportStaffCount > 0
+          ? { totalTipsCents: reportLines.reduce((sum, l) => sum + l.tipsCents, 0), lines: reportLines }
+          : null,
+      );
 
       setShiftName(shift.name);
       setShiftDate(shift.date);
@@ -679,10 +709,12 @@ export default function CalculateScreen() {
         prev.map((s) => {
           const hrs = hoursMap[s.id];
           if (hrs !== undefined) filledIds.add(s.id);
+          const reportRow = reportMap[s.id];
           return {
             ...s,
-            included: !!allocMap[s.id],
+            included: !!allocMap[s.id] || !!reportRow,
             hoursWorked: hrs !== undefined ? String(hrs) : '',
+            reportTipsCents: reportRow ? reportRow.tipsCents : 0,
           };
         }),
       );
@@ -736,6 +768,52 @@ export default function CalculateScreen() {
       return;
     }
 
+    // ── Report safety check ───────────────────────────────────────────────
+    // Every dollar of tips on the confirmed report must land with someone
+    // who is switched on for this shift. Never let tips silently drop.
+    if (reportCheck) {
+      const includedIds = new Set<string>([
+        ...servers.filter((s) => s.included).map((s) => s.id),
+        ...supportStaff.filter((s) => s.included).map((s) => s.id),
+      ]);
+      const unassigned = reportCheck.lines.filter((l) => l.tipsCents > 0 && !includedIds.has(l.staffId));
+      if (unassigned.length > 0) {
+        const names = unassigned.map((l) => {
+          const person = allStaff.find((s) => s.id === l.staffId);
+          return `${person ? person.name : 'A matched staff member not listed here'} ($${centsToDisplay(l.tipsCents)})`;
+        });
+        const missingCents = unassigned.reduce((sum, l) => sum + l.tipsCents, 0);
+        showAlert(
+          'Tips not assigned',
+          `$${centsToDisplay(missingCents)} in tips from the end-of-night report would not be paid out.\n\n` +
+            `Switch these people on for this shift:\n${names.join('\n')}`,
+        );
+        return;
+      }
+
+      const assignedCents =
+        activeServers.reduce((sum, s) => sum + dollarsToCents(s.tipsEarned), 0) +
+        supportStaff.filter((s) => s.included).reduce((sum, s) => sum + s.reportTipsCents, 0);
+      if (assignedCents !== reportCheck.totalTipsCents) {
+        showAlert(
+          'Tips differ from the report',
+          `Tips entered: $${centsToDisplay(assignedCents)}\n` +
+            `End-of-night report: $${centsToDisplay(reportCheck.totalTipsCents)}\n\n` +
+            'Calculate anyway?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Calculate', onPress: runCalculation },
+          ],
+        );
+        return;
+      }
+    }
+
+    runCalculation();
+  }
+
+  function runCalculation() {
+    const activeServers = servers.filter((s) => s.included);
     try {
       const serverInputs = activeServers.map((s) => ({
         id: s.id,
@@ -785,7 +863,13 @@ export default function CalculateScreen() {
   async function handleSaveAndPayout() {
     if (!summary || !housePoolAllocations || !locationId) return;
 
-    const totalTipsCents = summary.perServerBreakdown.reduce((sum, s) => sum + s.tipsEarned, 0);
+    // Support staff who earned tips on their own report account (e.g. the bar
+    // pot). They're paid those tips as-is, on top of any tip-out or pool share.
+    const supportReportTips = supportStaff.filter((s) => s.included && s.reportTipsCents > 0);
+    const supportReportTipsCents = supportReportTips.reduce((sum, s) => sum + s.reportTipsCents, 0);
+
+    const totalTipsCents =
+      summary.perServerBreakdown.reduce((sum, s) => sum + s.tipsEarned, 0) + supportReportTipsCents;
     const totalSalesCents = summary.perServerBreakdown.reduce((sum, s) => sum + s.sales, 0);
 
     const directTotals = getDirectTipOutTotals();
@@ -838,6 +922,16 @@ export default function CalculateScreen() {
             calculated_amount: amount,
           });
         }
+      }
+
+      for (const s of supportReportTips) {
+        rows.push({
+          shift_id: shiftId,
+          staff_id: s.id,
+          hours_worked: parseFloat(s.hoursWorked) || 0,
+          role_weight: 0,
+          calculated_amount: s.reportTipsCents,
+        });
       }
 
       return rows;
@@ -947,7 +1041,8 @@ export default function CalculateScreen() {
       setSummary(null);
       setHousePoolAllocations(null);
       setServers((prev) => prev.map((s) => ({ ...s, sales: '', tipsEarned: '', hoursWorked: '', included: true })));
-      setSupportStaff((prev) => prev.map((s) => ({ ...s, hoursWorked: '', included: true })));
+      setSupportStaff((prev) => prev.map((s) => ({ ...s, hoursWorked: '', included: true, reportTipsCents: 0 })));
+      setReportCheck(null);
       if (locationId) fetchActiveShifts(locationId);
 
       // Banner works on both mobile and web; Alert.alert on web maps to
@@ -1243,6 +1338,11 @@ export default function CalculateScreen() {
                       <Text style={styles.pushBadge}>Push</Text>
                     )}
                   </View>
+                  {s.reportTipsCents > 0 && (
+                    <Text style={styles.reportTipsNote}>
+                      + ${centsToDisplay(s.reportTipsCents)} tips from report
+                    </Text>
+                  )}
                 </View>
                 <TextInput
                   style={[styles.hoursInput, !s.included && styles.hoursInputDisabled, pushFilledIds.has(s.id) && styles.hoursInputPush]}
@@ -1318,6 +1418,26 @@ export default function CalculateScreen() {
         </View>
         <Text style={styles.totalAmount}>${centsToDisplay(summary.totalTipsKept)}</Text>
       </View>
+
+      {supportStaff.some((s) => s.included && s.reportTipsCents > 0) && (
+        <View style={styles.poolCard}>
+          <Text style={styles.poolCardTitle}>Tips From the Report</Text>
+          {supportStaff
+            .filter((s) => s.included && s.reportTipsCents > 0)
+            .map((s, i) => (
+              <View key={s.id}>
+                {i > 0 && <View style={styles.divider} />}
+                <View style={styles.poolRow}>
+                  <View>
+                    <Text style={styles.poolName}>{ROLE_EMOJIS[s.role] ?? ''} {s.name}</Text>
+                    <Text style={styles.poolMeta}>Own tips on the end-of-night report</Text>
+                  </View>
+                  <Text style={styles.poolAmount}>${centsToDisplay(s.reportTipsCents)}</Text>
+                </View>
+              </View>
+            ))}
+        </View>
+      )}
 
       {Object.keys(directTipOutTotals).length > 0 && (
         <View style={styles.poolCard}>
@@ -1803,6 +1923,7 @@ const styles = StyleSheet.create({
   staffInfo: { flex: 1, gap: 2 },
   staffName: { fontSize: 15, fontWeight: '700', color: WHITE },
   staffRole: { fontSize: 12, color: MUTED, fontWeight: '500' },
+  reportTipsNote: { fontSize: 12, color: BLUE, fontWeight: '700', marginTop: 3 },
   hoursInput: {
     fontSize: 15,
     fontWeight: '700',
