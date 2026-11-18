@@ -197,7 +197,7 @@ export function parseSquirrelCashout(rows: unknown[][]): CashoutResult {
     }
   }
   if (serviceCharge) {
-    warnings.push(`Service charges of ${(serviceCharge / 100).toFixed(2)} are reported for the whole location, not per server.`);
+    warnings.push(`Service charges of ${(serviceCharge / 100).toFixed(2)} are already included in the tips line. Nothing extra is added.`);
   }
 
   return {
