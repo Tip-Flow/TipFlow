@@ -25,16 +25,10 @@ const WHITE = '#e8f0ec';
 
 const FALLBACK_STATS = {
   locationName: 'Your Restaurant',
-  tipsThisWeek: '$8,120',
-  staffActive: '8',
-  bankNotLinked: '2',
+  tipsThisWeek: '—',
+  staffActive: '—',
+  bankNotLinked: '—',
 };
-
-const leaderboard = [
-  { rank: 1, name: 'Priya S.', tips: '$1,840', medal: '🥇' },
-  { rank: 2, name: 'Marcus T.', tips: '$1,610', medal: '🥈' },
-  { rank: 3, name: 'Lena K.', tips: '$1,290', medal: '🥉' },
-];
 
 export default function ManagerHome() {
   const router = useRouter();
@@ -122,7 +116,6 @@ export default function ManagerHome() {
   useWebFocus(fetchDashboardData);
 
   const stats = [
-    { label: 'Wallet Balance', value: '$5,820', icon: '💳', accent: BLUE },
     { label: 'Tips This Week', value: tipsThisWeek, icon: '📈', accent: BLUE },
     { label: 'Staff Active', value: staffActive, icon: '👥', accent: BLUE },
     { label: 'Bank Not Linked', value: bankNotLinked, icon: '🏦', accent: '#ff6b6b' },
@@ -144,21 +137,7 @@ export default function ManagerHome() {
     </View>
   );
 
-  const teamGoal = (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Weekly Team Goal</Text>
-        <Text style={styles.sectionBadge}>2 days left</Text>
-      </View>
-      <View style={styles.progressTrack}>
-        <View style={styles.progressFill} />
-      </View>
-      <View style={styles.progressLabels}>
-        <Text style={styles.progressPct}>79%</Text>
-        <Text style={styles.progressTarget}>Goal: $10,000</Text>
-      </View>
-    </View>
-  );
+  const teamGoal = null;
 
   const housePool = (
     <Pressable
@@ -180,28 +159,7 @@ export default function ManagerHome() {
     </Pressable>
   );
 
-  const leaderboardPanel = (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Top Performers</Text>
-      <View style={styles.leaderboardCard}>
-        {leaderboard.map((entry, index) => (
-          <View
-            key={entry.rank}
-            style={[
-              styles.leaderRow,
-              index < leaderboard.length - 1 && styles.leaderRowBorder,
-            ]}>
-            <Text style={styles.medal}>{entry.medal}</Text>
-            <View style={styles.leaderInfo}>
-              <Text style={styles.leaderName}>{entry.name}</Text>
-              <Text style={styles.leaderRank}>#{entry.rank} this week</Text>
-            </View>
-            <Text style={styles.leaderTips}>{entry.tips}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
+  const leaderboardPanel = null;
 
   return (
     <SafeAreaView style={styles.safe}>
